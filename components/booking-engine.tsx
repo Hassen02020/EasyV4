@@ -231,9 +231,14 @@ export function BookingEngine({
   const enabledModules = modules
     .filter((module) => module.enabled)
     .sort((a, b) => a.sortOrder - b.sortOrder)
-  const visibleTabs = tabsConfig.filter((tab) =>
-    enabledModules.some((module) => module.moduleSlug === tab.id),
-  )
+  // When DB is unavailable modules arrives as []; fall back to showing all tabs
+  // so the booking engine is always usable regardless of DB state.
+  const visibleTabs =
+    enabledModules.length > 0
+      ? tabsConfig.filter((tab) =>
+          enabledModules.some((module) => module.moduleSlug === tab.id),
+        )
+      : [...tabsConfig]
   const firstTab = visibleTabs[0]?.id ?? "hotels-tunisie"
   const [activeTab, setActiveTab] = useState<TabId>(firstTab)
   const [mobileOpen, setMobileOpen] = useState(false)
@@ -263,7 +268,7 @@ export function BookingEngine({
       </div>
 
       {/* Content */}
-      <div className="relative mx-auto max-w-6xl px-4 pt-16 pb-8 sm:px-6 sm:pt-24 sm:pb-10 lg:pt-28 lg:pb-14">
+      <div className="relative mx-auto max-w-6xl px-4 pt-12 pb-8 sm:px-6 sm:pt-16 sm:pb-10 lg:pt-20 lg:pb-12">
         {/* Headline */}
         <div className="e2b-fade-in-up mb-8 max-w-3xl sm:mb-10">
           <h1 className="text-3xl font-bold tracking-tight text-white drop-shadow-sm sm:text-4xl lg:text-[2.75rem] lg:leading-[1.05]">

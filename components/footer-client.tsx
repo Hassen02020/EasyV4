@@ -110,7 +110,7 @@ export function FooterClient({
     {
       icon: trustBadgeIcons[1],
       title: t("supportLocal"),
-      description: formattedPhone ?? "—",
+      description: formattedPhone ?? contactEmail ?? "easy2book.tn",
     },
     {
       icon: trustBadgeIcons[2],

@@ -3819,6 +3819,10 @@ export {
   type NewHotelSupplierCredentialRow,
   type HotelSupplierAuthorizationRow,
   type NewHotelSupplierAuthorizationRow,
+  // COMMERCIAL-HOTELS-01
+  hotelCommercialRules,
+  type HotelCommercialRule,
+  type NewHotelCommercialRule,
 } from "./schema/hotel-suppliers"
 
 /* -------------------------------------------------------------------------- */

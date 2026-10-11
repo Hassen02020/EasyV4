@@ -63,6 +63,7 @@ import { authoritativeUnitPrice } from "./hotel-provider-booking"
 import { getDefaultAgencyId } from "@/lib/agencies/default-agency"
 import { getMarginsForAgency } from "@/lib/pro/server-context"
 import { applyMargin } from "@/lib/pro/pricing"
+import { applyHotelCommercialEngine } from "@/lib/hotels/commercial-engine"
 import { resolveCheckoutPromoCore } from "@/lib/crm/promo-checkout-core"
 import { applyPromoDiscountCore } from "@/lib/finance/promo-discount-core"
 import { generateInvoiceForReservation } from "@/lib/finance/invoice-actions"
@@ -367,16 +368,22 @@ async function runCreateGuestReservation(
     }
   }
 
-  // Marge OTA appliquée exactement comme pour toute agence (même mécanisme
-  // que le B2B, `applyMargin`/`getMarginsForAgency` — pas une deuxième
-  // formule) : le client final paie le prix affiché par Easy2Book, jamais
-  // le prix net fournisseur brut.
+  // Marge OTA appliquée exactement comme pour toute agence : le client
+  // final paie le prix affiché par Easy2Book, jamais le prix net fournisseur.
+  // hotelMarginRule est toujours résolu (pour commission/ruleId downstream) ;
+  // COMMERCIAL-HOTELS-01 : si une règle DB existe, son sellingAmount remplace
+  // applyMargin() ; sinon fallback sur pricing_margins (comportement antérieur).
   const hotelMarginRule = (await getMarginsForAgency(agencyId, "", "direct"))
     .hotel
-  const agencyPriceBeforePromo = applyMargin(
+  const commercialResultB2C = await applyHotelCommercialEngine(
     myGoBooking.totalPrice,
-    hotelMarginRule,
+    "TND",
+    agencyId,
+    "B2C",
   )
+  const agencyPriceBeforePromo = commercialResultB2C
+    ? commercialResultB2C.sellingAmount
+    : applyMargin(myGoBooking.totalPrice, hotelMarginRule)
   const breakdownBeforePromo = computePriceBreakdown({
     ...authoritativeUnitPrice(agencyPriceBeforePromo, draft.adults),
     adults: draft.adults,

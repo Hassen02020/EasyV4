@@ -27,6 +27,7 @@ import {
   text,
   boolean,
   integer,
+  decimal,
   jsonb,
   timestamp,
   uniqueIndex,
@@ -199,3 +200,50 @@ export type HotelSupplierAuthorizationRow =
   typeof hotelSupplierAuthorizations.$inferSelect
 export type NewHotelSupplierAuthorizationRow =
   typeof hotelSupplierAuthorizations.$inferInsert
+
+// ---------------------------------------------------------------------------
+// COMMERCIAL-HOTELS-01 : moteur de règles commerciales DB-driven pour hôtels
+// Miroir de flight_commercial_rules — même structure, productScope adapté :
+//   { destination?, provider?, stars?, board_basis? }
+// ---------------------------------------------------------------------------
+
+export const hotelCommercialRules = pgTable(
+  "hotel_commercial_rules",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    // NULL = règle globale (s'applique à toutes les agences)
+    agencyId: uuid("agency_id"),
+    // NULL = s'applique à tous les canaux
+    channel: varchar("channel", { length: 16 }),
+    priority: integer("priority").notNull().default(50),
+    // JSONB : { destination?, provider?, stars?, board_basis? }
+    productScope: jsonb("product_scope"),
+    fixedFee: decimal("fixed_fee", { precision: 12, scale: 3 })
+      .notNull()
+      .default("0"),
+    markupRate: decimal("markup_rate", { precision: 8, scale: 5 })
+      .notNull()
+      .default("0"),
+    minMarkup: decimal("min_markup", { precision: 12, scale: 3 }),
+    maxMarkup: decimal("max_markup", { precision: 12, scale: 3 }),
+    currency: varchar("currency", { length: 3 }).notNull().default("TND"),
+    isActive: boolean("is_active").notNull().default(true),
+    validFrom: timestamp("valid_from", { withTimezone: true }),
+    validTo: timestamp("valid_to", { withTimezone: true }),
+    notes: text("notes"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    index("hotel_commercial_rules_priority_idx").on(t.priority),
+    index("hotel_commercial_rules_agency_channel_idx").on(t.agencyId, t.channel),
+    index("hotel_commercial_rules_active_idx").on(t.isActive),
+  ],
+)
+
+export type HotelCommercialRule = typeof hotelCommercialRules.$inferSelect
+export type NewHotelCommercialRule = typeof hotelCommercialRules.$inferInsert

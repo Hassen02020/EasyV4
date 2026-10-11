@@ -5,6 +5,7 @@ import { Footer } from "@/components/footer"
 import { HotelsTunisieSearch } from "@/components/hotels-tunisie-search"
 import { ModuleHero } from "@/components/module-hero"
 import { buildLanguageAlternates } from "@/lib/seo/alternate-languages"
+import { getPublicModuleVisual } from "@/lib/public/site-content"
 
 export const dynamic = "force-dynamic"
 
@@ -16,7 +17,10 @@ export const metadata = {
 }
 
 export default async function HotelsTunisiePage() {
-  const t = await getTranslations("Hotels")
+  const [t, visual] = await Promise.all([
+    getTranslations("Hotels"),
+    getPublicModuleVisual("hotels-tunisie"),
+  ])
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -25,7 +29,7 @@ export default async function HotelsTunisiePage() {
         <ModuleHero
           Icon={Building2}
           gradient="from-blue-900 to-blue-700"
-          imageUrl="/images/hotels-banner.svg"
+          imageUrl={visual?.heroImageUrl ?? "/images/hotels-banner.svg"}
           kicker={t("kicker")}
           title={t("heroTitle")}
           subtitle={t("heroSubtitle")}

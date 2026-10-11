@@ -59,11 +59,12 @@ function computeHotelCommercialResult(
   }
   const fee = rules.fixedFee
   const rawMarkup = supplierAmount * rules.markupRate
-  const markup = rules.minMarkup !== undefined
-    ? Math.max(rawMarkup, rules.minMarkup)
-    : rules.maxMarkup !== undefined
-    ? Math.min(rawMarkup, rules.maxMarkup)
-    : rawMarkup
+  const markup =
+    rules.minMarkup !== undefined
+      ? Math.max(rawMarkup, rules.minMarkup)
+      : rules.maxMarkup !== undefined
+        ? Math.min(rawMarkup, rules.maxMarkup)
+        : rawMarkup
   const sellingAmount = supplierAmount + fee + markup
   return {
     supplierAmount,
@@ -155,13 +156,24 @@ describe("HOTELS-MONDE-ENGINE-01 — fallback pricing_margins (aucune règle)", 
 
 describe("HOTELS-MONDE-ENGINE-01 — règle commerciale active", () => {
   it("fixedFee + markupRate appliqués au prix fournisseur", () => {
-    const price = computeSellingPrice(SUPPLIER_PRICE, COMMERCIAL_RULES_TND, DEFAULT_MARGIN)
-    const expected = SUPPLIER_PRICE + COMMERCIAL_RULES_TND.fixedFee + SUPPLIER_PRICE * COMMERCIAL_RULES_TND.markupRate
+    const price = computeSellingPrice(
+      SUPPLIER_PRICE,
+      COMMERCIAL_RULES_TND,
+      DEFAULT_MARGIN,
+    )
+    const expected =
+      SUPPLIER_PRICE +
+      COMMERCIAL_RULES_TND.fixedFee +
+      SUPPLIER_PRICE * COMMERCIAL_RULES_TND.markupRate
     assert.equal(price, expected)
   })
 
   it("résultat différent du fallback pricing_margins", () => {
-    const commercial = computeSellingPrice(SUPPLIER_PRICE, COMMERCIAL_RULES_TND, DEFAULT_MARGIN)
+    const commercial = computeSellingPrice(
+      SUPPLIER_PRICE,
+      COMMERCIAL_RULES_TND,
+      DEFAULT_MARGIN,
+    )
     const fallback = computeSellingPrice(SUPPLIER_PRICE, null, DEFAULT_MARGIN)
     assert.notEqual(commercial, fallback)
   })
@@ -174,19 +186,36 @@ describe("HOTELS-MONDE-ENGINE-01 — règle commerciale active", () => {
 describe("HOTELS-MONDE-ENGINE-01 — CURRENCY-DIM-01", () => {
   it("lève une erreur si devise fournisseur ≠ devise règle", () => {
     assert.throws(
-      () => computeHotelCommercialResult(SUPPLIER_PRICE, "TND", COMMERCIAL_RULES_EUR),
+      () =>
+        computeHotelCommercialResult(
+          SUPPLIER_PRICE,
+          "TND",
+          COMMERCIAL_RULES_EUR,
+        ),
       /CURRENCY-DIM-01/,
     )
   })
 
   it("fallback pricing_margins sur CURRENCY-DIM-01 (pas de propagation)", () => {
-    const price = computeSellingPrice(SUPPLIER_PRICE, COMMERCIAL_RULES_EUR, DEFAULT_MARGIN)
+    const price = computeSellingPrice(
+      SUPPLIER_PRICE,
+      COMMERCIAL_RULES_EUR,
+      DEFAULT_MARGIN,
+    )
     assert.equal(price, applyMargin(SUPPLIER_PRICE, DEFAULT_MARGIN))
   })
 
   it("fallback identique au cas sans règle commerciale", () => {
-    const withBadRule = computeSellingPrice(SUPPLIER_PRICE, COMMERCIAL_RULES_EUR, DEFAULT_MARGIN)
-    const withoutRule = computeSellingPrice(SUPPLIER_PRICE, null, DEFAULT_MARGIN)
+    const withBadRule = computeSellingPrice(
+      SUPPLIER_PRICE,
+      COMMERCIAL_RULES_EUR,
+      DEFAULT_MARGIN,
+    )
+    const withoutRule = computeSellingPrice(
+      SUPPLIER_PRICE,
+      null,
+      DEFAULT_MARGIN,
+    )
     assert.equal(withBadRule, withoutRule)
   })
 })
@@ -197,15 +226,31 @@ describe("HOTELS-MONDE-ENGINE-01 — CURRENCY-DIM-01", () => {
 
 describe("HOTELS-MONDE-ENGINE-01 — détection PRICE_CHANGED", () => {
   it("même règle → même prix (pas de PRICE_CHANGED en mode normal)", () => {
-    const searchPrice = computeSellingPrice(SUPPLIER_PRICE, COMMERCIAL_RULES_TND, DEFAULT_MARGIN)
-    const bookPrice = computeSellingPrice(SUPPLIER_PRICE, COMMERCIAL_RULES_TND, DEFAULT_MARGIN)
+    const searchPrice = computeSellingPrice(
+      SUPPLIER_PRICE,
+      COMMERCIAL_RULES_TND,
+      DEFAULT_MARGIN,
+    )
+    const bookPrice = computeSellingPrice(
+      SUPPLIER_PRICE,
+      COMMERCIAL_RULES_TND,
+      DEFAULT_MARGIN,
+    )
     assert.equal(searchPrice, bookPrice)
   })
 
   it("prix fournisseur +12% → PRICE_CHANGED attendu", () => {
-    const searchPrice = computeSellingPrice(SUPPLIER_PRICE, COMMERCIAL_RULES_TND, DEFAULT_MARGIN)
+    const searchPrice = computeSellingPrice(
+      SUPPLIER_PRICE,
+      COMMERCIAL_RULES_TND,
+      DEFAULT_MARGIN,
+    )
     const newSupplierPrice = Math.round(SUPPLIER_PRICE * 1.12)
-    const bookPrice = computeSellingPrice(newSupplierPrice, COMMERCIAL_RULES_TND, DEFAULT_MARGIN)
+    const bookPrice = computeSellingPrice(
+      newSupplierPrice,
+      COMMERCIAL_RULES_TND,
+      DEFAULT_MARGIN,
+    )
     assert.notEqual(searchPrice, bookPrice)
     assert.ok(bookPrice > searchPrice)
   })
@@ -217,16 +262,25 @@ describe("HOTELS-MONDE-ENGINE-01 — détection PRICE_CHANGED", () => {
 
 describe("HOTELS-MONDE-ENGINE-01 — promo sur prix commercial", () => {
   it("remise appliquée sur le prix de vente confirmé, pas le prix net", () => {
-    const commercialPrice = computeSellingPrice(SUPPLIER_PRICE, COMMERCIAL_RULES_TND, DEFAULT_MARGIN)
+    const commercialPrice = computeSellingPrice(
+      SUPPLIER_PRICE,
+      COMMERCIAL_RULES_TND,
+      DEFAULT_MARGIN,
+    )
     const discountPercent = 5
-    const discountAmount = Math.round(commercialPrice * (discountPercent / 100) * 100) / 100
+    const discountAmount =
+      Math.round(commercialPrice * (discountPercent / 100) * 100) / 100
     const promoPrice = commercialPrice - discountAmount
     assert.ok(promoPrice < commercialPrice)
     assert.ok(promoPrice > SUPPLIER_PRICE) // jamais sous le coût fournisseur
   })
 
   it("promo ne peut pas ramener le prix sous le coût fournisseur (PROMO-LOSS-POLICY-01)", () => {
-    const commercialPrice = computeSellingPrice(SUPPLIER_PRICE, COMMERCIAL_RULES_TND, DEFAULT_MARGIN)
+    const commercialPrice = computeSellingPrice(
+      SUPPLIER_PRICE,
+      COMMERCIAL_RULES_TND,
+      DEFAULT_MARGIN,
+    )
     // Remise agressive simulée — mais protégée par supplierPriceTnd
     const aggressiveDiscount = commercialPrice * 0.99 // 99% de remise
     const rawPromoPrice = commercialPrice - aggressiveDiscount
@@ -241,15 +295,25 @@ describe("HOTELS-MONDE-ENGINE-01 — promo sur prix commercial", () => {
 
 describe("HOTELS-MONDE-ENGINE-01 — idempotence", () => {
   it("computeHotelCommercialResult est déterministe", () => {
-    const r1 = computeHotelCommercialResult(SUPPLIER_PRICE, "TND", COMMERCIAL_RULES_TND)
-    const r2 = computeHotelCommercialResult(SUPPLIER_PRICE, "TND", COMMERCIAL_RULES_TND)
+    const r1 = computeHotelCommercialResult(
+      SUPPLIER_PRICE,
+      "TND",
+      COMMERCIAL_RULES_TND,
+    )
+    const r2 = computeHotelCommercialResult(
+      SUPPLIER_PRICE,
+      "TND",
+      COMMERCIAL_RULES_TND,
+    )
     assert.deepEqual(r1, r2)
   })
 
   it("plusieurs offres traitées avec la même règle résolue une seule fois", () => {
     const offers = [800, 1000, 1200, 1500]
-    const prices = offers.map((p) =>
-      computeHotelCommercialResult(p, "TND", COMMERCIAL_RULES_TND).sellingAmount,
+    const prices = offers.map(
+      (p) =>
+        computeHotelCommercialResult(p, "TND", COMMERCIAL_RULES_TND)
+          .sellingAmount,
     )
     // Vérifier monotonie croissante
     for (let i = 1; i < prices.length; i++) {
@@ -267,7 +331,11 @@ describe("HOTELS-MONDE-ENGINE-01 — agencyId null (pas d'agence)", () => {
     // Simule ce que fait search/route.ts : si agencyId null, commercialRules null
     const agencyId: string | null = null
     const commercialRules = agencyId ? COMMERCIAL_RULES_TND : null
-    const price = computeSellingPrice(SUPPLIER_PRICE, commercialRules, DEFAULT_MARGIN)
+    const price = computeSellingPrice(
+      SUPPLIER_PRICE,
+      commercialRules,
+      DEFAULT_MARGIN,
+    )
     assert.equal(price, applyMargin(SUPPLIER_PRICE, DEFAULT_MARGIN))
   })
 })
@@ -283,7 +351,11 @@ describe("HOTELS-MONDE-ENGINE-01 — règle globale vs règle agence", () => {
       markupRate: 0.05,
       currency: "TND",
     }
-    const price = computeSellingPrice(SUPPLIER_PRICE, globalRule, DEFAULT_MARGIN)
+    const price = computeSellingPrice(
+      SUPPLIER_PRICE,
+      globalRule,
+      DEFAULT_MARGIN,
+    )
     assert.ok(price > SUPPLIER_PRICE)
   })
 })
@@ -294,15 +366,29 @@ describe("HOTELS-MONDE-ENGINE-01 — règle globale vs règle agence", () => {
 
 describe("HOTELS-MONDE-ENGINE-01 — formule de prix", () => {
   it("sellingAmount = supplierAmount + fixedFee + markupRate * supplierAmount", () => {
-    const result = computeHotelCommercialResult(SUPPLIER_PRICE, "TND", COMMERCIAL_RULES_TND)
-    const expected = SUPPLIER_PRICE + COMMERCIAL_RULES_TND.fixedFee + SUPPLIER_PRICE * COMMERCIAL_RULES_TND.markupRate
+    const result = computeHotelCommercialResult(
+      SUPPLIER_PRICE,
+      "TND",
+      COMMERCIAL_RULES_TND,
+    )
+    const expected =
+      SUPPLIER_PRICE +
+      COMMERCIAL_RULES_TND.fixedFee +
+      SUPPLIER_PRICE * COMMERCIAL_RULES_TND.markupRate
     assert.equal(result.sellingAmount, expected)
   })
 
   it("fee et markup sont exposés séparément", () => {
-    const result = computeHotelCommercialResult(SUPPLIER_PRICE, "TND", COMMERCIAL_RULES_TND)
+    const result = computeHotelCommercialResult(
+      SUPPLIER_PRICE,
+      "TND",
+      COMMERCIAL_RULES_TND,
+    )
     assert.equal(result.fee, COMMERCIAL_RULES_TND.fixedFee)
-    assert.equal(result.markup, SUPPLIER_PRICE * COMMERCIAL_RULES_TND.markupRate)
+    assert.equal(
+      result.markup,
+      SUPPLIER_PRICE * COMMERCIAL_RULES_TND.markupRate,
+    )
   })
 })
 
@@ -315,7 +401,11 @@ describe("HOTELS-MONDE-ENGINE-01 — BOOKING_REJECTED sur erreur", () => {
     let agencyPrice: number | null = null
     let rejected = false
     try {
-      agencyPrice = computeHotelCommercialResult(SUPPLIER_PRICE, "TND", COMMERCIAL_RULES_EUR).sellingAmount
+      agencyPrice = computeHotelCommercialResult(
+        SUPPLIER_PRICE,
+        "TND",
+        COMMERCIAL_RULES_EUR,
+      ).sellingAmount
     } catch {
       rejected = true
     }
@@ -371,7 +461,11 @@ describe("HOTELS-MONDE-ENGINE-01 — règle neutre (pas de marge)", () => {
       markupRate: 0,
       currency: "TND",
     }
-    const result = computeHotelCommercialResult(SUPPLIER_PRICE, "TND", neutralRules)
+    const result = computeHotelCommercialResult(
+      SUPPLIER_PRICE,
+      "TND",
+      neutralRules,
+    )
     assert.equal(result.sellingAmount, SUPPLIER_PRICE)
     assert.equal(result.fee, 0)
     assert.equal(result.markup, 0)
@@ -406,7 +500,11 @@ describe("HOTELS-MONDE-ENGINE-01 — règle EUR + fournisseur TND (CURRENCY-DIM-
     assert.ok(currencyMismatch, "mismatch détecté")
 
     // Le moteur ne doit JAMAIS produire un prix avec un taux inventé
-    const price = computeSellingPrice(SUPPLIER_PRICE, COMMERCIAL_RULES_EUR, DEFAULT_MARGIN)
+    const price = computeSellingPrice(
+      SUPPLIER_PRICE,
+      COMMERCIAL_RULES_EUR,
+      DEFAULT_MARGIN,
+    )
     // Prix = fallback pricing_margins, pas une conversion inventée
     assert.equal(price, applyMargin(SUPPLIER_PRICE, DEFAULT_MARGIN))
   })

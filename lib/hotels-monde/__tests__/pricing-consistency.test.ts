@@ -136,7 +136,9 @@ describe("PRICING-CONSISTENCY-01 — booking pricingFn : règle valide", () => {
     const { fn } = makeBookingPricingFn(RULES_TND, MARGIN)
     const price = fn(SUPPLIER_PRICE)
     const expected =
-      SUPPLIER_PRICE + RULES_TND.fixedFee + SUPPLIER_PRICE * RULES_TND.markupRate
+      SUPPLIER_PRICE +
+      RULES_TND.fixedFee +
+      SUPPLIER_PRICE * RULES_TND.markupRate
     assert.equal(price, expected)
   })
 
@@ -191,7 +193,9 @@ describe("PRICING-CONSISTENCY-01 — booking pricingFn : règle invalide → fal
     assert.equal(fallbackPrice, expectedFallback)
     // Vérifie que le prix n'est pas calculé avec le taux EUR → jamais != applyMargin
     const wrongPrice =
-      SUPPLIER_PRICE + RULES_EUR.fixedFee + SUPPLIER_PRICE * RULES_EUR.markupRate
+      SUPPLIER_PRICE +
+      RULES_EUR.fixedFee +
+      SUPPLIER_PRICE * RULES_EUR.markupRate
     assert.notEqual(fallbackPrice, wrongPrice)
   })
 })
@@ -258,7 +262,10 @@ describe("PRICING-CONSISTENCY-01 — symétrie search/booking : règle invalide 
 
   it("la même recette : search TND + booking TND → même prix", () => {
     const searchValid = makeSearchPricingFn(RULES_TND, MARGIN)(SUPPLIER_PRICE)
-    const searchFallback = makeSearchPricingFn(RULES_EUR, MARGIN)(SUPPLIER_PRICE)
+    const searchFallback = makeSearchPricingFn(
+      RULES_EUR,
+      MARGIN,
+    )(SUPPLIER_PRICE)
     const { fn: bookFn } = makeBookingPricingFn(RULES_EUR, MARGIN)
     const bookFallback = bookFn(SUPPLIER_PRICE)
     // les deux fallbacks sont identiques

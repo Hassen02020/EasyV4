@@ -848,7 +848,17 @@
     "confirmationStatusLabel": "الحالة",
     "confirmationDateLabel": "تاريخ الطلب",
     "confirmationSlaNotice": "سيقوم فريق التذاكر لدينا بمعالجة طلبك خلال {minutes} دقيقة. ستصلك التذكرة الإلكترونية عبر البريد الإلكتروني عند التأكيد.",
-    "confirmationSlaMinutes": "15"
+    "confirmationSlaMinutes": "15",
+    "farePolicyTitle": "شروط السعر",
+    "farePolicyRefundable": "قابل للاسترداد",
+    "farePolicyNonRefundable": "غير قابل للاسترداد",
+    "farePolicyChangeable": "قابل للتعديل",
+    "farePolicyNotChangeable": "غير قابل للتعديل",
+    "farePolicyChangeFee": "رسوم التعديل",
+    "farePolicyConditions": "الشروط",
+    "farePolicyUnknown": "شروط السعر غير متاحة — سيؤكد لك الوكيل الشروط",
+    "acceptFarePolicy": "لقد قرأت وأوافق على شروط سعر هذه الرحلة (سياسة الاسترداد والتعديل)",
+    "mustAcceptFarePolicy": "يجب عليك قبول شروط السعر للمتابعة."
   },
   "Car": {
     "kicker": "تأجير السيارات",
@@ -1023,6 +1033,8 @@
     "methodCashDesc": "الحجز يبقى محجوز 48 سا في انتظار الخلاص — الفوشار يتصدر بعد تأكيد الخلاص",
     "methodWalletLabel": "رصيد Easy2Book",
     "methodWalletDesc": "يتنقّص من رصيدك (اللي تزاد من استرجاع سابق) — المبلغ بالضبط يتحقق ويتنقّص من طرف السيرفر وقت التأكيد",
+    "methodWalletBalanceDesc": "الرصيد المتاح: {balance} دت — يتنقّص وقت التأكيد",
+    "methodWalletInsufficientDesc": "الرصيد غير كافي ({balance} دت متاح) — اشحن حسابك أو اختر طريقة دفع أخرى",
     "methodAtHotelLabel": "الخلاص في الفندق",
     "methodAtHotelDesc": "الحجز تسجّل، بلا خلاص أونلاين — الخلاص يصير مباشرة في الفندق وقت الإقامة، الفوشار يتصدر بعد تأكيد الخلاص",
     "missingTravelerInfo": "معطيات المسافر ناقصة — ارجع للخطوة اللي قبل.",
@@ -1039,7 +1051,8 @@
     "paymentTransferTitle": "الدفع بالتحويل البنكي",
     "paymentTransferNotice": "سيتم إرسال بياناتنا البنكية إليك عبر البريد الإلكتروني. سيتم إصدار تذكرتك فور استلام التحويل.",
     "paymentCashTitle": "الدفع نقداً في الوكالة",
-    "paymentCashNotice": "قم بزيارتنا مع رقم الحجز. سيتم إصدار تذكرتك فوراً بعد الدفع."
+    "paymentCashNotice": "قم بزيارتنا مع رقم الحجز. سيتم إصدار تذكرتك فوراً بعد الدفع.",
+    "mustAcceptPolicy": "يجب عليك قبول سياسة الإلغاء للمتابعة."
   },
   "Paiement": {
     "simulationEnvTitle": "محيط تجريبي",

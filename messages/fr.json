@@ -848,7 +848,17 @@
     "confirmationStatusLabel": "Statut",
     "confirmationDateLabel": "Demande enregistrée le",
     "confirmationSlaNotice": "Notre équipe billetterie va traiter votre demande dans les {minutes} minutes. Vous recevrez votre e-ticket par email dès confirmation.",
-    "confirmationSlaMinutes": "15"
+    "confirmationSlaMinutes": "15",
+    "farePolicyTitle": "Conditions tarifaires",
+    "farePolicyRefundable": "Remboursable",
+    "farePolicyNonRefundable": "Non remboursable",
+    "farePolicyChangeable": "Modifiable",
+    "farePolicyNotChangeable": "Non modifiable",
+    "farePolicyChangeFee": "Frais de modification",
+    "farePolicyConditions": "Conditions",
+    "farePolicyUnknown": "Conditions tarifaires non disponibles — l'opérateur vous confirmera les modalités",
+    "acceptFarePolicy": "J'ai lu et j'accepte les conditions tarifaires de ce vol (politique de remboursement et de modification)",
+    "mustAcceptFarePolicy": "Vous devez accepter les conditions tarifaires pour continuer."
   },
   "Car": {
     "kicker": "Location de Voiture",
@@ -1023,6 +1033,8 @@
     "methodCashDesc": "Réservation maintenue 48 h en attente de paiement — voucher émis après confirmation du règlement",
     "methodWalletLabel": "Solde Easy2Book",
     "methodWalletDesc": "Débité de votre solde client (crédité lors d'un remboursement précédent) — le montant exact est vérifié et prélevé par le serveur au moment de la validation",
+    "methodWalletBalanceDesc": "Solde disponible : {balance} DT — sera débité à la confirmation",
+    "methodWalletInsufficientDesc": "Solde insuffisant ({balance} DT disponible) — rechargez votre compte ou choisissez un autre mode de paiement",
     "methodAtHotelLabel": "Paiement à l'hôtel",
     "methodAtHotelDesc": "Réservation enregistrée, aucun règlement en ligne — le paiement est effectué directement à l'hôtel lors du séjour, voucher émis après confirmation du règlement",
     "missingTravelerInfo": "Informations voyageur manquantes — revenez à l'étape précédente.",
@@ -1039,7 +1051,8 @@
     "paymentTransferTitle": "Réglez par virement bancaire",
     "paymentTransferNotice": "Nos coordonnées bancaires vous seront envoyées par email. Votre billet sera émis dès réception du virement.",
     "paymentCashTitle": "Réglez en espèces en agence",
-    "paymentCashNotice": "Présentez-vous dans nos locaux avec cette référence de réservation. Votre billet sera émis immédiatement après paiement."
+    "paymentCashNotice": "Présentez-vous dans nos locaux avec cette référence de réservation. Votre billet sera émis immédiatement après paiement.",
+    "mustAcceptPolicy": "Vous devez accepter la politique d'annulation pour continuer."
   },
   "Paiement": {
     "simulationEnvTitle": "Environnement de simulation",

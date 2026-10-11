@@ -107,7 +107,7 @@ async function creditAgencyForRefund(
     publicRef: string
     amountTnd: number
     reason: string
-    actorUserId: string
+    actorUserId: string | null
   },
 ): Promise<void> {
   const [agency] = await tx
@@ -148,10 +148,21 @@ export interface ApplyReservationRefundInput {
   tx: DrizzleTransaction
   agencyId: string
   reservationId: string
-  customerId: string
+  /**
+   * UUID du client lié (B2C). Null pour les réservations B2B (financées par
+   * crédit agence via `wasFundedByAgencyCredit`) ou les processus automatisés
+   * qui ne connaissent pas encore le customer — dans ce cas, si le remboursement
+   * doit créditer un wallet client (B2C), une erreur explicite est levée.
+   */
+  customerId: string | null
   publicRef: string
   reason: string
-  actorUserId: string
+  /**
+   * UUID de l'utilisateur déclencheur. Null pour les processus automatisés
+   * (sync fournisseur, cron, webhook) — stocké tel quel dans les tables
+   * d'audit qui acceptent la valeur NULL.
+   */
+  actorUserId: string | null
   /** Omis = remboursement total du montant encore remboursable. */
   amountTnd?: number
   /**
@@ -244,6 +255,11 @@ export async function applyReservationRefund(
       actorUserId,
     })
   } else {
+    if (!customerId) {
+      throw new Error(
+        `REFUND_NO_CUSTOMER: remboursement wallet B2C impossible sans customerId (reservationId=${reservationId})`,
+      )
+    }
     const credit = await creditCustomerWallet({
       customerId,
       amountTnd: requestedTnd,

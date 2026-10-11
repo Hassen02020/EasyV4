@@ -1,7 +1,6 @@
 import { Link, redirect } from "@/i18n/navigation"
 import { getLocale, getTranslations } from "next-intl/server"
 import { ChevronLeft } from "lucide-react"
-import { CancellationPolicyDisplay } from "@/components/booking/cancellation-policy-display"
 import { HeaderWrapper as Header } from "@/components/header-wrapper"
 import { Footer } from "@/components/footer"
 import { Card, CardContent } from "@/components/ui/card"
@@ -10,6 +9,11 @@ import { Badge } from "@/components/ui/badge"
 import { decodeDraft } from "@/lib/booking/draft-store"
 import { computePriceBreakdown, formatMoney } from "@/lib/booking/pricing"
 import { resolveDraftHotelPrice } from "@/lib/booking/price-token"
+import { resolveLinkedAuthUserId } from "@/lib/booking/customer-identity"
+import { getCustomerWalletBalance } from "@/lib/finance/customer-wallet"
+import { getDb } from "@/lib/db/client"
+import { customers } from "@/lib/db/schema"
+import { eq } from "drizzle-orm"
 import { BookingSteps } from "@/components/booking/booking-steps"
 import dynamicImport from "next/dynamic"
 import { Suspense } from "react"
@@ -98,6 +102,23 @@ async function CheckoutContent({ searchParams }: { searchParams: SP }) {
     unitChildPriceTnd: draft.unitChildPriceTnd,
   })
 
+  let walletBalanceTnd = 0
+  try {
+    const authUserId = await resolveLinkedAuthUserId(traveler.email)
+    if (authUserId) {
+      const [customer] = await getDb()
+        .select({ id: customers.id })
+        .from(customers)
+        .where(eq(customers.authUserId, authUserId))
+        .limit(1)
+      if (customer) {
+        walletBalanceTnd = await getCustomerWalletBalance(customer.id)
+      }
+    }
+  } catch {
+    // safe fallback: balance = 0, wallet option will show as disabled
+  }
+
   return (
     <div className="flex min-h-screen flex-col">
       <Header />
@@ -151,24 +172,6 @@ async function CheckoutContent({ searchParams }: { searchParams: SP }) {
                 </CardContent>
               </Card>
 
-              {draft.module === "hotel" &&
-                typeof (draft.metadata as Record<string, unknown> | undefined)
-                  ?.hasFreeCancellation === "boolean" && (
-                  <CancellationPolicyDisplay
-                    hotelCancellation={{
-                      hasFreeCancellation:
-                        (draft.metadata as Record<string, unknown>)
-                          .hasFreeCancellation === true,
-                      freeCancellationDate:
-                        typeof (draft.metadata as Record<string, unknown>)
-                          .freeCancellationDate === "string"
-                          ? ((draft.metadata as Record<string, unknown>)
-                              .freeCancellationDate as string)
-                          : undefined,
-                    }}
-                  />
-                )}
-
               <Card>
                 <CardContent className="space-y-3 p-6">
                   <h3 className="text-sm font-semibold tracking-wide uppercase">
@@ -197,7 +200,30 @@ async function CheckoutContent({ searchParams }: { searchParams: SP }) {
               <Suspense
                 fallback={<Skeleton className="h-48 w-full rounded-2xl" />}
               >
-                <CheckoutForm token={token!} campaignId={campaignId} />
+                <CheckoutForm
+                  token={token!}
+                  campaignId={campaignId}
+                  walletBalanceTnd={walletBalanceTnd}
+                  totalTnd={breakdown.totalTnd}
+                  hotelCancellation={
+                    draft.module === "hotel" &&
+                    typeof (
+                      draft.metadata as Record<string, unknown> | undefined
+                    )?.hasFreeCancellation === "boolean"
+                      ? {
+                          hasFreeCancellation:
+                            (draft.metadata as Record<string, unknown>)
+                              .hasFreeCancellation === true,
+                          freeCancellationDate:
+                            typeof (draft.metadata as Record<string, unknown>)
+                              .freeCancellationDate === "string"
+                              ? ((draft.metadata as Record<string, unknown>)
+                                  .freeCancellationDate as string)
+                              : undefined,
+                        }
+                      : undefined
+                  }
+                />
               </Suspense>
             </div>
 

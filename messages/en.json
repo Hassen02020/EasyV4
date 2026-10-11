@@ -848,7 +848,17 @@
     "confirmationStatusLabel": "Status",
     "confirmationDateLabel": "Request submitted on",
     "confirmationSlaNotice": "Our ticketing team will process your request within {minutes} minutes. You will receive your e-ticket by email upon confirmation.",
-    "confirmationSlaMinutes": "15"
+    "confirmationSlaMinutes": "15",
+    "farePolicyTitle": "Fare conditions",
+    "farePolicyRefundable": "Refundable",
+    "farePolicyNonRefundable": "Non-refundable",
+    "farePolicyChangeable": "Changeable",
+    "farePolicyNotChangeable": "Not changeable",
+    "farePolicyChangeFee": "Change fee",
+    "farePolicyConditions": "Conditions",
+    "farePolicyUnknown": "Fare conditions unavailable — the agent will confirm the terms",
+    "acceptFarePolicy": "I have read and accept the fare conditions for this flight (refund and change policy)",
+    "mustAcceptFarePolicy": "You must accept the fare conditions to continue."
   },
   "Car": {
     "kicker": "Car Rental",
@@ -1023,6 +1033,8 @@
     "methodCashDesc": "Booking held for 48h pending payment — voucher issued once payment is confirmed",
     "methodWalletLabel": "Easy2Book balance",
     "methodWalletDesc": "Debited from your customer balance (credited from a previous refund) — the exact amount is verified and charged by the server at validation",
+    "methodWalletBalanceDesc": "Available balance: {balance} TND — will be debited at confirmation",
+    "methodWalletInsufficientDesc": "Insufficient balance ({balance} TND available) — top up your account or choose another payment method",
     "methodAtHotelLabel": "Pay at the hotel",
     "methodAtHotelDesc": "Booking recorded, no online payment — payment is made directly at the hotel during the stay, voucher issued once payment is confirmed",
     "missingTravelerInfo": "Missing traveler information — go back to the previous step.",
@@ -1039,7 +1051,8 @@
     "paymentTransferTitle": "Pay by bank transfer",
     "paymentTransferNotice": "Our bank details will be sent to you by email. Your ticket will be issued once the transfer is received.",
     "paymentCashTitle": "Pay in cash at our agency",
-    "paymentCashNotice": "Visit our office with this booking reference. Your ticket will be issued immediately after payment."
+    "paymentCashNotice": "Visit our office with this booking reference. Your ticket will be issued immediately after payment.",
+    "mustAcceptPolicy": "You must accept the cancellation policy to continue."
   },
   "Paiement": {
     "simulationEnvTitle": "Simulation environment",

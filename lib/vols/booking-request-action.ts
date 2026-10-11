@@ -307,6 +307,21 @@ export async function createFlightBookingRequest(
             startDate: firstItinSeg?.departure ?? null,
             channel: "b2c_guest",
             paymentMethod: paymentMethod ?? null,
+            // Snapshot de la politique tarifaire figée au moment de l'achat.
+            // Source : itinerary.fareRules (résolu depuis le fournisseur à la
+            // recherche, jamais recalculé après). Null = fournisseur virtuel/
+            // test sans données tarifaires — opérateur décide manuellement.
+            farePolicy: itinerary.fareRules
+              ? {
+                  refundable: itinerary.fareRules.refundable,
+                  changeable: itinerary.fareRules.changeable,
+                  changePenaltyAmount:
+                    itinerary.fareRules.changePenaltyAmount ?? null,
+                  changePenaltyCurrency:
+                    itinerary.fareRules.changePenaltyCurrency ?? null,
+                  conditions: itinerary.fareRules.conditions ?? null,
+                }
+              : null,
           },
         })
         .returning({

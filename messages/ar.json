@@ -848,7 +848,17 @@
     "confirmationStatusLabel": "الحالة",
     "confirmationDateLabel": "تاريخ الطلب",
     "confirmationSlaNotice": "سيقوم فريق التذاكر لدينا بمعالجة طلبك خلال {minutes} دقيقة. ستصلك التذكرة الإلكترونية عبر البريد الإلكتروني عند التأكيد.",
-    "confirmationSlaMinutes": "15"
+    "confirmationSlaMinutes": "15",
+    "farePolicyTitle": "شروط السعر",
+    "farePolicyRefundable": "قابل للاسترداد",
+    "farePolicyNonRefundable": "غير قابل للاسترداد",
+    "farePolicyChangeable": "قابل للتعديل",
+    "farePolicyNotChangeable": "غير قابل للتعديل",
+    "farePolicyChangeFee": "رسوم التعديل",
+    "farePolicyConditions": "الشروط",
+    "farePolicyUnknown": "شروط السعر غير متاحة — سيؤكد لك الوكيل الشروط",
+    "acceptFarePolicy": "لقد قرأت وأوافق على شروط سعر هذه الرحلة (سياسة الاسترداد والتعديل)",
+    "mustAcceptFarePolicy": "يجب عليك قبول شروط السعر للمتابعة."
   },
   "Car": {
     "kicker": "تأجير السيارات",

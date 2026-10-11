@@ -27,9 +27,12 @@ import {
   CreditCard,
   Banknote,
   Building2,
+  ShieldCheck,
+  ShieldX,
+  Info,
 } from "lucide-react"
 import { createFlightBookingRequest } from "@/lib/vols/booking-request-action"
-import type { Ancillary } from "@/lib/vols/canonical"
+import type { Ancillary, CanonicalFareRules } from "@/lib/vols/canonical"
 
 export interface PassengerBookingFormProps {
   snapshotId: string
@@ -45,6 +48,9 @@ export interface PassengerBookingFormProps {
   availableAncillaries?: Ancillary[]
   /** CAMPAIGN-LINK-01 — indice optionnel depuis ?campaign=<uuid> dans l'URL. */
   campaignId?: string
+  /** Politique tarifaire figée depuis l'offre fournisseur. Null = fournisseur
+   * virtuel/test ou données absentes — affichage "conditions non disponibles". */
+  fareRules?: CanonicalFareRules | null
 }
 
 interface PassengerFields {
@@ -97,11 +103,13 @@ export function PassengerBookingForm({
   departureDisplay,
   availableAncillaries = [],
   campaignId,
+  fareRules,
 }: PassengerBookingFormProps) {
   const router = useRouter()
   const t = useTranslations("Vols")
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [fareAccepted, setFareAccepted] = useState(false)
   const [passengers, setPassengers] = useState<PassengerFields[]>(
     Array.from({ length: Math.max(1, passengerCount) }, emptyPassenger),
   )
@@ -136,6 +144,10 @@ export function PassengerBookingForm({
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setError(null)
+    if (fareRules !== undefined && !fareAccepted) {
+      setError(t("mustAcceptFarePolicy"))
+      return
+    }
     setSubmitting(true)
     try {
       const result = await createFlightBookingRequest({
@@ -423,6 +435,95 @@ export function PassengerBookingForm({
           </label>
         </CardContent>
       </Card>
+
+      {/* Fare policy — displayed when fareRules is passed (real offer or null = unknown) */}
+      {fareRules !== undefined && (
+        <Card
+          className={
+            fareRules === null
+              ? "border-dashed"
+              : fareRules.refundable
+                ? "border-emerald-200"
+                : "border-amber-200"
+          }
+        >
+          <CardContent className="space-y-3 p-4">
+            <div className="flex items-center gap-2">
+              {fareRules === null ? (
+                <Info className="text-muted-foreground size-5 shrink-0" />
+              ) : fareRules.refundable ? (
+                <ShieldCheck className="size-5 text-emerald-600" />
+              ) : (
+                <ShieldX className="size-5 text-amber-600" />
+              )}
+              <p className="text-sm font-semibold">{t("farePolicyTitle")}</p>
+            </div>
+            {fareRules === null ? (
+              <p className="text-muted-foreground text-sm">
+                {t("farePolicyUnknown")}
+              </p>
+            ) : (
+              <dl className="grid grid-cols-1 gap-x-4 gap-y-1.5 text-sm sm:grid-cols-2">
+                <div className="flex items-center justify-between sm:block">
+                  <dt className="text-muted-foreground text-xs">
+                    {t("farePolicyRefundable")}
+                  </dt>
+                  <dd className="font-medium">
+                    {fareRules.refundable
+                      ? t("farePolicyRefundable")
+                      : t("farePolicyNonRefundable")}
+                  </dd>
+                </div>
+                <div className="flex items-center justify-between sm:block">
+                  <dt className="text-muted-foreground text-xs">
+                    {t("farePolicyChangeable")}
+                  </dt>
+                  <dd className="font-medium">
+                    {fareRules.changeable
+                      ? t("farePolicyChangeable")
+                      : t("farePolicyNotChangeable")}
+                  </dd>
+                </div>
+                {fareRules.changeable &&
+                  fareRules.changePenaltyAmount != null && (
+                    <div className="flex items-center justify-between sm:block">
+                      <dt className="text-muted-foreground text-xs">
+                        {t("farePolicyChangeFee")}
+                      </dt>
+                      <dd className="font-medium">
+                        {fareRules.changePenaltyAmount}{" "}
+                        {fareRules.changePenaltyCurrency ?? ""}
+                      </dd>
+                    </div>
+                  )}
+                {fareRules.conditions && (
+                  <div className="col-span-full">
+                    <dt className="text-muted-foreground text-xs">
+                      {t("farePolicyConditions")}
+                    </dt>
+                    <dd className="text-muted-foreground mt-0.5 text-xs leading-snug">
+                      {fareRules.conditions}
+                    </dd>
+                  </div>
+                )}
+              </dl>
+            )}
+            <div className="flex items-start gap-2 border-t pt-3">
+              <Checkbox
+                id="fare-policy-accept"
+                checked={fareAccepted}
+                onCheckedChange={(v) => setFareAccepted(Boolean(v))}
+              />
+              <Label
+                htmlFor="fare-policy-accept"
+                className="text-muted-foreground cursor-pointer text-sm leading-snug"
+              >
+                {t("acceptFarePolicy")}
+              </Label>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {error && (
         <Alert variant="destructive">

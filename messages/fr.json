@@ -848,7 +848,17 @@
     "confirmationStatusLabel": "Statut",
     "confirmationDateLabel": "Demande enregistrée le",
     "confirmationSlaNotice": "Notre équipe billetterie va traiter votre demande dans les {minutes} minutes. Vous recevrez votre e-ticket par email dès confirmation.",
-    "confirmationSlaMinutes": "15"
+    "confirmationSlaMinutes": "15",
+    "farePolicyTitle": "Conditions tarifaires",
+    "farePolicyRefundable": "Remboursable",
+    "farePolicyNonRefundable": "Non remboursable",
+    "farePolicyChangeable": "Modifiable",
+    "farePolicyNotChangeable": "Non modifiable",
+    "farePolicyChangeFee": "Frais de modification",
+    "farePolicyConditions": "Conditions",
+    "farePolicyUnknown": "Conditions tarifaires non disponibles — l'opérateur vous confirmera les modalités",
+    "acceptFarePolicy": "J'ai lu et j'accepte les conditions tarifaires de ce vol (politique de remboursement et de modification)",
+    "mustAcceptFarePolicy": "Vous devez accepter les conditions tarifaires pour continuer."
   },
   "Car": {
     "kicker": "Location de Voiture",

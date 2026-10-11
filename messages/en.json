@@ -848,7 +848,17 @@
     "confirmationStatusLabel": "Status",
     "confirmationDateLabel": "Request submitted on",
     "confirmationSlaNotice": "Our ticketing team will process your request within {minutes} minutes. You will receive your e-ticket by email upon confirmation.",
-    "confirmationSlaMinutes": "15"
+    "confirmationSlaMinutes": "15",
+    "farePolicyTitle": "Fare conditions",
+    "farePolicyRefundable": "Refundable",
+    "farePolicyNonRefundable": "Non-refundable",
+    "farePolicyChangeable": "Changeable",
+    "farePolicyNotChangeable": "Not changeable",
+    "farePolicyChangeFee": "Change fee",
+    "farePolicyConditions": "Conditions",
+    "farePolicyUnknown": "Fare conditions unavailable — the agent will confirm the terms",
+    "acceptFarePolicy": "I have read and accept the fare conditions for this flight (refund and change policy)",
+    "mustAcceptFarePolicy": "You must accept the fare conditions to continue."
   },
   "Car": {
     "kicker": "Car Rental",

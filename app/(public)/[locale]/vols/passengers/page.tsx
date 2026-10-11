@@ -87,6 +87,7 @@ async function PassengersContent({
         departureDisplay={departureDisplay}
         availableAncillaries={availableAncillaries}
         campaignId={campaignId}
+        fareRules={itinerary.fareRules ?? null}
       />
     </main>
   )

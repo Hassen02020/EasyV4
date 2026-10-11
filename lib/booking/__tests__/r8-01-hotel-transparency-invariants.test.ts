@@ -71,29 +71,36 @@ describe("R8-01 — Transparence tarifaire hôtel", () => {
     })
   })
 
-  describe("Checkout — CancellationPolicyDisplay réutilisé", () => {
-    it("importe CancellationPolicyDisplay dans checkout/page.tsx", () => {
-      const src = read("app/(public)/[locale]/booking/checkout/page.tsx")
-      assert.ok(
-        src.includes("CancellationPolicyDisplay"),
-        "checkout/page.tsx doit importer CancellationPolicyDisplay",
-      )
-    })
-
-    it("utilise hotelCancellation prop dans checkout/page.tsx", () => {
+  describe("Checkout — politique d'annulation avec acceptation obligatoire (HOTEL-CANCEL-ACCEPT-01)", () => {
+    it("checkout/page.tsx passe hotelCancellation à CheckoutForm", () => {
       const src = read("app/(public)/[locale]/booking/checkout/page.tsx")
       assert.ok(
         src.includes("hotelCancellation"),
-        "checkout/page.tsx doit passer hotelCancellation à CancellationPolicyDisplay",
+        "checkout/page.tsx doit passer hotelCancellation à CheckoutForm",
       )
     })
 
-    it("ne contient pas de badge ShieldCheck inline autonome dans checkout", () => {
+    it("checkout-form.tsx accepte la prop hotelCancellation", () => {
+      const src = read("components/booking/checkout-form.tsx")
+      assert.ok(
+        src.includes("hotelCancellation"),
+        "checkout-form.tsx doit accepter la prop hotelCancellation",
+      )
+    })
+
+    it("checkout-form.tsx bloque la soumission si la politique n'est pas acceptée", () => {
+      const src = read("components/booking/checkout-form.tsx")
+      assert.ok(
+        src.includes("policyAccepted"),
+        "checkout-form.tsx doit gérer l'état policyAccepted pour bloquer la soumission",
+      )
+    })
+
+    it("ne contient pas de badge ShieldCheck inline autonome dans checkout/page.tsx", () => {
       const src = read("app/(public)/[locale]/booking/checkout/page.tsx")
-      // Il ne doit pas y avoir de bg-emerald-50 inline (ancien badge rejeté)
       assert.ok(
         !src.includes("bg-emerald-50"),
-        "checkout/page.tsx ne doit pas contenir de badge ShieldCheck inline (remplacé par CancellationPolicyDisplay)",
+        "checkout/page.tsx ne doit pas contenir de badge ShieldCheck inline",
       )
     })
   })
@@ -122,6 +129,7 @@ describe("R8-01 — Transparence tarifaire hôtel", () => {
       "Hotels.nightsFromPrice",
       "Booking.freeCancellationAvailable",
       "Booking.freeCancellationUntilLabel",
+      "Booking.mustAcceptPolicy",
     ]
 
     for (const locale of locales) {

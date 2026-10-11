@@ -215,12 +215,10 @@ async function CheckoutContent({ searchParams }: { searchParams: SP }) {
                             (draft.metadata as Record<string, unknown>)
                               .hasFreeCancellation === true,
                           freeCancellationDate:
-                            typeof (
-                              draft.metadata as Record<string, unknown>
-                            ).freeCancellationDate === "string"
-                              ? ((
-                                  draft.metadata as Record<string, unknown>
-                                ).freeCancellationDate as string)
+                            typeof (draft.metadata as Record<string, unknown>)
+                              .freeCancellationDate === "string"
+                              ? ((draft.metadata as Record<string, unknown>)
+                                  .freeCancellationDate as string)
                               : undefined,
                         }
                       : undefined

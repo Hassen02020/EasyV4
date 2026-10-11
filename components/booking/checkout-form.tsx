@@ -45,7 +45,10 @@ export function CheckoutForm({
   walletBalanceTnd?: number
   totalTnd?: number
   /** Politique d'annulation hôtel depuis draft.metadata — affichée avec case à cocher obligatoire. */
-  hotelCancellation?: { hasFreeCancellation: boolean; freeCancellationDate?: string }
+  hotelCancellation?: {
+    hasFreeCancellation: boolean
+    freeCancellationDate?: string
+  }
 }) {
   const t = useTranslations("Booking")
   const locale = useLocale()
@@ -109,10 +112,13 @@ export function CheckoutForm({
   const formattedCancellationDate = hotelCancellation?.freeCancellationDate
     ? (() => {
         try {
-          return new Date(hotelCancellation.freeCancellationDate!).toLocaleDateString(
-            locale,
-            { day: "2-digit", month: "long", year: "numeric" },
-          )
+          return new Date(
+            hotelCancellation.freeCancellationDate!,
+          ).toLocaleDateString(locale, {
+            day: "2-digit",
+            month: "long",
+            year: "numeric",
+          })
         } catch {
           return hotelCancellation.freeCancellationDate
         }
@@ -227,8 +233,7 @@ export function CheckoutForm({
             <div className="grid gap-3 sm:grid-cols-1">
               {METHODS.map((m) => {
                 const isWallet = m.key === "wallet"
-                const walletDisabled =
-                  isWallet && walletBalanceTnd < totalTnd
+                const walletDisabled = isWallet && walletBalanceTnd < totalTnd
                 const active = method === m.key
                 const Icon = m.icon
                 return (
@@ -281,7 +286,7 @@ export function CheckoutForm({
           {hotelCancellation && (
             <div
               className={
-                "rounded-lg border p-4 space-y-3 " +
+                "space-y-3 rounded-lg border p-4 " +
                 (hotelCancellation.hasFreeCancellation
                   ? "border-emerald-200"
                   : "border-amber-200")
@@ -389,7 +394,11 @@ export function CheckoutForm({
             <Button
               type="submit"
               size="lg"
-              disabled={pending || !acceptCgv || (!!hotelCancellation && !policyAccepted)}
+              disabled={
+                pending ||
+                !acceptCgv ||
+                (!!hotelCancellation && !policyAccepted)
+              }
               className="w-full sm:flex-1"
             >
               {pending ? t("validatingReservation") : t("confirmAndPay")}

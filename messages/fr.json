@@ -678,7 +678,12 @@
     "processing": "Traitement en cours…",
     "mustAcceptCgv": "Vous devez accepter les conditions générales de vente.",
     "unknownError": "Erreur inconnue",
-    "nationalityPlaceholder": "Tunisienne"
+    "nationalityPlaceholder": "Tunisienne",
+    "cancellationPolicyTitle": "Politique d'annulation",
+    "cancellationFree": "Annulation gratuite",
+    "cancellationNonRefundable": "Non remboursable — aucun remboursement en cas d'annulation",
+    "acceptCancellationPolicy": "J'ai lu et j'accepte la politique d'annulation de cette offre",
+    "mustAcceptCancellationPolicy": "Vous devez accepter la politique d'annulation pour continuer"
   },
   "Attractions": {
     "kicker": "Attractions",

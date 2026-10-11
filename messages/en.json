@@ -678,7 +678,12 @@
     "processing": "Processing…",
     "mustAcceptCgv": "You must accept the terms and conditions of sale.",
     "unknownError": "Unknown error",
-    "nationalityPlaceholder": "Tunisian"
+    "nationalityPlaceholder": "Tunisian",
+    "cancellationPolicyTitle": "Cancellation policy",
+    "cancellationFree": "Free cancellation",
+    "cancellationNonRefundable": "Non-refundable — no refund in case of cancellation",
+    "acceptCancellationPolicy": "I have read and accept the cancellation policy for this offer",
+    "mustAcceptCancellationPolicy": "You must accept the cancellation policy to continue"
   },
   "Attractions": {
     "kicker": "Attractions",

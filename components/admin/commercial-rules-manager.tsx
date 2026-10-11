@@ -85,7 +85,9 @@ function RuleCard({ rule, onToggle, onDelete, isPending }: RuleCardProps) {
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0 flex-1 space-y-1">
           <div className="flex flex-wrap items-center gap-2">
-            <span className="font-mono text-xs text-slate-500">{rule.id.slice(0, 8)}…</span>
+            <span className="font-mono text-xs text-slate-500">
+              {rule.id.slice(0, 8)}…
+            </span>
             {active ? (
               <Badge className="border-emerald-300 bg-emerald-100 text-xs text-emerald-800">
                 <CheckCircle2 className="mr-1 h-3 w-3" />
@@ -124,7 +126,9 @@ function RuleCard({ rule, onToggle, onDelete, isPending }: RuleCardProps) {
           <div className="grid grid-cols-2 gap-x-4 gap-y-0.5 text-sm sm:grid-cols-4">
             <span>
               <span className="text-muted-foreground">Frais fixe : </span>
-              <strong className="font-mono">{rule.fixedFee} {rule.currency}</strong>
+              <strong className="font-mono">
+                {rule.fixedFee} {rule.currency}
+              </strong>
             </span>
             <span>
               <span className="text-muted-foreground">Markup : </span>
@@ -254,7 +258,10 @@ function CreateForm({ type, onCreated, onCancel }: CreateFormProps) {
     const input: CreateCommercialRuleInput = {
       type,
       agencyId: agencyId.trim() || null,
-      channel: channel === "__all__" ? null : (channel as CreateCommercialRuleInput["channel"]),
+      channel:
+        channel === "__all__"
+          ? null
+          : (channel as CreateCommercialRuleInput["channel"]),
       priority: Number(priority),
       productScope: buildProductScope(),
       fixedFee: Number(fixedFee),
@@ -282,19 +289,38 @@ function CreateForm({ type, onCreated, onCancel }: CreateFormProps) {
     <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
       <div className="space-y-1.5">
         <Label>Destination (optionnel)</Label>
-        <Input value={scopeDestination} onChange={(e) => setScopeDestination(e.target.value)} placeholder="ex : TUN, MAR…" />
+        <Input
+          value={scopeDestination}
+          onChange={(e) => setScopeDestination(e.target.value)}
+          placeholder="ex : TUN, MAR…"
+        />
       </div>
       <div className="space-y-1.5">
         <Label>Fournisseur (optionnel)</Label>
-        <Input value={scopeProvider} onChange={(e) => setScopeProvider(e.target.value)} placeholder="ex : hotels-monde" />
+        <Input
+          value={scopeProvider}
+          onChange={(e) => setScopeProvider(e.target.value)}
+          placeholder="ex : hotels-monde"
+        />
       </div>
       <div className="space-y-1.5">
         <Label>Étoiles (optionnel)</Label>
-        <Input type="number" min="1" max="5" value={scopeStars} onChange={(e) => setScopeStars(e.target.value)} placeholder="1–5" />
+        <Input
+          type="number"
+          min="1"
+          max="5"
+          value={scopeStars}
+          onChange={(e) => setScopeStars(e.target.value)}
+          placeholder="1–5"
+        />
       </div>
       <div className="space-y-1.5">
         <Label>Board basis (optionnel)</Label>
-        <Input value={scopeBoardBasis} onChange={(e) => setScopeBoardBasis(e.target.value)} placeholder="ex : BB, HB, AI…" />
+        <Input
+          value={scopeBoardBasis}
+          onChange={(e) => setScopeBoardBasis(e.target.value)}
+          placeholder="ex : BB, HB, AI…"
+        />
       </div>
     </div>
   )
@@ -303,23 +329,43 @@ function CreateForm({ type, onCreated, onCancel }: CreateFormProps) {
     <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
       <div className="space-y-1.5">
         <Label>Cabin (optionnel)</Label>
-        <Input value={scopeCabin} onChange={(e) => setScopeCabin(e.target.value)} placeholder="ex : economy, business" />
+        <Input
+          value={scopeCabin}
+          onChange={(e) => setScopeCabin(e.target.value)}
+          placeholder="ex : economy, business"
+        />
       </div>
       <div className="space-y-1.5">
         <Label>Fournisseur (optionnel)</Label>
-        <Input value={scopeProvider} onChange={(e) => setScopeProvider(e.target.value)} placeholder="ex : duffel" />
+        <Input
+          value={scopeProvider}
+          onChange={(e) => setScopeProvider(e.target.value)}
+          placeholder="ex : duffel"
+        />
       </div>
       <div className="space-y-1.5">
         <Label>Origine (optionnel)</Label>
-        <Input value={scopeOrigin} onChange={(e) => setScopeOrigin(e.target.value)} placeholder="ex : TUN" />
+        <Input
+          value={scopeOrigin}
+          onChange={(e) => setScopeOrigin(e.target.value)}
+          placeholder="ex : TUN"
+        />
       </div>
       <div className="space-y-1.5">
         <Label>Destination (optionnel)</Label>
-        <Input value={scopeDestination} onChange={(e) => setScopeDestination(e.target.value)} placeholder="ex : CDG" />
+        <Input
+          value={scopeDestination}
+          onChange={(e) => setScopeDestination(e.target.value)}
+          placeholder="ex : CDG"
+        />
       </div>
       <div className="space-y-1.5">
         <Label>Compagnie (optionnel)</Label>
-        <Input value={scopeAirline} onChange={(e) => setScopeAirline(e.target.value)} placeholder="ex : TU" />
+        <Input
+          value={scopeAirline}
+          onChange={(e) => setScopeAirline(e.target.value)}
+          placeholder="ex : TU"
+        />
       </div>
     </div>
   )
@@ -337,22 +383,37 @@ function CreateForm({ type, onCreated, onCancel }: CreateFormProps) {
           <div className="space-y-1.5">
             <Label>Canal</Label>
             <Select value={channel} onValueChange={setChannel}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
               <SelectContent>
                 <SelectItem value="__all__">Tous les canaux</SelectItem>
                 {Object.entries(CHANNEL_LABELS).map(([k, label]) => (
-                  <SelectItem key={k} value={k}>{label}</SelectItem>
+                  <SelectItem key={k} value={k}>
+                    {label}
+                  </SelectItem>
                 ))}
               </SelectContent>
             </Select>
           </div>
           <div className="space-y-1.5">
             <Label>Priorité</Label>
-            <Input type="number" min="1" max="1000" value={priority} onChange={(e) => setPriority(e.target.value)} />
+            <Input
+              type="number"
+              min="1"
+              max="1000"
+              value={priority}
+              onChange={(e) => setPriority(e.target.value)}
+            />
           </div>
           <div className="space-y-1.5">
             <Label>ID Agence (UUID, vide = globale)</Label>
-            <Input value={agencyId} onChange={(e) => setAgencyId(e.target.value)} placeholder="xxxxxxxx-xxxx-…" className="font-mono text-xs" />
+            <Input
+              value={agencyId}
+              onChange={(e) => setAgencyId(e.target.value)}
+              placeholder="xxxxxxxx-xxxx-…"
+              className="font-mono text-xs"
+            />
           </div>
         </div>
       </fieldset>
@@ -363,25 +424,53 @@ function CreateForm({ type, onCreated, onCancel }: CreateFormProps) {
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <div className="space-y-1.5">
             <Label>Frais fixe (TND)</Label>
-            <Input type="number" step="0.001" min="0" value={fixedFee} onChange={(e) => setFixedFee(e.target.value)} />
+            <Input
+              type="number"
+              step="0.001"
+              min="0"
+              value={fixedFee}
+              onChange={(e) => setFixedFee(e.target.value)}
+            />
           </div>
           <div className="space-y-1.5">
             <Label>Markup (%)</Label>
-            <Input type="number" step="0.01" min="0" max="100" value={markupRate} onChange={(e) => setMarkupRate(e.target.value)} placeholder="ex : 8 pour 8%" />
+            <Input
+              type="number"
+              step="0.01"
+              min="0"
+              max="100"
+              value={markupRate}
+              onChange={(e) => setMarkupRate(e.target.value)}
+              placeholder="ex : 8 pour 8%"
+            />
           </div>
           <div className="space-y-1.5">
             <Label>Plancher markup (TND, optionnel)</Label>
-            <Input type="number" step="0.01" min="0" value={minMarkup} onChange={(e) => setMinMarkup(e.target.value)} />
+            <Input
+              type="number"
+              step="0.01"
+              min="0"
+              value={minMarkup}
+              onChange={(e) => setMinMarkup(e.target.value)}
+            />
           </div>
           <div className="space-y-1.5">
             <Label>Plafond markup (TND, optionnel)</Label>
-            <Input type="number" step="0.01" min="0" value={maxMarkup} onChange={(e) => setMaxMarkup(e.target.value)} />
+            <Input
+              type="number"
+              step="0.01"
+              min="0"
+              value={maxMarkup}
+              onChange={(e) => setMaxMarkup(e.target.value)}
+            />
           </div>
           {type === "flight" && (
             <div className="space-y-1.5">
               <Label>Devise</Label>
               <Select value={currency} onValueChange={setCurrency}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="TND">TND</SelectItem>
                   <SelectItem value="EUR">EUR</SelectItem>
@@ -393,8 +482,14 @@ function CreateForm({ type, onCreated, onCancel }: CreateFormProps) {
           {type === "hotel" && (
             <div className="space-y-1.5">
               <Label>Devise</Label>
-              <Input value="TND" disabled className="bg-muted text-muted-foreground" />
-              <p className="text-muted-foreground text-xs">Hôtels : TND uniquement (CURRENCY-DIM-01)</p>
+              <Input
+                value="TND"
+                disabled
+                className="bg-muted text-muted-foreground"
+              />
+              <p className="text-muted-foreground text-xs">
+                Hôtels : TND uniquement (CURRENCY-DIM-01)
+              </p>
             </div>
           )}
         </div>
@@ -410,15 +505,25 @@ function CreateForm({ type, onCreated, onCancel }: CreateFormProps) {
 
       {/* Validité */}
       <fieldset className="space-y-3">
-        <legend className="mb-2 text-sm font-medium">Validité (optionnel)</legend>
+        <legend className="mb-2 text-sm font-medium">
+          Validité (optionnel)
+        </legend>
         <div className="grid grid-cols-2 gap-3">
           <div className="space-y-1.5">
             <Label>Valide à partir de</Label>
-            <Input type="datetime-local" value={validFrom} onChange={(e) => setValidFrom(e.target.value)} />
+            <Input
+              type="datetime-local"
+              value={validFrom}
+              onChange={(e) => setValidFrom(e.target.value)}
+            />
           </div>
           <div className="space-y-1.5">
             <Label>Valide jusqu&apos;au</Label>
-            <Input type="datetime-local" value={validTo} onChange={(e) => setValidTo(e.target.value)} />
+            <Input
+              type="datetime-local"
+              value={validTo}
+              onChange={(e) => setValidTo(e.target.value)}
+            />
           </div>
         </div>
       </fieldset>
@@ -426,11 +531,18 @@ function CreateForm({ type, onCreated, onCancel }: CreateFormProps) {
       {/* Notes */}
       <div className="space-y-1.5">
         <Label>Note interne (optionnel)</Label>
-        <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Contexte, décision Direction, campagne…" rows={2} />
+        <Textarea
+          value={notes}
+          onChange={(e) => setNotes(e.target.value)}
+          placeholder="Contexte, décision Direction, campagne…"
+          rows={2}
+        />
       </div>
 
       <div className="flex justify-end gap-2 pt-1">
-        <Button variant="outline" onClick={onCancel} disabled={isPending}>Annuler</Button>
+        <Button variant="outline" onClick={onCancel} disabled={isPending}>
+          Annuler
+        </Button>
         <Button onClick={handleCreate} disabled={isPending}>
           {isPending ? "Enregistrement…" : "Créer la règle"}
         </Button>
@@ -453,7 +565,11 @@ function RuleList({ rules, type, onMutated }: RuleListProps) {
 
   function handleToggle(rule: CommercialRuleRow) {
     startTransition(async () => {
-      const result = await toggleCommercialRule(rule.type, rule.id, !rule.isActive)
+      const result = await toggleCommercialRule(
+        rule.type,
+        rule.id,
+        !rule.isActive,
+      )
       if (!result.ok) {
         toast.error(result.error)
         return
@@ -464,7 +580,10 @@ function RuleList({ rules, type, onMutated }: RuleListProps) {
   }
 
   function handleDelete(rule: CommercialRuleRow) {
-    if (!confirm(`Supprimer cette règle ${rule.type} (${rule.id.slice(0, 8)}…) ?`)) return
+    if (
+      !confirm(`Supprimer cette règle ${rule.type} (${rule.id.slice(0, 8)}…) ?`)
+    )
+      return
     startTransition(async () => {
       const result = await deleteCommercialRule(rule.type, rule.id)
       if (!result.ok) {
@@ -492,9 +611,15 @@ function RuleList({ rules, type, onMutated }: RuleListProps) {
           variant={showForm ? "outline" : "default"}
         >
           {showForm ? (
-            <><ChevronUp className="mr-1 h-4 w-4" />Annuler</>
+            <>
+              <ChevronUp className="mr-1 h-4 w-4" />
+              Annuler
+            </>
           ) : (
-            <><Plus className="mr-1 h-4 w-4" />Nouvelle règle</>
+            <>
+              <Plus className="mr-1 h-4 w-4" />
+              Nouvelle règle
+            </>
           )}
         </Button>
       </div>
@@ -514,7 +639,10 @@ function RuleList({ rules, type, onMutated }: RuleListProps) {
         <div className="bg-muted/30 rounded-lg border border-dashed p-6 text-center">
           <p className="text-muted-foreground text-sm">
             Aucune règle commerciale — le moteur tombe en fallback{" "}
-            <code className="bg-muted rounded px-1 text-xs">pricing_margins</code>.
+            <code className="bg-muted rounded px-1 text-xs">
+              pricing_margins
+            </code>
+            .
           </p>
         </div>
       ) : (
@@ -538,7 +666,9 @@ interface CommercialRulesManagerProps {
   initial: CommercialRuleRow[]
 }
 
-export function CommercialRulesManager({ initial }: CommercialRulesManagerProps) {
+export function CommercialRulesManager({
+  initial,
+}: CommercialRulesManagerProps) {
   const [rules, setRules] = useState<CommercialRuleRow[]>(initial)
 
   function handleMutated() {
@@ -556,14 +686,18 @@ export function CommercialRulesManager({ initial }: CommercialRulesManagerProps)
           <Hotel className="h-4 w-4" />
           Hôtels
           {hotelCount > 0 && (
-            <Badge variant="secondary" className="ml-1 text-xs">{hotelCount}</Badge>
+            <Badge variant="secondary" className="ml-1 text-xs">
+              {hotelCount}
+            </Badge>
           )}
         </TabsTrigger>
         <TabsTrigger value="flight" className="gap-2">
           <Plane className="h-4 w-4" />
           Vols
           {flightCount > 0 && (
-            <Badge variant="secondary" className="ml-1 text-xs">{flightCount}</Badge>
+            <Badge variant="secondary" className="ml-1 text-xs">
+              {flightCount}
+            </Badge>
           )}
         </TabsTrigger>
       </TabsList>

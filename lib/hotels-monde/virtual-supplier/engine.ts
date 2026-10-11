@@ -162,11 +162,17 @@ function generateConfirmationNumber(): string {
  * "confirme" quoi que ce soit, exactement le même principe que
  * confirmHotelWithProvider() pour myGo / book() pour le Virtual Flight
  * Supplier.
+ *
+ * `pricing` : soit un MarginRule (fallback pricing_margins), soit une
+ * fonction `(supplierPriceTnd) => sellingPriceTnd` produite par le moteur
+ * de règles commerciales (HOTELS-MONDE-ENGINE-01). La même fonction DOIT
+ * avoir été utilisée à la recherche — c'est la seule garantie que
+ * `expectedPriceTnd` et le résultat recalculé ici coïncident.
  */
 export async function book(
   token: string,
   expectedPriceTnd: number,
-  marginRule: MarginRule,
+  pricing: MarginRule | ((supplierPriceTnd: number) => number),
 ): Promise<BookResult> {
   const scenario = getScenario()
 
@@ -232,11 +238,27 @@ export async function book(
       ? Math.round(matched.nightlyBaseTnd * p.nights * p.rooms * 1.12) // +12%, simule une hausse tarifaire réelle
       : p.pricePerNightTnd * p.nights * p.rooms
 
-  // Marge agence appliquée au prix net AVANT comparaison : `expectedPriceTnd`
-  // vient du client, qui n'a jamais vu que le prix déjà marginé (recherche
-  // marginée elle aussi, voir app/api/hotels-monde/search/route.ts) — comparer
-  // livePriceTnd (net) directement au prix marginé rejetterait systématiquement.
-  const agencyPriceTnd = applyMargin(livePriceTnd, marginRule)
+  // Pricing appliqué au prix NET reconstruit depuis le token — même formule
+  // que lors de la recherche (pricing_margins ou règle commerciale DB).
+  // Comparer livePriceTnd directement au prix marginé rejetterait
+  // systématiquement car `expectedPriceTnd` est toujours le prix AFFICHÉ.
+  const applyPricing =
+    typeof pricing === "function"
+      ? pricing
+      : (p: number) => applyMargin(p, pricing)
+
+  let agencyPriceTnd: number
+  try {
+    agencyPriceTnd = applyPricing(livePriceTnd)
+  } catch (err) {
+    // CURRENCY-DIM-01 ou erreur de règle commerciale — inventaire pas encore
+    // réservé à ce stade, pas de release nécessaire.
+    return {
+      ok: false,
+      kind: "BOOKING_REJECTED",
+      message: err instanceof Error ? err.message : "Erreur de tarification.",
+    }
+  }
 
   if (agencyPriceTnd !== expectedPriceTnd) {
     return {

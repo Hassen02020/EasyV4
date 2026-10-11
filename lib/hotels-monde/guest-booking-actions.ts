@@ -45,6 +45,10 @@ import {
 } from "@/lib/db/schema"
 import { getDefaultAgencyId } from "@/lib/agencies/default-agency"
 import { getMarginsForAgency } from "@/lib/pro/server-context"
+import {
+  resolveHotelCommercialRules,
+  computeHotelCommercialResult,
+} from "@/lib/hotels/commercial-engine"
 import { generateInvoiceForReservation } from "@/lib/finance/invoice-actions"
 import { recordReservationFinancials } from "@/lib/finance/reservation-financials"
 import { creditPlatformCommission } from "@/lib/finance/platform-commission"
@@ -216,6 +220,7 @@ async function runCreateGuestWorldHotelBooking(
   // route.ts), jamais recalculée différemment : book() compare le prix agence
   // (net + marge), pas le prix net brut, à `expectedPriceTnd`.
   const margins = await getMarginsForAgency(agencyId, undefined, "direct")
+  const commercialRules = await resolveHotelCommercialRules(agencyId, "B2C")
 
   // --- Verrou d'inventaire applicatif (lib/booking/inventory.ts) ---
   // Empêche deux requêtes concurrentes sur LE MÊME offerToken d'appeler
@@ -254,7 +259,10 @@ async function runCreateGuestWorldHotelBooking(
   const bookResult: BookResult = await bookWorldHotel(
     booking.offerToken,
     booking.expectedPriceTnd,
-    margins.hotel,
+    commercialRules
+      ? (p: number) =>
+          computeHotelCommercialResult(p, "TND", commercialRules).sellingAmount
+      : margins.hotel,
   )
   if (!bookResult.ok) {
     await releaseInventoryLock()
@@ -399,6 +407,14 @@ async function runCreateGuestWorldHotelBooking(
           Math.round(
             marginAmountTnd * (commissionRateForEntitlements / 100) * 100,
           ) / 100
+        // Describe the pricing rule actually applied (commercial rule or pricing_margins fallback)
+        const marginBasis = commercialRules
+          ? `règle commerciale hôtels monde (fixedFee ${commercialRules.fixedFee} TND + markupRate ${Math.round(commercialRules.markupRate * 100)}%) − commission ${commissionRateForEntitlements}%`
+          : `marge vendeur nette de commission (${
+              margins.hotel.marginType === "percent"
+                ? `${margins.hotel.marginValue}%`
+                : `${margins.hotel.marginValue} TND`
+            } − commission ${commissionRateForEntitlements}%)`
 
         const { commissionAmount } = await recordReservationFinancials({
           tx,
@@ -424,11 +440,7 @@ async function runCreateGuestWorldHotelBooking(
               role: "seller",
               qualification: "seller_margin",
               amount: marginAmountTnd - commissionAmountForEntitlements,
-              basis: `marge vendeur nette de commission (${
-                margins.hotel.marginType === "percent"
-                  ? `${margins.hotel.marginValue}%`
-                  : `${margins.hotel.marginValue} TND`
-              } − commission ${commissionRateForEntitlements}%)`,
+              basis: marginBasis,
               ruleId: margins.hotel.ruleId ?? null,
               agreementId: margins.hotel.ruleId ?? null,
             },

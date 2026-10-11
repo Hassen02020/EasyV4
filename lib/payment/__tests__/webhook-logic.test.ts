@@ -202,7 +202,7 @@ test("normalizePaymeeEvent : retombe sur `amount` quand `received_amount` est ab
   assert.equal(charge!.currency, "TND")
 })
 
-test("normalizePaymeeEvent : préfère `received_amount` à `amount` quand les deux sont présents (règle comptable la plus défensive — voir avertissement de fichier)", () => {
+test("normalizePaymeeEvent : utilise `amount` (brut) même quand `received_amount` est présent — `received_amount` est net de frais Paymee, non utilisé pour la corrélation", () => {
   const charge = normalizePaymeeEvent(
     {
       token: "tok_2",
@@ -215,10 +215,10 @@ test("normalizePaymeeEvent : préfère `received_amount` à `amount` quand les d
     "paymee.payment.success",
   )
   assert.ok(charge)
-  assert.equal(charge!.amountTnd, 145.5)
+  assert.equal(charge!.amountTnd, 150)
 })
 
-test("normalizePaymeeEvent : `received_amount` inférieur au montant attendu fait échouer la corrélation stricte (jamais une confirmation en trop)", () => {
+test("normalizePaymeeEvent : corrélation réussit quand amount === originalAmount, même si received_amount diffère (frais Paymee déduits)", () => {
   const charge = normalizePaymeeEvent(
     {
       token: "tok_3",
@@ -229,6 +229,7 @@ test("normalizePaymeeEvent : `received_amount` inférieur au montant attendu fai
     "paymee.payment.success",
   )
   assert.ok(charge)
+  assert.equal(charge!.amountTnd, 150)
   const match = matchesPendingPayment(
     {
       pspOrderId: "order_3",
@@ -237,7 +238,7 @@ test("normalizePaymeeEvent : `received_amount` inférieur au montant attendu fai
     },
     charge!,
   )
-  assert.deepEqual(match, { ok: false, reason: "AMOUNT_MISMATCH" })
+  assert.deepEqual(match, { ok: true })
 })
 
 test("normalizePaymeeEvent : token ou order_id manquant -> null", () => {

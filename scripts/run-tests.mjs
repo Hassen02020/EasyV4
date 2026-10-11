@@ -3,7 +3,7 @@
 // puis les passe au runner natif Node.js avec tsx.
 // Compatible Windows / macOS / Linux.
 
-import { readdirSync, statSync } from "fs"
+import { readdirSync, readFileSync, statSync } from "fs"
 import { join, relative } from "path"
 import { spawnSync } from "child_process"
 
@@ -20,7 +20,11 @@ function findTests(dir, files = []) {
       entry.name.endsWith(".test.ts") ||
       entry.name.endsWith(".test.mts")
     ) {
-      files.push(relative(ROOT, full))
+      // Skip files that use Vitest directly — run with `npx vitest` instead
+      const src = readFileSync(full, "utf8").slice(0, 2048)
+      if (!src.includes('from "vitest"') && !src.includes("from 'vitest'")) {
+        files.push(relative(ROOT, full))
+      }
     }
   }
   return files

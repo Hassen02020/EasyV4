@@ -19,7 +19,10 @@ import { describe, it, expect } from "vitest"
 
 type RuleType = "hotel" | "flight"
 
-function validateCurrencyDim01(type: RuleType, currency: string): string | null {
+function validateCurrencyDim01(
+  type: RuleType,
+  currency: string,
+): string | null {
   if (type === "hotel" && currency !== "TND") {
     return "Les règles hôtels doivent utiliser TND (CURRENCY-DIM-01 — le moteur ne convertit pas les devises)."
   }
@@ -196,9 +199,12 @@ describe("Fallback pricing_margins — règle nulle", () => {
     fallbackMarginRate: number,
   ): number {
     if (rule) {
-      return Math.round(
-        (supplierAmount + rule.fixedFee + supplierAmount * rule.markupRate) * 1000,
-      ) / 1000
+      return (
+        Math.round(
+          (supplierAmount + rule.fixedFee + supplierAmount * rule.markupRate) *
+            1000,
+        ) / 1000
+      )
     }
     return Math.round(supplierAmount * (1 + fallbackMarginRate) * 1000) / 1000
   }
@@ -208,11 +214,15 @@ describe("Fallback pricing_margins — règle nulle", () => {
   })
 
   it("avec règle (0 fee + 8%) → prix = supplier * 1.08", () => {
-    expect(applyPricing(1000, { fixedFee: 0, markupRate: 0.08 }, 0.1)).toBeCloseTo(1080, 3)
+    expect(
+      applyPricing(1000, { fixedFee: 0, markupRate: 0.08 }, 0.1),
+    ).toBeCloseTo(1080, 3)
   })
 
   it("avec règle (50 fee + 8%) → prix = supplier + 50 + supplier*0.08", () => {
-    expect(applyPricing(1000, { fixedFee: 50, markupRate: 0.08 }, 0.1)).toBeCloseTo(1130, 3)
+    expect(
+      applyPricing(1000, { fixedFee: 50, markupRate: 0.08 }, 0.1),
+    ).toBeCloseTo(1130, 3)
   })
 
   it("règle nulle préserve le comportement pricing_margins existant", () => {

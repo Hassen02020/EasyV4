@@ -37,11 +37,11 @@ export function ModuleHero({
             className="absolute inset-0 bg-cover bg-center"
             style={{ backgroundImage: `url("${imageUrl}")` }}
           />
-          <div aria-hidden="true" className="absolute inset-0 bg-black/45" />
+          <div aria-hidden="true" className="absolute inset-0 bg-black/20" />
           <div
             aria-hidden="true"
             className={cn(
-              "absolute inset-0 bg-gradient-to-br opacity-75",
+              "absolute inset-0 bg-gradient-to-br opacity-40",
               gradient,
             )}
           />

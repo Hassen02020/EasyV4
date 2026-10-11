@@ -248,8 +248,8 @@ describe("Compatibilité moteur hôtel avec les contextes de session", () => {
   it("CURRENCY-DIM-01 : une règle avec devise différente lève une erreur", () => {
     // Vérifie que le moteur ne produit jamais de montant financier avec un
     // taux inventé — même si RLS laisse passer la ligne.
-    const supplierCurrency = "TND"
-    const ruleCurrency = "EUR"
+    const supplierCurrency: string = "TND"
+    const ruleCurrency: string = "EUR"
     const currencyMismatch = supplierCurrency !== ruleCurrency
     assert.ok(
       currencyMismatch,

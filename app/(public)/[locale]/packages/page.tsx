@@ -23,6 +23,7 @@ import { getCoverMediaForProducts } from "@/lib/media/query"
 import { buildLanguageAlternates } from "@/lib/seo/alternate-languages"
 import { PACKAGE_DESTINATION_SEARCH_TERMS } from "@/lib/destinations/package-search-terms"
 import { paginateOffset } from "@/lib/admin/pagination"
+import { getPublicModuleVisual } from "@/lib/public/site-content"
 
 export const dynamic = "force-dynamic"
 
@@ -251,8 +252,11 @@ export default async function PackagesPage({
   searchParams: Promise<SearchFilters>
 }) {
   const filters = await searchParams
-  const { packages, totalCount, currentPage, totalPages } =
-    await getActivePackages(filters)
+  const [{ packages, totalCount, currentPage, totalPages }, visual] =
+    await Promise.all([
+      getActivePackages(filters),
+      getPublicModuleVisual("voyages-organises"),
+    ])
   const t = await getTranslations("Packages")
   const tCommon = await getTranslations("Common")
   const locale = await getLocale()
@@ -264,7 +268,7 @@ export default async function PackagesPage({
         <ModuleHero
           Icon={Briefcase}
           gradient="from-violet-900 to-violet-700"
-          imageUrl="/images/packages-banner.svg"
+          imageUrl={visual?.heroImageUrl ?? "/images/packages-banner.svg"}
           kicker={t("kicker")}
           title={t("heroTitle")}
           subtitle={t("heroSubtitle")}

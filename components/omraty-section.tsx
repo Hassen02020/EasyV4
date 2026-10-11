@@ -16,7 +16,7 @@ function OmratySectionContent() {
   )
 }
 
-export function OmratySection() {
+export function OmratySection({ imageUrl }: { imageUrl?: string | null }) {
   return (
     <section className="bg-muted/50 py-12">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
@@ -27,11 +27,11 @@ export function OmratySection() {
               <OmratySectionContent />
             </div>
 
-            {/* Local SVG illustration — no external network dependency */}
+            {/* Hero image — DB-configurable (falls back to local SVG) */}
             <div className="relative h-64 overflow-hidden lg:h-auto">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
-                src="/images/omra-banner.svg"
+                src={imageUrl ?? "/images/omra-banner.svg"}
                 alt=""
                 aria-hidden="true"
                 className="absolute inset-0 h-full w-full object-cover"

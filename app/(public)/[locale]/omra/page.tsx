@@ -26,6 +26,7 @@ import { buildLanguageAlternates } from "@/lib/seo/alternate-languages"
 import { paginateOffset } from "@/lib/admin/pagination"
 import { getSiteContactInfo } from "@/lib/tenant/site-config"
 import { getRequestTenantInfo } from "@/lib/tenant/current-tenant"
+import { getPublicModuleVisual } from "@/lib/public/site-content"
 
 export const dynamic = "force-dynamic"
 
@@ -193,10 +194,11 @@ export default async function OmraPage({
 }) {
   const filters = await searchParams
   const tenant = await getRequestTenantInfo()
-  const [{ packages, totalCount, currentPage, totalPages }, contact] =
+  const [{ packages, totalCount, currentPage, totalPages }, contact, visual] =
     await Promise.all([
       getActivePackages(filters),
       getSiteContactInfo(tenant?.agencyId ?? null),
+      getPublicModuleVisual("omra"),
     ])
   const t = await getTranslations("Omra")
   const tCommon = await getTranslations("Common")
@@ -209,7 +211,7 @@ export default async function OmraPage({
         <ModuleHero
           Icon={Moon}
           gradient="from-emerald-900 to-emerald-700"
-          imageUrl="/images/omra-banner.svg"
+          imageUrl={visual?.heroImageUrl ?? "/images/omra-banner.svg"}
           kicker={t("kicker")}
           title={t("heroTitle")}
           subtitle={t("heroSubtitle")}

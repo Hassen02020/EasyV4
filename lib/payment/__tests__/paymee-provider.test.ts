@@ -244,9 +244,121 @@ test("createPayment : JSON illisible -> PROVIDER_ERROR, jamais une exception", a
   })
 })
 
-test("confirmPayment/refundPayment/getPaymentStatus : jamais de confirmation/statut local — seul le webhook signé fait foi", async () => {
+test("confirmPayment : jamais de confirmation locale — seul le webhook signé fait foi", async () => {
   const provider = new PaymeePaymentProvider()
   assert.equal((await provider.confirmPayment()).ok, false)
-  assert.equal((await provider.refundPayment()).ok, false)
-  assert.equal((await provider.getPaymentStatus()).found, false)
+})
+
+test("refundPayment : retourne PAYMENT_NOT_FOUND — Paymee n'a pas d'API remboursement programmatique", async () => {
+  await withPaymeeEnv({ PAYMEE_API_KEY: "fake_key" }, async () => {
+    const provider = new PaymeePaymentProvider()
+    const result = await provider.refundPayment("tok_xyz")
+    assert.equal(result.ok, false)
+    assert.equal(result.code, "PAYMENT_NOT_FOUND")
+    // Le message doit orienter vers le back-office
+    assert.match(result.message ?? "", /tableau de bord|back.office|Paymee/i)
+  })
+})
+
+test("getPaymentStatus : clé absente → { found: false }, jamais un appel réseau", async () => {
+  await withPaymeeEnv({ PAYMEE_API_KEY: undefined }, async () => {
+    let called = false
+    const provider = new PaymeePaymentProvider(
+      fakeFetch(() => { called = true; throw new Error("ne doit pas être appelé") }),
+    )
+    const result = await provider.getPaymentStatus("tok_xyz")
+    assert.equal(result.found, false)
+    assert.equal(called, false)
+  })
+})
+
+test("getPaymentStatus : réponse succeeded (payment_status: true) → found + succeeded + amountTnd", async () => {
+  await withPaymeeEnv({ PAYMEE_API_KEY: "fake_key" }, async () => {
+    let capturedUrl = ""
+    let capturedAuth = ""
+    const provider = new PaymeePaymentProvider(
+      fakeFetch((url, init) => {
+        capturedUrl = url
+        capturedAuth = (init.headers as Record<string, string>)?.Authorization ?? ""
+        return new Response(
+          JSON.stringify({
+            status: true,
+            data: { token: "tok_abc", payment_status: true, received_amount: 150.50 },
+          }),
+          { status: 200 },
+        )
+      }),
+    )
+    const result = await provider.getPaymentStatus("tok_abc")
+    assert.equal(result.found, true)
+    assert.equal(result.status, "succeeded")
+    assert.equal(result.amountTnd, 150.50)
+    assert.equal(capturedUrl, "https://sandbox.paymee.tn/api/v2/payments/tok_abc")
+    assert.equal(capturedAuth, "Token fake_key")
+  })
+})
+
+test("getPaymentStatus : réponse pending (payment_status: false) → found + pending + amountTnd", async () => {
+  await withPaymeeEnv({ PAYMEE_API_KEY: "fake_key" }, async () => {
+    const provider = new PaymeePaymentProvider(
+      fakeFetch(() =>
+        new Response(
+          JSON.stringify({
+            status: true,
+            data: { token: "tok_abc", payment_status: false, amount: 200.00 },
+          }),
+          { status: 200 },
+        ),
+      ),
+    )
+    const result = await provider.getPaymentStatus("tok_abc")
+    assert.equal(result.found, true)
+    assert.equal(result.status, "pending")
+    assert.equal(result.amountTnd, 200.00)
+  })
+})
+
+test("getPaymentStatus : HTTP 404 → { found: false }, jamais une erreur levée", async () => {
+  await withPaymeeEnv({ PAYMEE_API_KEY: "fake_key" }, async () => {
+    const provider = new PaymeePaymentProvider(
+      fakeFetch(() => new Response(JSON.stringify({ status: false }), { status: 404 })),
+    )
+    const result = await provider.getPaymentStatus("tok_unknown")
+    assert.equal(result.found, false)
+  })
+})
+
+test("getPaymentStatus : timeout réseau → { found: false }, jamais une exception qui s'échappe", async () => {
+  await withPaymeeEnv(
+    { PAYMEE_API_KEY: "fake_key", PAYMEE_TIMEOUT_MS: "50" },
+    async () => {
+      const provider = new PaymeePaymentProvider(
+        fakeFetch((_url, init) =>
+          new Promise((_resolve, reject) => {
+            const signal = init.signal as AbortSignal
+            signal.addEventListener("abort", () =>
+              reject(new DOMException("aborted", "AbortError")),
+            )
+          }),
+        ),
+      )
+      const result = await provider.getPaymentStatus("tok_abc")
+      assert.equal(result.found, false)
+    },
+  )
+})
+
+test("getPaymentStatus : forme de réponse inattendue (sans data.amount) → { found: false }, fail-closed", async () => {
+  await withPaymeeEnv({ PAYMEE_API_KEY: "fake_key" }, async () => {
+    const provider = new PaymeePaymentProvider(
+      fakeFetch(() =>
+        new Response(
+          JSON.stringify({ status: true, data: { payment_status: true } }),
+          { status: 200 },
+        ),
+      ),
+    )
+    const result = await provider.getPaymentStatus("tok_abc")
+    assert.equal(result.found, false)
+  })
 })

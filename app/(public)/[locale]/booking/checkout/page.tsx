@@ -1,7 +1,6 @@
 import { Link, redirect } from "@/i18n/navigation"
 import { getLocale, getTranslations } from "next-intl/server"
 import { ChevronLeft } from "lucide-react"
-import { CancellationPolicyDisplay } from "@/components/booking/cancellation-policy-display"
 import { HeaderWrapper as Header } from "@/components/header-wrapper"
 import { Footer } from "@/components/footer"
 import { Card, CardContent } from "@/components/ui/card"
@@ -173,24 +172,6 @@ async function CheckoutContent({ searchParams }: { searchParams: SP }) {
                 </CardContent>
               </Card>
 
-              {draft.module === "hotel" &&
-                typeof (draft.metadata as Record<string, unknown> | undefined)
-                  ?.hasFreeCancellation === "boolean" && (
-                  <CancellationPolicyDisplay
-                    hotelCancellation={{
-                      hasFreeCancellation:
-                        (draft.metadata as Record<string, unknown>)
-                          .hasFreeCancellation === true,
-                      freeCancellationDate:
-                        typeof (draft.metadata as Record<string, unknown>)
-                          .freeCancellationDate === "string"
-                          ? ((draft.metadata as Record<string, unknown>)
-                              .freeCancellationDate as string)
-                          : undefined,
-                    }}
-                  />
-                )}
-
               <Card>
                 <CardContent className="space-y-3 p-6">
                   <h3 className="text-sm font-semibold tracking-wide uppercase">
@@ -224,6 +205,26 @@ async function CheckoutContent({ searchParams }: { searchParams: SP }) {
                   campaignId={campaignId}
                   walletBalanceTnd={walletBalanceTnd}
                   totalTnd={breakdown.totalTnd}
+                  hotelCancellation={
+                    draft.module === "hotel" &&
+                    typeof (
+                      draft.metadata as Record<string, unknown> | undefined
+                    )?.hasFreeCancellation === "boolean"
+                      ? {
+                          hasFreeCancellation:
+                            (draft.metadata as Record<string, unknown>)
+                              .hasFreeCancellation === true,
+                          freeCancellationDate:
+                            typeof (
+                              draft.metadata as Record<string, unknown>
+                            ).freeCancellationDate === "string"
+                              ? ((
+                                  draft.metadata as Record<string, unknown>
+                                ).freeCancellationDate as string)
+                              : undefined,
+                        }
+                      : undefined
+                  }
                 />
               </Suspense>
             </div>

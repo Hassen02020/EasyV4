@@ -1051,7 +1051,8 @@
     "paymentTransferTitle": "Pay by bank transfer",
     "paymentTransferNotice": "Our bank details will be sent to you by email. Your ticket will be issued once the transfer is received.",
     "paymentCashTitle": "Pay in cash at our agency",
-    "paymentCashNotice": "Visit our office with this booking reference. Your ticket will be issued immediately after payment."
+    "paymentCashNotice": "Visit our office with this booking reference. Your ticket will be issued immediately after payment.",
+    "mustAcceptPolicy": "You must accept the cancellation policy to continue."
   },
   "Paiement": {
     "simulationEnvTitle": "Simulation environment",

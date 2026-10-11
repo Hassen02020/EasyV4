@@ -3,13 +3,14 @@
 import { useState, useTransition } from "react"
 import { Link, useRouter } from "@/i18n/navigation"
 import { toast } from "sonner"
-import { useTranslations } from "next-intl"
+import { useLocale, useTranslations } from "next-intl"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Label } from "@/components/ui/label"
 import {
   ShieldCheck,
+  ShieldX,
   CreditCard,
   Banknote,
   Wallet,
@@ -36,14 +37,18 @@ export function CheckoutForm({
   campaignId,
   walletBalanceTnd = 0,
   totalTnd = 0,
+  hotelCancellation,
 }: {
   token: string
   /** CAMPAIGN-LINK-01 — indice optionnel depuis ?campaign=<uuid> dans l'URL. */
   campaignId?: string
   walletBalanceTnd?: number
   totalTnd?: number
+  /** Politique d'annulation hôtel depuis draft.metadata — affichée avec case à cocher obligatoire. */
+  hotelCancellation?: { hasFreeCancellation: boolean; freeCancellationDate?: string }
 }) {
   const t = useTranslations("Booking")
+  const locale = useLocale()
   const router = useRouter()
   const cart = useCart()
   const [pending, startTransition] = useTransition()
@@ -98,7 +103,21 @@ export function CheckoutForm({
   // aucune coordonnée bancaire requise, réservation enregistrée telle quelle.
   const [method, setMethod] = useState<Method>("at_hotel")
   const [acceptCgv, setAcceptCgv] = useState(false)
+  const [policyAccepted, setPolicyAccepted] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  const formattedCancellationDate = hotelCancellation?.freeCancellationDate
+    ? (() => {
+        try {
+          return new Date(hotelCancellation.freeCancellationDate!).toLocaleDateString(
+            locale,
+            { day: "2-digit", month: "long", year: "numeric" },
+          )
+        } catch {
+          return hotelCancellation.freeCancellationDate
+        }
+      })()
+    : null
 
   function onAddToCart() {
     const payload = decodeDraft(token)
@@ -154,6 +173,10 @@ export function CheckoutForm({
   function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
     setError(null)
+    if (hotelCancellation && !policyAccepted) {
+      setError(t("mustAcceptPolicy"))
+      return
+    }
     if (method === "wallet" && walletBalanceTnd < totalTnd) {
       setError(
         t("methodWalletInsufficientDesc", {
@@ -255,6 +278,55 @@ export function CheckoutForm({
             </div>
           </div>
 
+          {hotelCancellation && (
+            <div
+              className={
+                "rounded-lg border p-4 space-y-3 " +
+                (hotelCancellation.hasFreeCancellation
+                  ? "border-emerald-200"
+                  : "border-amber-200")
+              }
+            >
+              <div className="flex items-center gap-2">
+                {hotelCancellation.hasFreeCancellation ? (
+                  <ShieldCheck className="size-5 shrink-0 text-emerald-600" />
+                ) : (
+                  <ShieldX className="size-5 shrink-0 text-amber-600" />
+                )}
+                <p className="text-sm font-semibold">{t("policyTitle")}</p>
+              </div>
+              <p
+                className={
+                  "text-sm " +
+                  (hotelCancellation.hasFreeCancellation
+                    ? "text-emerald-700 dark:text-emerald-400"
+                    : "text-amber-700 dark:text-amber-400")
+                }
+              >
+                {hotelCancellation.hasFreeCancellation
+                  ? formattedCancellationDate
+                    ? t("freeCancellationUntilLabel", {
+                        date: formattedCancellationDate,
+                      })
+                    : t("freeCancellationAvailable")
+                  : t("nonRefundable")}
+              </p>
+              <div className="flex items-start gap-2 border-t pt-3">
+                <Checkbox
+                  id="hotel-policy"
+                  checked={policyAccepted}
+                  onCheckedChange={(v) => setPolicyAccepted(Boolean(v))}
+                />
+                <Label
+                  htmlFor="hotel-policy"
+                  className="text-muted-foreground text-sm leading-snug"
+                >
+                  {t("acceptPolicyLabel")}
+                </Label>
+              </div>
+            </div>
+          )}
+
           <div className="flex items-start gap-2">
             <Checkbox
               id="cgv"
@@ -317,7 +389,7 @@ export function CheckoutForm({
             <Button
               type="submit"
               size="lg"
-              disabled={pending || !acceptCgv}
+              disabled={pending || !acceptCgv || (!!hotelCancellation && !policyAccepted)}
               className="w-full sm:flex-1"
             >
               {pending ? t("validatingReservation") : t("confirmAndPay")}

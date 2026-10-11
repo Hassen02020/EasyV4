@@ -1051,7 +1051,8 @@
     "paymentTransferTitle": "Réglez par virement bancaire",
     "paymentTransferNotice": "Nos coordonnées bancaires vous seront envoyées par email. Votre billet sera émis dès réception du virement.",
     "paymentCashTitle": "Réglez en espèces en agence",
-    "paymentCashNotice": "Présentez-vous dans nos locaux avec cette référence de réservation. Votre billet sera émis immédiatement après paiement."
+    "paymentCashNotice": "Présentez-vous dans nos locaux avec cette référence de réservation. Votre billet sera émis immédiatement après paiement.",
+    "mustAcceptPolicy": "Vous devez accepter la politique d'annulation pour continuer."
   },
   "Paiement": {
     "simulationEnvTitle": "Environnement de simulation",

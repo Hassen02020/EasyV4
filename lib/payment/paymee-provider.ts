@@ -116,7 +116,9 @@ interface PaymeeStatusResponse {
  * retourne `{ found: false }` — jamais un statut inventé. */
 function parseStatusResponse(
   json: unknown,
-): { found: true; status: "pending" | "succeeded"; amountTnd: number } | { found: false } {
+):
+  | { found: true; status: "pending" | "succeeded"; amountTnd: number }
+  | { found: false } {
   if (!json || typeof json !== "object") return { found: false }
   const r = json as PaymeeStatusResponse
   if (r.status !== true || !r.data || typeof r.data !== "object") {
@@ -124,11 +126,12 @@ function parseStatusResponse(
   }
   const d = r.data
   // amount réel capturé : received_amount si disponible, sinon amount
-  const rawAmount = typeof d.received_amount === "number"
-    ? d.received_amount
-    : typeof d.amount === "number"
-      ? d.amount
-      : null
+  const rawAmount =
+    typeof d.received_amount === "number"
+      ? d.received_amount
+      : typeof d.amount === "number"
+        ? d.amount
+        : null
   if (rawAmount === null) return { found: false }
   // payment_status : true = paiement réussi, false = en attente/échoué
   const succeeded = d.payment_status === true

@@ -259,3 +259,83 @@ test("normalizePaymeeEvent : token ou order_id manquant -> null", () => {
     null,
   )
 })
+
+/* -------------------------------------------------------------------------- */
+/* transaction_id — validation de forme avant usage dans eventId              */
+/* -------------------------------------------------------------------------- */
+
+test("normalizePaymeeEvent : transaction_id entier positif valide → paymee-transaction-{id}", () => {
+  const charge = normalizePaymeeEvent(
+    { token: "tok_v", order_id: "order_v", amount: 100, transaction_id: 9999 },
+    "paymee.payment.success",
+  )
+  assert.ok(charge)
+  assert.equal(charge!.eventId, "paymee-transaction-9999")
+})
+
+test("normalizePaymeeEvent : transaction_id absent → fallback paymee-{token}-{eventType}", () => {
+  const charge = normalizePaymeeEvent(
+    { token: "tok_f", order_id: "order_f", amount: 100 },
+    "paymee.payment.failed",
+  )
+  assert.ok(charge)
+  assert.equal(charge!.eventId, "paymee-tok_f-paymee.payment.failed")
+})
+
+test("normalizePaymeeEvent : transaction_id = 0 → fallback (entier non positif)", () => {
+  const charge = normalizePaymeeEvent(
+    {
+      token: "tok_z",
+      order_id: "order_z",
+      amount: 100,
+      transaction_id: 0,
+    },
+    "paymee.payment.success",
+  )
+  assert.ok(charge)
+  assert.equal(charge!.eventId, "paymee-tok_z-paymee.payment.success")
+})
+
+test("normalizePaymeeEvent : transaction_id négatif → fallback (entier non positif)", () => {
+  const charge = normalizePaymeeEvent(
+    {
+      token: "tok_n",
+      order_id: "order_n",
+      amount: 100,
+      transaction_id: -1,
+    },
+    "paymee.payment.success",
+  )
+  assert.ok(charge)
+  assert.equal(charge!.eventId, "paymee-tok_n-paymee.payment.success")
+})
+
+test("normalizePaymeeEvent : transaction_id non-entier (float) → fallback", () => {
+  const charge = normalizePaymeeEvent(
+    {
+      token: "tok_fl",
+      order_id: "order_fl",
+      amount: 100,
+      transaction_id: 5578.5,
+    },
+    "paymee.payment.success",
+  )
+  assert.ok(charge)
+  assert.equal(charge!.eventId, "paymee-tok_fl-paymee.payment.success")
+})
+
+test("normalizePaymeeEvent : transaction_id string → fallback (type non attendu)", () => {
+  // La doc officielle Paymee envoie un entier JSON — une chaîne est inattendue.
+  // Fail-closed : fallback vers token+type plutôt qu'un eventId malformé.
+  const charge = normalizePaymeeEvent(
+    {
+      token: "tok_s",
+      order_id: "order_s",
+      amount: 100,
+      transaction_id: "5578",
+    },
+    "paymee.payment.success",
+  )
+  assert.ok(charge)
+  assert.equal(charge!.eventId, "paymee-tok_s-paymee.payment.success")
+})

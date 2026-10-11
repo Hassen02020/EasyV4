@@ -138,19 +138,17 @@ export function normalizeSpsEvent(
  * jamais une supposition liée au contrat non vérifié ci-dessus) : `currency`
  * est donc toujours "TND" ici, jamais lue depuis un champ absent du payload.
  *
- * `amount` vs `received_amount` : Paymee envoie les deux (`cost` en plus,
- * probablement ses frais). Aucun des deux n'a pu être vérifié contre la doc
- * primaire (voir avertissement de fichier de paymee-provider.ts) et
- * `payments`/`reservation-payment-logic.ts` n'a pas de colonne
- * "montant net reçu" distincte — l'architecture existante compare toujours
- * le montant du webhook au montant TOTAL attendu (`payments.originalAmount`,
- * posé à la création). Choix assumé, le plus défensif possible dans le
- * doute : préférer `received_amount` quand il est présent (ce que Paymee
- * confirme avoir réellement reçu) et ne retomber sur `amount` que s'il est
- * absent — si jamais `received_amount` s'avère être un montant net de frais
- * inférieur à `amount`, la corrélation stricte échoue proprement
- * (AMOUNT_MISMATCH, jamais une confirmation en trop) plutôt que de risquer
- * de confirmer une réservation pour plus que ce qui a été réellement encaissé.
+ * `amount` vs `received_amount` : Paymee envoie les deux ; `received_amount`
+ * est le montant NET reversé au marchand (après déduction des frais Paymee),
+ * `amount` est le montant BRUT payé par le client — confirmé par la doc
+ * officielle Paymee (`received_amount = amount - cost`). La corrélation de
+ * confirmation compare le montant du webhook au montant BRUT attendu
+ * (`payments.originalAmount`, posé à la création du paiement, toujours en
+ * brut). Utiliser `received_amount` pour la corrélation provoquerait un
+ * AMOUNT_MISMATCH systématique dès que les frais Paymee > 0 — la réservation
+ * ne serait jamais confirmée automatiquement. `received_amount` est conservé
+ * dans le payload brut (`psp_webhooks.payload`) pour réconciliation comptable
+ * côté marchand, mais n'intervient pas dans la corrélation.
  */
 export function normalizePaymeeEvent(
   body: Record<string, unknown>,
@@ -158,11 +156,20 @@ export function normalizePaymeeEvent(
 ): NormalizedChargeEvent | null {
   const token = typeof body["token"] === "string" ? body["token"] : null
   const orderId = typeof body["order_id"] === "string" ? body["order_id"] : null
-  const paymentId = body["payment_id"]
-  const amountRaw =
-    body["received_amount"] !== undefined && body["received_amount"] !== null
-      ? body["received_amount"]
-      : body["amount"]
+  // transaction_id : identifiant Paymee côté succès (entier positif, ex. 5578) —
+  // confirmé par doc officielle Paymee. Absent du webhook d'échec → fallback
+  // sur token+type. Jamais "payment_id" (champ absent de la doc officielle).
+  // Validation : entier positif requis ; zéro, négatif ou type non-number
+  // → fallback documenté (évite un eventId malformé sur un payload corrompu).
+  const transactionIdRaw = body["transaction_id"]
+  const transactionIdValid =
+    typeof transactionIdRaw === "number" &&
+    Number.isInteger(transactionIdRaw) &&
+    transactionIdRaw > 0
+  // Toujours le montant brut (amount) pour la corrélation — jamais received_amount.
+  // received_amount = net de frais Paymee (absent du webhook d'échec) ; voir fix
+  // PAYMEE-CORRELATION-01 dans le commit ef0b6dd pour le raisonnement complet.
+  const amountRaw = body["amount"]
 
   if (!token || !orderId) return null
 
@@ -170,10 +177,9 @@ export function normalizePaymeeEvent(
     typeof amountRaw === "string" ? Number(amountRaw) : Number(amountRaw)
   if (!Number.isFinite(amountTnd)) return null
 
-  const eventId =
-    paymentId !== undefined && paymentId !== null && paymentId !== ""
-      ? `paymee-payment-${paymentId}`
-      : `paymee-${token}-${eventType}`
+  const eventId = transactionIdValid
+    ? `paymee-transaction-${transactionIdRaw}`
+    : `paymee-${token}-${eventType}`
 
   return {
     eventId,

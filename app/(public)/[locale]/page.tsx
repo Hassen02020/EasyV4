@@ -25,13 +25,21 @@ function withFallback<T>(
 ): Promise<T> {
   let settled = false
   const settled$ = promise.then(
-    (v) => { settled = true; return v },
-    () => { settled = true; return fallback },
+    (v) => {
+      settled = true
+      return v
+    },
+    () => {
+      settled = true
+      return fallback
+    },
   )
   const timeout$ = new Promise<T>((r) =>
     setTimeout(() => {
       if (!settled) {
-        console.warn(`[homepage] DB timeout (1 000 ms) — ${label} using fallback`)
+        console.warn(
+          `[homepage] DB timeout (1 000 ms) — ${label} using fallback`,
+        )
       }
       r(fallback)
     }, 1000),
@@ -44,11 +52,11 @@ export default async function Home() {
     withFallback("getPublicModuleVisuals", getPublicModuleVisuals(), []),
     withFallback("getPublicSiteConfig", getPublicSiteConfig(), null),
     withFallback("getActiveTransferZones", getActiveTransferZones(), []),
-    withFallback(
-      "getActiveCarCatalog",
-      getActiveCarCatalog(),
-      { agencyId: null, locations: [], categories: [] } as Awaited<ReturnType<typeof getActiveCarCatalog>>,
-    ),
+    withFallback("getActiveCarCatalog", getActiveCarCatalog(), {
+      agencyId: null,
+      locations: [],
+      categories: [],
+    } as Awaited<ReturnType<typeof getActiveCarCatalog>>),
   ])
 
   return (

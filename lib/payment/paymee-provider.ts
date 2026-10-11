@@ -64,14 +64,16 @@ function resolveReturnUrl(reference: string): string {
   return `${siteOrigin()}/paiement-retour/${encodeURIComponent(reference)}`
 }
 
-/** Normalise un numéro pour l'API Paymee (format local tunisien, sans
- * indicatif pays) — best-effort documenté, voir avertissement de fichier. */
+/** Normalise un numéro pour l'API Paymee. La doc officielle Paymee montre
+ * le format international (+21611222333). On envoie ce même format : si le
+ * numéro est en format local (8 chiffres TN), on préfixe +216 ; si déjà
+ * international avec 216, on ajoute le + ; sinon on transmet tel quel. */
 function normalizePaymeePhone(raw: string | undefined): string {
   if (!raw) return ""
   const digits = raw.replace(/\D/g, "")
-  return digits.startsWith("216") && digits.length > 8
-    ? digits.slice(3)
-    : digits
+  if (digits.startsWith("216") && digits.length >= 11) return `+${digits}`
+  if (digits.length === 8) return `+216${digits}`
+  return digits
 }
 
 interface PaymeeCreateResponseData {
@@ -114,7 +116,9 @@ interface PaymeeStatusResponse {
  * retourne `{ found: false }` — jamais un statut inventé. */
 function parseStatusResponse(
   json: unknown,
-): { found: true; status: "pending" | "succeeded"; amountTnd: number } | { found: false } {
+):
+  | { found: true; status: "pending" | "succeeded"; amountTnd: number }
+  | { found: false } {
   if (!json || typeof json !== "object") return { found: false }
   const r = json as PaymeeStatusResponse
   if (r.status !== true || !r.data || typeof r.data !== "object") {
@@ -122,11 +126,12 @@ function parseStatusResponse(
   }
   const d = r.data
   // amount réel capturé : received_amount si disponible, sinon amount
-  const rawAmount = typeof d.received_amount === "number"
-    ? d.received_amount
-    : typeof d.amount === "number"
-      ? d.amount
-      : null
+  const rawAmount =
+    typeof d.received_amount === "number"
+      ? d.received_amount
+      : typeof d.amount === "number"
+        ? d.amount
+        : null
   if (rawAmount === null) return { found: false }
   // payment_status : true = paiement réussi, false = en attente/échoué
   const succeeded = d.payment_status === true
@@ -287,9 +292,12 @@ export class PaymeePaymentProvider implements PaymentProvider {
   }
 
   /** Interroge `GET /api/v2/payments/{token}` pour connaître le statut actuel
-   * d'un paiement. Fail-closed : toute réponse imprévue (réseau, forme
-   * inattendue, clé absente) retourne `{ found: false }` — jamais un statut
-   * inventé (règle anti-fabrication — voir note de fichier). */
+   * d'un paiement. ⚠️ Cet endpoint n'apparaît dans aucune des 3 variantes de
+   * documentation officielle Paymee (sans redirection, avec redirection,
+   * mobile app) — à confirmer par le support Paymee ou un test sandbox avant
+   * toute utilisation en production (PAYMEE-STATUS-ENDPOINT-01).
+   * Fail-closed : toute réponse imprévue retourne `{ found: false }` — jamais
+   * un statut inventé. */
   async getPaymentStatus(
     providerPaymentId: string,
   ): Promise<PaymentStatusResult> {

@@ -264,7 +264,10 @@ test("getPaymentStatus : clé absente → { found: false }, jamais un appel rés
   await withPaymeeEnv({ PAYMEE_API_KEY: undefined }, async () => {
     let called = false
     const provider = new PaymeePaymentProvider(
-      fakeFetch(() => { called = true; throw new Error("ne doit pas être appelé") }),
+      fakeFetch(() => {
+        called = true
+        throw new Error("ne doit pas être appelé")
+      }),
     )
     const result = await provider.getPaymentStatus("tok_xyz")
     assert.equal(result.found, false)
@@ -279,11 +282,16 @@ test("getPaymentStatus : réponse succeeded (payment_status: true) → found + s
     const provider = new PaymeePaymentProvider(
       fakeFetch((url, init) => {
         capturedUrl = url
-        capturedAuth = (init.headers as Record<string, string>)?.Authorization ?? ""
+        capturedAuth =
+          (init.headers as Record<string, string>)?.Authorization ?? ""
         return new Response(
           JSON.stringify({
             status: true,
-            data: { token: "tok_abc", payment_status: true, received_amount: 150.50 },
+            data: {
+              token: "tok_abc",
+              payment_status: true,
+              received_amount: 150.5,
+            },
           }),
           { status: 200 },
         )
@@ -292,8 +300,11 @@ test("getPaymentStatus : réponse succeeded (payment_status: true) → found + s
     const result = await provider.getPaymentStatus("tok_abc")
     assert.equal(result.found, true)
     assert.equal(result.status, "succeeded")
-    assert.equal(result.amountTnd, 150.50)
-    assert.equal(capturedUrl, "https://sandbox.paymee.tn/api/v2/payments/tok_abc")
+    assert.equal(result.amountTnd, 150.5)
+    assert.equal(
+      capturedUrl,
+      "https://sandbox.paymee.tn/api/v2/payments/tok_abc",
+    )
     assert.equal(capturedAuth, "Token fake_key")
   })
 })
@@ -301,27 +312,30 @@ test("getPaymentStatus : réponse succeeded (payment_status: true) → found + s
 test("getPaymentStatus : réponse pending (payment_status: false) → found + pending + amountTnd", async () => {
   await withPaymeeEnv({ PAYMEE_API_KEY: "fake_key" }, async () => {
     const provider = new PaymeePaymentProvider(
-      fakeFetch(() =>
-        new Response(
-          JSON.stringify({
-            status: true,
-            data: { token: "tok_abc", payment_status: false, amount: 200.00 },
-          }),
-          { status: 200 },
-        ),
+      fakeFetch(
+        () =>
+          new Response(
+            JSON.stringify({
+              status: true,
+              data: { token: "tok_abc", payment_status: false, amount: 200.0 },
+            }),
+            { status: 200 },
+          ),
       ),
     )
     const result = await provider.getPaymentStatus("tok_abc")
     assert.equal(result.found, true)
     assert.equal(result.status, "pending")
-    assert.equal(result.amountTnd, 200.00)
+    assert.equal(result.amountTnd, 200.0)
   })
 })
 
 test("getPaymentStatus : HTTP 404 → { found: false }, jamais une erreur levée", async () => {
   await withPaymeeEnv({ PAYMEE_API_KEY: "fake_key" }, async () => {
     const provider = new PaymeePaymentProvider(
-      fakeFetch(() => new Response(JSON.stringify({ status: false }), { status: 404 })),
+      fakeFetch(
+        () => new Response(JSON.stringify({ status: false }), { status: 404 }),
+      ),
     )
     const result = await provider.getPaymentStatus("tok_unknown")
     assert.equal(result.found, false)
@@ -333,13 +347,14 @@ test("getPaymentStatus : timeout réseau → { found: false }, jamais une except
     { PAYMEE_API_KEY: "fake_key", PAYMEE_TIMEOUT_MS: "50" },
     async () => {
       const provider = new PaymeePaymentProvider(
-        fakeFetch((_url, init) =>
-          new Promise((_resolve, reject) => {
-            const signal = init.signal as AbortSignal
-            signal.addEventListener("abort", () =>
-              reject(new DOMException("aborted", "AbortError")),
-            )
-          }),
+        fakeFetch(
+          (_url, init) =>
+            new Promise((_resolve, reject) => {
+              const signal = init.signal as AbortSignal
+              signal.addEventListener("abort", () =>
+                reject(new DOMException("aborted", "AbortError")),
+              )
+            }),
         ),
       )
       const result = await provider.getPaymentStatus("tok_abc")
@@ -351,14 +366,115 @@ test("getPaymentStatus : timeout réseau → { found: false }, jamais une except
 test("getPaymentStatus : forme de réponse inattendue (sans data.amount) → { found: false }, fail-closed", async () => {
   await withPaymeeEnv({ PAYMEE_API_KEY: "fake_key" }, async () => {
     const provider = new PaymeePaymentProvider(
-      fakeFetch(() =>
-        new Response(
-          JSON.stringify({ status: true, data: { payment_status: true } }),
-          { status: 200 },
-        ),
+      fakeFetch(
+        () =>
+          new Response(
+            JSON.stringify({ status: true, data: { payment_status: true } }),
+            { status: 200 },
+          ),
       ),
     )
     const result = await provider.getPaymentStatus("tok_abc")
     assert.equal(result.found, false)
+  })
+})
+
+/* -------------------------------------------------------------------------- */
+/* Normalisation numéro de téléphone — testée via createPayment               */
+/* (normalizePaymeePhone est privée, capturedBody.phone reflète le résultat)  */
+/* -------------------------------------------------------------------------- */
+
+function makeSuccessResponse() {
+  return new Response(
+    JSON.stringify({
+      status: true,
+      data: {
+        token: "tok_phone_test",
+        payment_url: "https://sandbox.paymee.tn/gateway/tok_phone_test",
+      },
+    }),
+    { status: 200 },
+  )
+}
+
+test("normalizePaymeePhone : numéro local tunisien 8 chiffres → +216XXXXXXXX (format international)", async () => {
+  await withPaymeeEnv({ PAYMEE_API_KEY: "fake_key" }, async () => {
+    let capturedPhone = ""
+    const provider = new PaymeePaymentProvider(
+      fakeFetch((_, init) => {
+        capturedPhone = JSON.parse(init.body as string).phone
+        return makeSuccessResponse()
+      }),
+    )
+    await provider.createPayment({ ...BASE_INPUT, customerPhone: "98123456" })
+    assert.equal(capturedPhone, "+21698123456")
+  })
+})
+
+test("normalizePaymeePhone : numéro +21698123456 (déjà en format international +216) → inchangé", async () => {
+  await withPaymeeEnv({ PAYMEE_API_KEY: "fake_key" }, async () => {
+    let capturedPhone = ""
+    const provider = new PaymeePaymentProvider(
+      fakeFetch((_, init) => {
+        capturedPhone = JSON.parse(init.body as string).phone
+        return makeSuccessResponse()
+      }),
+    )
+    await provider.createPayment({
+      ...BASE_INPUT,
+      customerPhone: "+21698123456",
+    })
+    assert.equal(capturedPhone, "+21698123456")
+  })
+})
+
+test("normalizePaymeePhone : numéro 21698123456 (216 sans +) → +21698123456", async () => {
+  await withPaymeeEnv({ PAYMEE_API_KEY: "fake_key" }, async () => {
+    let capturedPhone = ""
+    const provider = new PaymeePaymentProvider(
+      fakeFetch((_, init) => {
+        capturedPhone = JSON.parse(init.body as string).phone
+        return makeSuccessResponse()
+      }),
+    )
+    await provider.createPayment({
+      ...BASE_INPUT,
+      customerPhone: "21698123456",
+    })
+    assert.equal(capturedPhone, "+21698123456")
+  })
+})
+
+test("normalizePaymeePhone : numéro international non tunisien → digits transmis tels quels (sans +)", async () => {
+  // Paymee est TND-only : un numéro non tunisien est transmis tel quel (digits)
+  // car la doc Paymee ne couvre que le format +216. Pas de préfixe ajouté.
+  await withPaymeeEnv({ PAYMEE_API_KEY: "fake_key" }, async () => {
+    let capturedPhone = ""
+    const provider = new PaymeePaymentProvider(
+      fakeFetch((_, init) => {
+        capturedPhone = JSON.parse(init.body as string).phone
+        return makeSuccessResponse()
+      }),
+    )
+    await provider.createPayment({
+      ...BASE_INPUT,
+      customerPhone: "+33612345678",
+    })
+    // digits uniquement : +33… → "33612345678"
+    assert.equal(capturedPhone, "33612345678")
+  })
+})
+
+test("normalizePaymeePhone : numéro absent (undefined) → chaîne vide", async () => {
+  await withPaymeeEnv({ PAYMEE_API_KEY: "fake_key" }, async () => {
+    let capturedPhone = ""
+    const provider = new PaymeePaymentProvider(
+      fakeFetch((_, init) => {
+        capturedPhone = JSON.parse(init.body as string).phone
+        return makeSuccessResponse()
+      }),
+    )
+    await provider.createPayment({ ...BASE_INPUT, customerPhone: undefined })
+    assert.equal(capturedPhone, "")
   })
 })

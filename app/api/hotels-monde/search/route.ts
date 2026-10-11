@@ -19,6 +19,10 @@ import { applyMargin } from "@/lib/pro/pricing"
 import { withSystemContext } from "@/lib/db/tenant-context"
 import { recordHotelSearchDemandCore } from "@/lib/crm/search-demand-core"
 import { logger } from "@/lib/logger"
+import {
+  resolveHotelCommercialRules,
+  computeHotelCommercialResult,
+} from "@/lib/hotels/commercial-engine"
 
 export const runtime = "nodejs"
 export const revalidate = 0
@@ -108,8 +112,25 @@ export async function GET(req: NextRequest) {
   // Hôtels Monde n'a pas de granularité par chambre exposée (contrairement
   // à myGo), pricePerNightTnd n'est qu'une valeur d'affichage dérivée.
   const margins = await getMarginsForAgency(agencyId, undefined, "direct")
+  const commercialRules = agencyId
+    ? await resolveHotelCommercialRules(agencyId, "B2C")
+    : null
+
   result.offers = result.offers.map((offer) => {
-    const totalPriceTnd = applyMargin(offer.totalPriceTnd, margins.hotel)
+    let totalPriceTnd: number
+    if (commercialRules) {
+      try {
+        totalPriceTnd = computeHotelCommercialResult(
+          offer.totalPriceTnd,
+          "TND",
+          commercialRules,
+        ).sellingAmount
+      } catch {
+        totalPriceTnd = applyMargin(offer.totalPriceTnd, margins.hotel)
+      }
+    } else {
+      totalPriceTnd = applyMargin(offer.totalPriceTnd, margins.hotel)
+    }
     return {
       ...offer,
       totalPriceTnd,

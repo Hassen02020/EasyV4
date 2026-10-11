@@ -43,6 +43,8 @@ import {
   Banknote,
   Wallet,
   Building2,
+  ShieldCheck,
+  ShieldX,
 } from "lucide-react"
 import {
   createGuestWorldHotelBooking,
@@ -86,6 +88,7 @@ export function WorldHotelGuestBookingForm({
   const [submitError, setSubmitError] = useState<string | null>(null)
   const [method, setMethod] = useState<WorldHotelGuestPaymentMethod>("card")
   const [acceptCgv, setAcceptCgv] = useState(false)
+  const [policyAccepted, setPolicyAccepted] = useState(false)
 
   const METHODS: {
     key: WorldHotelGuestPaymentMethod
@@ -132,6 +135,10 @@ export function WorldHotelGuestBookingForm({
   })
 
   async function onSubmit(data: WorldHotelGuestBookingInput) {
+    if (!policyAccepted) {
+      setSubmitError(t("mustAcceptCancellationPolicy"))
+      return
+    }
     if (!acceptCgv) {
       setSubmitError(t("mustAcceptCgv"))
       return
@@ -370,6 +377,50 @@ export function WorldHotelGuestBookingForm({
           </CardContent>
         </Card>
 
+        {/* REFUND-POLICY-01b — case à cocher politique d'annulation obligatoire */}
+        <div
+          className={
+            "space-y-3 rounded-lg border p-4 " +
+            (offer.refundable ? "border-emerald-200" : "border-amber-200")
+          }
+        >
+          <div className="flex items-center gap-2">
+            {offer.refundable ? (
+              <ShieldCheck className="size-5 shrink-0 text-emerald-600" />
+            ) : (
+              <ShieldX className="size-5 shrink-0 text-amber-600" />
+            )}
+            <p className="text-sm font-semibold">
+              {t("cancellationPolicyTitle")}
+            </p>
+          </div>
+          <p
+            className={
+              "text-sm " +
+              (offer.refundable
+                ? "text-emerald-700 dark:text-emerald-400"
+                : "text-amber-700 dark:text-amber-400")
+            }
+          >
+            {offer.refundable
+              ? t("cancellationFree")
+              : t("cancellationNonRefundable")}
+          </p>
+          <div className="flex items-start gap-2 border-t pt-3">
+            <Checkbox
+              id="hotel-monde-policy"
+              checked={policyAccepted}
+              onCheckedChange={(v) => setPolicyAccepted(Boolean(v))}
+            />
+            <Label
+              htmlFor="hotel-monde-policy"
+              className="text-muted-foreground text-sm leading-snug"
+            >
+              {t("acceptCancellationPolicy")}
+            </Label>
+          </div>
+        </div>
+
         <Card className="bg-sidebar/5">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -405,7 +456,7 @@ export function WorldHotelGuestBookingForm({
           type="submit"
           size="lg"
           className="w-full"
-          disabled={isSubmitting || !acceptCgv}
+          disabled={isSubmitting || !policyAccepted || !acceptCgv}
         >
           {isSubmitting ? (
             <>

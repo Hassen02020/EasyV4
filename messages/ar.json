@@ -678,7 +678,12 @@
     "processing": "جارٍ المعالجة…",
     "mustAcceptCgv": "يجب عليك الموافقة على الشروط والأحكام العامة للبيع.",
     "unknownError": "خطأ غير معروف",
-    "nationalityPlaceholder": "تونسية"
+    "nationalityPlaceholder": "تونسية",
+    "cancellationPolicyTitle": "سياسة الإلغاء",
+    "cancellationFree": "إلغاء مجاني",
+    "cancellationNonRefundable": "غير قابل للاسترداد — لا يوجد استرداد في حالة الإلغاء",
+    "acceptCancellationPolicy": "لقد قرأت وأوافق على سياسة الإلغاء لهذا العرض",
+    "mustAcceptCancellationPolicy": "يجب عليك قبول سياسة الإلغاء للمتابعة"
   },
   "Attractions": {
     "kicker": "الأنشطة السياحية",

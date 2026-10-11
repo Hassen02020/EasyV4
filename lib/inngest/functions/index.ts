@@ -6,6 +6,7 @@
 export { processConfirmedBooking } from "./process-confirmed-booking"
 export { processCarConfirmed } from "./process-car-confirmed"
 export { processWalletCredit } from "./process-wallet-credit"
+export { processWalletCustomerCredited } from "./process-wallet-customer-credited"
 export { processTransferConfirmed } from "./process-transfer-confirmed"
 export { processOmraConfirmed } from "./process-omra-confirmed"
 export { processFlightConfirmed } from "./process-flight-confirmed"

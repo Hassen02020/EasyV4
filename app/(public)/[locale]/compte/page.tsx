@@ -61,9 +61,8 @@ export default async function ComptePage() {
   let walletBalance = 0
   if (tenant?.agencyId) {
     try {
-      const { guestTenantContext } = await import(
-        "@/lib/hotel-suppliers/tenant/live-resolution"
-      )
+      const { guestTenantContext } =
+        await import("@/lib/hotel-suppliers/tenant/live-resolution")
       const guestTenant = await guestTenantContext()
       if (guestTenant && guestTenant.agencyId) {
         const guestAgencyId = guestTenant.agencyId
@@ -242,10 +241,12 @@ export default async function ComptePage() {
             </div>
           </div>
           <div className="text-right">
-            <p className="text-foreground tabular-nums text-sm font-bold">
+            <p className="text-foreground text-sm font-bold tabular-nums">
               {walletBalance.toFixed(3)} DT
             </p>
-            <p className="text-accent text-xs font-medium">{t("walletTopUpLink")} →</p>
+            <p className="text-accent text-xs font-medium">
+              {t("walletTopUpLink")} →
+            </p>
           </div>
         </Link>
 

@@ -51,7 +51,10 @@ export async function submitCustomerTopUp(
   } = await supabase.auth.getUser()
 
   if (authError || !user) {
-    return { ok: false, error: "Vous devez être connecté pour recharger votre wallet." }
+    return {
+      ok: false,
+      error: "Vous devez être connecté pour recharger votre wallet.",
+    }
   }
 
   const tenant = await guestTenantContext()
@@ -134,8 +137,13 @@ export async function submitCustomerTopUp(
         .where(eq(customerTopupRequests.id, topupId))
     })
   } catch (err: unknown) {
-    logger.error("[submitCustomerTopUp] insert topup request failed", { error: err })
-    return { ok: false, error: "Erreur lors de la création de la demande de recharge." }
+    logger.error("[submitCustomerTopUp] insert topup request failed", {
+      error: err,
+    })
+    return {
+      ok: false,
+      error: "Erreur lors de la création de la demande de recharge.",
+    }
   }
 
   // Appel Paymee
@@ -167,7 +175,10 @@ export async function submitCustomerTopUp(
     } catch {
       // best-effort
     }
-    return { ok: false, error: "Impossible d'initier le paiement. Veuillez réessayer." }
+    return {
+      ok: false,
+      error: "Impossible d'initier le paiement. Veuillez réessayer.",
+    }
   }
 
   // Stocke le token Paymee sur la demande

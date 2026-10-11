@@ -59,7 +59,9 @@ export function WalletTopUpForm() {
           disabled={isPending}
           className="border-border bg-background text-foreground placeholder:text-muted-foreground focus:ring-accent w-full rounded-xl border px-3 py-2.5 text-sm focus:ring-2 focus:outline-none disabled:opacity-50"
         />
-        <p className="text-muted-foreground mt-1.5 text-xs">{t("walletAmountHint")}</p>
+        <p className="text-muted-foreground mt-1.5 text-xs">
+          {t("walletAmountHint")}
+        </p>
       </div>
 
       {error && (

@@ -188,6 +188,17 @@ export async function POST(request: NextRequest) {
     if (b2cResult.status !== "no_match") {
       result = b2cResult as unknown as typeof result
     }
+    // Email de confirmation B2C — fire-and-forget, hors transaction
+    if (b2cResult.status === "credited") {
+      await sendEvent("wallet/customer.credited", {
+        customerId: b2cResult.customerId,
+        txId: b2cResult.txId,
+        amount: b2cResult.amount,
+        newBalance: b2cResult.newBalance,
+      }).catch(() => {
+        /* fire-and-forget */
+      })
+    }
   }
 
   if (result.status === "credited") {

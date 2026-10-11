@@ -32,7 +32,10 @@ export default async function WalletPage({ searchParams }: Props) {
 
   if (!user) {
     redirect({
-      href: { pathname: "/compte/connexion", query: { next: "/compte/wallet" } },
+      href: {
+        pathname: "/compte/connexion",
+        query: { next: "/compte/wallet" },
+      },
       locale,
     })
     return null
@@ -119,17 +122,19 @@ export default async function WalletPage({ searchParams }: Props) {
           </p>
           <p className="text-foreground mt-2 text-3xl font-bold tabular-nums">
             {balance.toFixed(3)}{" "}
-            <span className="text-muted-foreground text-base font-normal">DT</span>
+            <span className="text-muted-foreground text-base font-normal">
+              DT
+            </span>
           </p>
         </div>
 
         {/* Feedback success/cancel */}
         {topupStatus === "success" && (
-          <div className="bg-green-50 border-green-200 dark:bg-green-950/20 dark:border-green-800 mb-6 rounded-2xl border p-4">
+          <div className="mb-6 rounded-2xl border border-green-200 bg-green-50 p-4 dark:border-green-800 dark:bg-green-950/20">
             <p className="font-semibold text-green-800 dark:text-green-300">
               {t("walletSuccessTitle")}
             </p>
-            <p className="text-green-700 dark:text-green-400 mt-1 text-sm">
+            <p className="mt-1 text-sm text-green-700 dark:text-green-400">
               {t("walletSuccessDesc")}
             </p>
           </div>
@@ -137,7 +142,9 @@ export default async function WalletPage({ searchParams }: Props) {
 
         {topupStatus === "cancelled" && (
           <div className="bg-muted border-border mb-6 rounded-2xl border p-4">
-            <p className="text-foreground font-semibold">{t("walletCancelledTitle")}</p>
+            <p className="text-foreground font-semibold">
+              {t("walletCancelledTitle")}
+            </p>
             <p className="text-muted-foreground mt-1 text-sm">
               {t("walletCancelledDesc")}
             </p>
@@ -150,7 +157,8 @@ export default async function WalletPage({ searchParams }: Props) {
         ) : (
           <div className="bg-muted border-border rounded-2xl border p-6 text-center">
             <p className="text-muted-foreground text-sm">
-              Profil client introuvable. Effectuez d&apos;abord une réservation pour activer votre portefeuille.
+              Profil client introuvable. Effectuez d&apos;abord une réservation
+              pour activer votre portefeuille.
             </p>
           </div>
         )}

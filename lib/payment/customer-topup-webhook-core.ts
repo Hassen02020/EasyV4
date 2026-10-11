@@ -14,8 +14,15 @@
 
 import { eq, and } from "drizzle-orm"
 import type { DrizzleTransaction } from "@/lib/db/client"
-import { customerTopupRequests, paymentEvents, pspWebhooks } from "@/lib/db/schema"
-import { creditCustomerWallet, type WalletMovementSuccess } from "@/lib/finance/customer-wallet"
+import {
+  customerTopupRequests,
+  paymentEvents,
+  pspWebhooks,
+} from "@/lib/db/schema"
+import {
+  creditCustomerWallet,
+  type WalletMovementSuccess,
+} from "@/lib/finance/customer-wallet"
 import {
   classifyEventType,
   type NormalizedChargeEvent,
@@ -50,7 +57,8 @@ export async function processCustomerTopupWebhookCore(
   tx: DrizzleTransaction,
   input: ProcessCustomerTopupWebhookInput,
 ): Promise<CustomerTopupWebhookOutcome> {
-  const { provider, eventId, eventType, charge, signatureOk, auditPayload } = input
+  const { provider, eventId, eventType, charge, signatureOk, auditPayload } =
+    input
 
   const kind = classifyEventType(eventType)
 

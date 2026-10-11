@@ -64,8 +64,13 @@ test("R9-02 : wallet_ledger append-only — aucun UPDATE walletLedger dans le we
   // Vérifie qu'il n'y a pas de tx.update(walletLedger) dans le webhook core
   assert.ok(!webhookCoreSrc.match(/\.update\(walletLedger\)/))
   // Vérifie qu'il n'y a pas de UPDATE wallet_ledger en dehors des commentaires
-  const codeOnly = webhookCoreSrc.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/.*/g, "")
-  assert.ok(!codeOnly.match(/wallet_ledger.*UPDATE/i), "wallet_ledger ne doit jamais être UPDATE dans le code")
+  const codeOnly = webhookCoreSrc
+    .replace(/\/\*[\s\S]*?\*\//g, "")
+    .replace(/\/\/.*/g, "")
+  assert.ok(
+    !codeOnly.match(/wallet_ledger.*UPDATE/i),
+    "wallet_ledger ne doit jamais être UPDATE dans le code",
+  )
 })
 
 // ─── 5. IDEMPOTENCE EVENT-LEVEL ───────────────────────────────────────────────
@@ -96,19 +101,34 @@ test("R9-02 : la page /compte/wallet/page.tsx existe", () => {
 // ─── 8. I18N KEYS ─────────────────────────────────────────────────────────────
 
 test("R9-02 : clés i18n wallet présentes dans fr.json", () => {
-  for (const key of ["walletSectionTitle", "walletBalance", "walletTopUpButton", "walletSuccessTitle"]) {
+  for (const key of [
+    "walletSectionTitle",
+    "walletBalance",
+    "walletTopUpButton",
+    "walletSuccessTitle",
+  ]) {
     assert.ok(frJson.includes(`"${key}"`), `clé manquante fr.json : ${key}`)
   }
 })
 
 test("R9-02 : clés i18n wallet présentes dans en.json", () => {
-  for (const key of ["walletSectionTitle", "walletBalance", "walletTopUpButton", "walletSuccessTitle"]) {
+  for (const key of [
+    "walletSectionTitle",
+    "walletBalance",
+    "walletTopUpButton",
+    "walletSuccessTitle",
+  ]) {
     assert.ok(enJson.includes(`"${key}"`), `clé manquante en.json : ${key}`)
   }
 })
 
 test("R9-02 : clés i18n wallet présentes dans ar.json", () => {
-  for (const key of ["walletSectionTitle", "walletBalance", "walletTopUpButton", "walletSuccessTitle"]) {
+  for (const key of [
+    "walletSectionTitle",
+    "walletBalance",
+    "walletTopUpButton",
+    "walletSuccessTitle",
+  ]) {
     assert.ok(arJson.includes(`"${key}"`), `clé manquante ar.json : ${key}`)
   }
 })
@@ -122,8 +142,14 @@ test("R9-02 : la route webhook enchaîne B2C après B2B no_match", () => {
   const noMatchIdx = webhookRouteSrc.indexOf('result.status === "no_match"')
   // La deuxième occurrence de processCustomerTopupWebhookCore est l'appel
   const firstOccIdx = webhookRouteSrc.indexOf("processCustomerTopupWebhookCore")
-  const callIdx = webhookRouteSrc.indexOf("processCustomerTopupWebhookCore", firstOccIdx + 1)
-  assert.ok(callIdx > noMatchIdx, "l'appel à processCustomerTopupWebhookCore doit être dans le bloc no_match")
+  const callIdx = webhookRouteSrc.indexOf(
+    "processCustomerTopupWebhookCore",
+    firstOccIdx + 1,
+  )
+  assert.ok(
+    callIdx > noMatchIdx,
+    "l'appel à processCustomerTopupWebhookCore doit être dans le bloc no_match",
+  )
 })
 
 // ─── 10. MIGRATION SQL ────────────────────────────────────────────────────────

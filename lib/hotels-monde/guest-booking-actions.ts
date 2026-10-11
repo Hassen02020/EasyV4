@@ -45,6 +45,7 @@ import {
 } from "@/lib/db/schema"
 import { getDefaultAgencyId } from "@/lib/agencies/default-agency"
 import { getMarginsForAgency } from "@/lib/pro/server-context"
+import { applyMargin } from "@/lib/pro/pricing"
 import {
   resolveHotelCommercialRules,
   computeHotelCommercialResult,
@@ -256,13 +257,33 @@ async function runCreateGuestWorldHotelBooking(
   // Jamais de prix ni de disponibilité fournis par le client — book()
   // régénère l'offre déterministe et compare au prix attendu, décrémente
   // l'inventaire réel et n'émet un numéro de confirmation qu'en cas de succès.
+  //
+  // PRICING-CONSISTENCY-01 — même recette qu'à la recherche :
+  // tenter la règle commerciale ; si elle lève une exception (ex. CURRENCY-DIM-01),
+  // logger l'erreur et retomber sur pricing_margins plutôt que BOOKING_REJECTED.
+  let pricingUsedRule = false
   const bookResult: BookResult = await bookWorldHotel(
     booking.offerToken,
     booking.expectedPriceTnd,
     commercialRules
-      ? (p: number) =>
-          computeHotelCommercialResult(p, "TND", commercialRules).sellingAmount
-      : margins.hotel,
+      ? (p: number) => {
+          try {
+            const amount = computeHotelCommercialResult(
+              p,
+              "TND",
+              commercialRules,
+            ).sellingAmount
+            pricingUsedRule = true
+            return amount
+          } catch (err) {
+            console.error(
+              "[HOTELS-MONDE:BOOKING] règle commerciale inapplicable — fallback pricing_margins:",
+              err instanceof Error ? err.message : err,
+            )
+            return applyMargin(p, margins.hotel)
+          }
+        }
+      : (p: number) => applyMargin(p, margins.hotel),
   )
   if (!bookResult.ok) {
     await releaseInventoryLock()
@@ -407,9 +428,10 @@ async function runCreateGuestWorldHotelBooking(
           Math.round(
             marginAmountTnd * (commissionRateForEntitlements / 100) * 100,
           ) / 100
-        // Describe the pricing rule actually applied (commercial rule or pricing_margins fallback)
-        const marginBasis = commercialRules
-          ? `règle commerciale hôtels monde (fixedFee ${commercialRules.fixedFee} TND + markupRate ${Math.round(commercialRules.markupRate * 100)}%) − commission ${commissionRateForEntitlements}%`
+        // PRICING-CONSISTENCY-01 — reflète le chemin réellement emprunté
+        // (règle commerciale OU fallback pricing_margins si exception levée).
+        const marginBasis = pricingUsedRule
+          ? `règle commerciale hôtels monde (fixedFee ${commercialRules!.fixedFee} TND + markupRate ${Math.round(commercialRules!.markupRate * 100)}%) − commission ${commissionRateForEntitlements}%`
           : `marge vendeur nette de commission (${
               margins.hotel.marginType === "percent"
                 ? `${margins.hotel.marginValue}%`

@@ -125,7 +125,11 @@ export async function GET(req: NextRequest) {
           "TND",
           commercialRules,
         ).sellingAmount
-      } catch {
+      } catch (err) {
+        console.error(
+          "[HOTELS-MONDE:SEARCH] règle commerciale inapplicable — fallback pricing_margins:",
+          err instanceof Error ? err.message : err,
+        )
         totalPriceTnd = applyMargin(offer.totalPriceTnd, margins.hotel)
       }
     } else {

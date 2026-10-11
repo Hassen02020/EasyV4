@@ -34,10 +34,14 @@ type Method =
 export function CheckoutForm({
   token,
   campaignId,
+  walletBalanceTnd = 0,
+  totalTnd = 0,
 }: {
   token: string
   /** CAMPAIGN-LINK-01 — indice optionnel depuis ?campaign=<uuid> dans l'URL. */
   campaignId?: string
+  walletBalanceTnd?: number
+  totalTnd?: number
 }) {
   const t = useTranslations("Booking")
   const router = useRouter()
@@ -150,6 +154,14 @@ export function CheckoutForm({
   function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
     setError(null)
+    if (method === "wallet" && walletBalanceTnd < totalTnd) {
+      setError(
+        t("methodWalletInsufficientDesc", {
+          balance: walletBalanceTnd.toFixed(3),
+        }),
+      )
+      return
+    }
     const parsed = checkoutSchema.safeParse({
       paymentMethod: method,
       acceptCgv: acceptCgv as true,
@@ -191,24 +203,30 @@ export function CheckoutForm({
             </h3>
             <div className="grid gap-3 sm:grid-cols-1">
               {METHODS.map((m) => {
+                const isWallet = m.key === "wallet"
+                const walletDisabled =
+                  isWallet && walletBalanceTnd < totalTnd
                 const active = method === m.key
                 const Icon = m.icon
                 return (
                   <button
                     key={m.key}
                     type="button"
-                    onClick={() => setMethod(m.key)}
+                    onClick={() => !walletDisabled && setMethod(m.key)}
+                    disabled={walletDisabled}
                     className={
                       "flex items-start gap-3 rounded-lg border p-4 text-left transition-all " +
-                      (active
-                        ? "border-sidebar bg-sidebar/5 shadow-sm"
-                        : "border-border hover:border-foreground/30")
+                      (walletDisabled
+                        ? "border-border cursor-not-allowed opacity-50"
+                        : active
+                          ? "border-sidebar bg-sidebar/5 shadow-sm"
+                          : "border-border hover:border-foreground/30")
                     }
                   >
                     <span
                       className={
                         "mt-0.5 inline-flex size-9 items-center justify-center rounded-md " +
-                        (active
+                        (active && !walletDisabled
                           ? "bg-sidebar text-white"
                           : "bg-muted text-muted-foreground")
                       }
@@ -220,7 +238,15 @@ export function CheckoutForm({
                         {m.label}
                       </span>
                       <span className="text-muted-foreground text-xs">
-                        {m.desc}
+                        {isWallet
+                          ? walletDisabled
+                            ? t("methodWalletInsufficientDesc", {
+                                balance: walletBalanceTnd.toFixed(3),
+                              })
+                            : t("methodWalletBalanceDesc", {
+                                balance: walletBalanceTnd.toFixed(3),
+                              })
+                          : m.desc}
                       </span>
                     </span>
                   </button>

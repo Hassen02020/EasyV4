@@ -1023,6 +1023,8 @@
     "methodCashDesc": "Réservation maintenue 48 h en attente de paiement — voucher émis après confirmation du règlement",
     "methodWalletLabel": "Solde Easy2Book",
     "methodWalletDesc": "Débité de votre solde client (crédité lors d'un remboursement précédent) — le montant exact est vérifié et prélevé par le serveur au moment de la validation",
+    "methodWalletBalanceDesc": "Solde disponible : {balance} DT — sera débité à la confirmation",
+    "methodWalletInsufficientDesc": "Solde insuffisant ({balance} DT disponible) — rechargez votre compte ou choisissez un autre mode de paiement",
     "methodAtHotelLabel": "Paiement à l'hôtel",
     "methodAtHotelDesc": "Réservation enregistrée, aucun règlement en ligne — le paiement est effectué directement à l'hôtel lors du séjour, voucher émis après confirmation du règlement",
     "missingTravelerInfo": "Informations voyageur manquantes — revenez à l'étape précédente.",

@@ -1023,6 +1023,8 @@
     "methodCashDesc": "Booking held for 48h pending payment — voucher issued once payment is confirmed",
     "methodWalletLabel": "Easy2Book balance",
     "methodWalletDesc": "Debited from your customer balance (credited from a previous refund) — the exact amount is verified and charged by the server at validation",
+    "methodWalletBalanceDesc": "Available balance: {balance} TND — will be debited at confirmation",
+    "methodWalletInsufficientDesc": "Insufficient balance ({balance} TND available) — top up your account or choose another payment method",
     "methodAtHotelLabel": "Pay at the hotel",
     "methodAtHotelDesc": "Booking recorded, no online payment — payment is made directly at the hotel during the stay, voucher issued once payment is confirmed",
     "missingTravelerInfo": "Missing traveler information — go back to the previous step.",

@@ -9,7 +9,7 @@
  * couverts génériquement par reservation-webhook-core.test.ts (référence
  * inconnue, montant différent, refusé, duplicate, already_processed,
  * replay) — ici avec un payload et une corrélation Paymee réalistes
- * (token/order_id/payment_id), pas un `NormalizedChargeEvent` construit à
+ * (token/order_id/transaction_id), pas un `NormalizedChargeEvent` construit à
  * la main.
  */
 import test, { before, after } from "node:test"
@@ -106,7 +106,7 @@ function buildSignedPaymeeWebhook(params: {
   orderId: string
   amountTnd: number
   paymentStatus: boolean
-  paymentId?: string
+  transactionId?: number
 }) {
   const token = `tok_${randomUUID()}`
   const checkSum = computePaymeeChecksum({
@@ -120,7 +120,7 @@ function buildSignedPaymeeWebhook(params: {
     amount: params.amountTnd,
     payment_status: params.paymentStatus,
     check_sum: checkSum,
-    ...(params.paymentId ? { payment_id: params.paymentId } : {}),
+    ...(params.transactionId ? { transaction_id: params.transactionId } : {}),
   }
 
   const signatureOk = verifyPaymeeChecksum({
@@ -220,7 +220,7 @@ test("signature valide + succès : capture le paiement et confirme la réservati
     orderId,
     amountTnd: 250,
     paymentStatus: true,
-    paymentId: `pmt-${randomUUID()}`,
+    transactionId: 55001,
   })
   assert.equal(w.signatureOk, true)
   assert.ok(w.charge)
@@ -329,7 +329,7 @@ test("webhook failed (item 11) : payment_status=false -> payment_failed, réserv
   assert.equal(res!.status, "pending")
 })
 
-test("webhook duplicate (item 9) : même notification (même payment_id) reçue deux fois -> duplicate au deuxième appel", async (t) => {
+test("webhook duplicate (item 9) : même notification (même transaction_id) reçue deux fois -> duplicate au deuxième appel", async (t) => {
   if (!dbAvailable) return void t.skip(skipReason())
   const reservationId = await makeReservation({
     status: "pending",
@@ -342,7 +342,7 @@ test("webhook duplicate (item 9) : même notification (même payment_id) reçue 
     orderId,
     amountTnd: 120,
     paymentStatus: true,
-    paymentId: `pmt-${randomUUID()}`,
+    transactionId: 55009,
   })
 
   const first = await withSystemContext((tx) =>
@@ -360,7 +360,7 @@ test("webhook duplicate (item 9) : même notification (même payment_id) reçue 
   const second = await withSystemContext((tx) =>
     processReservationWebhookCore(tx, {
       provider: "paymee",
-      eventId: w.charge!.eventId, // même payment_id -> même eventId déterministe
+      eventId: w.charge!.eventId, // même transaction_id -> même eventId déterministe
       eventType: w.eventType,
       charge: w.charge,
       signatureOk: w.signatureOk,
@@ -383,7 +383,7 @@ test("webhook success après déjà-captured (item 10) : event_id différent pou
     orderId,
     amountTnd: 80,
     paymentStatus: true,
-    paymentId: `pmt-${randomUUID()}`,
+    transactionId: 55010,
   })
   const first = await withSystemContext((tx) =>
     processReservationWebhookCore(tx, {
@@ -398,12 +398,12 @@ test("webhook success après déjà-captured (item 10) : event_id différent pou
   assert.equal(first.status, "captured_confirmed")
 
   // Paymee (ou un attaquant qui rejoue une notification passée) renvoie un
-  // "succès" pour la même référence, avec un payment_id différent.
+  // "succès" pour la même référence, avec un transaction_id différent.
   const w2 = buildSignedPaymeeWebhook({
     orderId,
     amountTnd: 80,
     paymentStatus: true,
-    paymentId: `pmt-${randomUUID()}`,
+    transactionId: 55011,
   })
   const second = await withSystemContext((tx) =>
     processReservationWebhookCore(tx, {
@@ -437,7 +437,7 @@ test("replay protection (item 12) : rejouer EXACTEMENT le même webhook déjà t
     orderId,
     amountTnd: 45,
     paymentStatus: true,
-    paymentId: `pmt-${randomUUID()}`,
+    transactionId: 55012,
   })
 
   const first = await withSystemContext((tx) =>

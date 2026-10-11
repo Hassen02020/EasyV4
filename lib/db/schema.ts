@@ -1102,7 +1102,7 @@ export const payments = pgTable(
     method: paymentMethod("method").notNull(),
     /** ID externe SPS (Order_id / Trans_id). */
     pspOrderId: varchar("psp_order_id", { length: 64 }),
-    pspTransactionId: varchar("psp_transaction_id", { length: 64 }),
+    pspTransactionId: varchar("psp_transaction_id", { length: 128 }),
     originalCurrency: varchar("original_currency", { length: 3 }).notNull(),
     originalAmount: decimal("original_amount", {
       precision: 14,

@@ -20,6 +20,7 @@ import { decodeDraft } from "./draft-store"
 import { debitPartnerCredit } from "@/lib/pro/booking-actions"
 import { getMarginsForAgency } from "@/lib/pro/server-context"
 import { applyMargin } from "@/lib/pro/pricing"
+import { applyHotelCommercialEngine } from "@/lib/hotels/commercial-engine"
 import { generateInvoiceForReservation } from "@/lib/finance/invoice-actions"
 import { recordReservationFinancials } from "@/lib/finance/reservation-financials"
 import { recordReservationTransition } from "@/lib/admin/reservation-status-history"
@@ -465,12 +466,22 @@ export async function createReservationFromDraft(input: {
   // AGENCE (marge appliquée), jamais le prix net fournisseur — sinon
   // brancher le pont B2B hôtel (Phase 9) sur ce pipeline aurait débité les
   // agences au prix net myGo, sans aucune marge, pour toute réservation
-  // hôtel réellement confirmée. Marge existante réutilisée telle quelle
-  // (`applyMargin`, `getMarginsForAgency`) — pas une deuxième formule.
+  // hôtel réellement confirmée.
+  // hotelMarginRule est toujours résolu (pour commission/ruleId downstream) ;
+  // COMMERCIAL-HOTELS-01 : si une règle DB existe, son sellingAmount remplace
+  // applyMargin() ; sinon fallback sur pricing_margins (comportement antérieur).
   const hotelMarginRule = (
     await getMarginsForAgency(agencyId, authUserId, "b2b")
   ).hotel
-  const agencyHotelPrice = applyMargin(myGoBooking.totalPrice, hotelMarginRule)
+  const commercialResult = await applyHotelCommercialEngine(
+    myGoBooking.totalPrice,
+    "TND",
+    agencyId,
+    "B2B",
+  )
+  const agencyHotelPrice = commercialResult
+    ? commercialResult.sellingAmount
+    : applyMargin(myGoBooking.totalPrice, hotelMarginRule)
 
   const breakdown = computePriceBreakdown({
     ...authoritativeUnitPrice(agencyHotelPrice, draft.adults),

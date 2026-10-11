@@ -13,7 +13,9 @@ import {
 
 describe("matchesHotelProductScope", () => {
   it("NULL scope matches everything", () => {
-    assert.ok(matchesHotelProductScope(null, { destination: "TUN", provider: "mygo" }))
+    assert.ok(
+      matchesHotelProductScope(null, { destination: "TUN", provider: "mygo" }),
+    )
   })
 
   it("empty scope matches everything", () => {
@@ -51,14 +53,13 @@ describe("matchesHotelProductScope", () => {
   })
 
   it("non-matching stars fails", () => {
-    assert.equal(
-      matchesHotelProductScope({ stars: 5 }, { stars: 4 }),
-      false,
-    )
+    assert.equal(matchesHotelProductScope({ stars: 5 }, { stars: 4 }), false)
   })
 
   it("matching boardBasis passes", () => {
-    assert.ok(matchesHotelProductScope({ boardBasis: "BB" }, { boardBasis: "BB" }))
+    assert.ok(
+      matchesHotelProductScope({ boardBasis: "BB" }, { boardBasis: "BB" }),
+    )
   })
 
   it("non-matching boardBasis fails", () => {
@@ -112,7 +113,11 @@ describe("computeHotelCommercialResult", () => {
   })
 
   it("zero fixedFee + zero markupRate = passthrough", () => {
-    const rules: HotelCommercialRules = { fixedFee: 0, markupRate: 0, currency: "TND" }
+    const rules: HotelCommercialRules = {
+      fixedFee: 0,
+      markupRate: 0,
+      currency: "TND",
+    }
     const result = computeHotelCommercialResult(300, "TND", rules)
     assert.equal(result.sellingAmount, 300)
     assert.equal(result.fee, 0)

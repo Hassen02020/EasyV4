@@ -240,7 +240,10 @@ export const hotelCommercialRules = pgTable(
   },
   (t) => [
     index("hotel_commercial_rules_priority_idx").on(t.priority),
-    index("hotel_commercial_rules_agency_channel_idx").on(t.agencyId, t.channel),
+    index("hotel_commercial_rules_agency_channel_idx").on(
+      t.agencyId,
+      t.channel,
+    ),
     index("hotel_commercial_rules_active_idx").on(t.isActive),
   ],
 )

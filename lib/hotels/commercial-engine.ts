@@ -67,7 +67,11 @@ export function matchesHotelProductScope(
     return false
   if (scope.provider && hints.provider && scope.provider !== hints.provider)
     return false
-  if (scope.stars !== undefined && hints.stars !== undefined && scope.stars !== hints.stars)
+  if (
+    scope.stars !== undefined &&
+    hints.stars !== undefined &&
+    scope.stars !== hints.stars
+  )
     return false
   if (
     scope.boardBasis &&

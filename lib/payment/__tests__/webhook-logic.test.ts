@@ -191,15 +191,16 @@ test("matchesPendingRecharge : tolère l'arrondi flottant sous le millime", () =
 /* Paymee — normalizePaymeeEvent                                              */
 /* -------------------------------------------------------------------------- */
 
-test("normalizePaymeeEvent : retombe sur `amount` quand `received_amount` est absent (comportement historique)", () => {
+test("normalizePaymeeEvent : utilise `amount` quand `received_amount` est absent (webhook d'échec — champ absent selon doc Paymee)", () => {
   const charge = normalizePaymeeEvent(
-    { token: "tok_1", order_id: "order_1", amount: 150, payment_id: "pmt_1" },
+    { token: "tok_1", order_id: "order_1", amount: 150, transaction_id: 5578 },
     "paymee.payment.success",
   )
   assert.ok(charge)
   assert.equal(charge!.amountTnd, 150)
   assert.equal(charge!.providerRef, "order_1")
   assert.equal(charge!.currency, "TND")
+  assert.equal(charge!.eventId, "paymee-transaction-5578")
 })
 
 test("normalizePaymeeEvent : utilise `amount` (brut) même quand `received_amount` est présent — `received_amount` est net de frais Paymee, non utilisé pour la corrélation", () => {
@@ -210,12 +211,13 @@ test("normalizePaymeeEvent : utilise `amount` (brut) même quand `received_amoun
       amount: 150,
       received_amount: 145.5,
       cost: 4.5,
-      payment_id: "pmt_2",
+      transaction_id: 5579,
     },
     "paymee.payment.success",
   )
   assert.ok(charge)
   assert.equal(charge!.amountTnd, 150)
+  assert.equal(charge!.eventId, "paymee-transaction-5579")
 })
 
 test("normalizePaymeeEvent : corrélation réussit quand amount === originalAmount, même si received_amount diffère (frais Paymee déduits)", () => {

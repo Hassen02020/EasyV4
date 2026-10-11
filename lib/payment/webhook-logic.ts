@@ -156,8 +156,14 @@ export function normalizePaymeeEvent(
 ): NormalizedChargeEvent | null {
   const token = typeof body["token"] === "string" ? body["token"] : null
   const orderId = typeof body["order_id"] === "string" ? body["order_id"] : null
-  const paymentId = body["payment_id"]
+  // transaction_id : identifiant Paymee côté succès (integer, ex. 5578) —
+  // confirmé par doc officielle Paymee (webhooks réussi/échec). Absent du
+  // webhook d'échec → fallback sur token+type. Jamais "payment_id" (champ
+  // absent de la doc officielle).
+  const transactionId = body["transaction_id"]
   // Toujours le montant brut (amount) pour la corrélation — jamais received_amount.
+  // received_amount = net de frais Paymee (absent du webhook d'échec) ; voir fix
+  // PAYMEE-CORRELATION-01 dans le commit ef0b6dd pour le raisonnement complet.
   const amountRaw = body["amount"]
 
   if (!token || !orderId) return null
@@ -167,8 +173,8 @@ export function normalizePaymeeEvent(
   if (!Number.isFinite(amountTnd)) return null
 
   const eventId =
-    paymentId !== undefined && paymentId !== null && paymentId !== ""
-      ? `paymee-payment-${paymentId}`
+    transactionId !== undefined && transactionId !== null
+      ? `paymee-transaction-${transactionId}`
       : `paymee-${token}-${eventType}`
 
   return {

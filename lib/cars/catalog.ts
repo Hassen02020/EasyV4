@@ -16,7 +16,7 @@
 "use server"
 
 import { and, eq } from "drizzle-orm"
-import { withSystemContext } from "@/lib/db/tenant-context"
+import { withPublicReadContext } from "@/lib/db/tenant-context"
 import { carLocations, carCategories } from "@/lib/db/schema"
 import { getDefaultAgencyId } from "@/lib/agencies/default-agency"
 
@@ -27,7 +27,7 @@ export async function getActiveCarCatalog() {
 
     // Catalogue public (trafic anonyme, pas de session storefront).
     const [locations, categories] = await Promise.all([
-      withSystemContext((db) =>
+      withPublicReadContext((db) =>
         db
           .select()
           .from(carLocations)
@@ -39,7 +39,7 @@ export async function getActiveCarCatalog() {
           )
           .orderBy(carLocations.name),
       ),
-      withSystemContext((db) =>
+      withPublicReadContext((db) =>
         db
           .select()
           .from(carCategories)

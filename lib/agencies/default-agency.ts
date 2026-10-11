@@ -20,6 +20,7 @@
  * à avant : recherche de l'agence OTA par défaut.
  */
 
+import { unstable_cache } from "next/cache"
 import { withSystemContext } from "@/lib/db/tenant-context"
 import { agencies } from "@/lib/db/schema"
 import { and, asc, eq, isNull } from "drizzle-orm"
@@ -45,14 +46,12 @@ import {
  * résolu) ne doit jamais retomber accidentellement sur le catalogue d'un
  * tenant.
  */
-export async function getDefaultAgencyId(): Promise<string | null> {
-  const tenantAgencyId = await getRequestTenantAgencyId()
-  // Tenant déjà résolu par proxy.ts : pas besoin d'interroger la BDD pour
-  // le fallback OTA par défaut, resolveEffectiveAgencyId le préférerait de
-  // toute façon.
-  if (tenantAgencyId) return resolveEffectiveAgencyId(tenantAgencyId, null)
-
-  try {
+// Résolution de l'agence OTA par défaut mise en cache 60 s — la requête est
+// identique pour tous les appels publics sans tenant, appelée 4+ fois en
+// parallèle par page.tsx. Cache réduit de ~4 transactions DB à 0 (cache hit).
+// TTL 60 s : acceptable, la config agence OTA change rarement.
+const fetchDefaultOtaAgencyId = unstable_cache(
+  async (): Promise<string | null> => {
     const [agency] = await withSystemContext((db) =>
       db
         .select({ id: agencies.id })
@@ -61,7 +60,22 @@ export async function getDefaultAgencyId(): Promise<string | null> {
         .orderBy(asc(agencies.createdAt))
         .limit(1),
     )
-    return resolveEffectiveAgencyId(null, agency?.id ?? null)
+    return agency?.id ?? null
+  },
+  ["default-ota-agency-id"],
+  { revalidate: 60, tags: ["default-agency"] },
+)
+
+export async function getDefaultAgencyId(): Promise<string | null> {
+  const tenantAgencyId = await getRequestTenantAgencyId()
+  // Tenant déjà résolu par proxy.ts : pas besoin d'interroger la BDD pour
+  // le fallback OTA par défaut, resolveEffectiveAgencyId le préférerait de
+  // toute façon.
+  if (tenantAgencyId) return resolveEffectiveAgencyId(tenantAgencyId, null)
+
+  try {
+    const rawId = await fetchDefaultOtaAgencyId()
+    return resolveEffectiveAgencyId(null, rawId)
   } catch (err) {
     // Journalise l'erreur pour diagnostic Vercel — la cause réelle de "Aucune
     // agence n'est configurée" ne peut pas être confirmée sans ces logs (le

@@ -16,28 +16,39 @@ import { getActiveCarCatalog } from "@/lib/cars/catalog"
 
 export const dynamic = "force-dynamic"
 
+/** Wraps a promise with a 1 s fallback; logs when the timeout fires so Vercel
+ *  logs expose slow/failed DB queries that would otherwise be silently swallowed. */
+function withFallback<T>(
+  label: string,
+  promise: Promise<T>,
+  fallback: T,
+): Promise<T> {
+  let settled = false
+  const settled$ = promise.then(
+    (v) => { settled = true; return v },
+    () => { settled = true; return fallback },
+  )
+  const timeout$ = new Promise<T>((r) =>
+    setTimeout(() => {
+      if (!settled) {
+        console.warn(`[homepage] DB timeout (1 000 ms) — ${label} using fallback`)
+      }
+      r(fallback)
+    }, 1000),
+  )
+  return Promise.race([settled$, timeout$])
+}
+
 export default async function Home() {
-  // Cap each DB call at 1 s so the page never stalls when postgres-js is
-  // reconnecting. Fallbacks render the shell without dynamic data.
   const [modules, site, transferZones, carCatalog] = await Promise.all([
-    Promise.race([
-      getPublicModuleVisuals().catch(() => []),
-      new Promise<never[]>((r) => setTimeout(() => r([]), 1000)),
-    ]),
-    Promise.race([
-      getPublicSiteConfig().catch(() => null),
-      new Promise<null>((r) => setTimeout(() => r(null), 1000)),
-    ]),
-    Promise.race([
-      getActiveTransferZones().catch(() => []),
-      new Promise<never[]>((r) => setTimeout(() => r([]), 1000)),
-    ]),
-    Promise.race([
-      getActiveCarCatalog().catch(() => ({ locations: [], categories: [] })),
-      new Promise<{ locations: never[]; categories: never[] }>((r) =>
-        setTimeout(() => r({ locations: [], categories: [] }), 1000),
-      ),
-    ]),
+    withFallback("getPublicModuleVisuals", getPublicModuleVisuals(), []),
+    withFallback("getPublicSiteConfig", getPublicSiteConfig(), null),
+    withFallback("getActiveTransferZones", getActiveTransferZones(), []),
+    withFallback(
+      "getActiveCarCatalog",
+      getActiveCarCatalog(),
+      { agencyId: null, locations: [], categories: [] } as Awaited<ReturnType<typeof getActiveCarCatalog>>,
+    ),
   ])
 
   return (
@@ -53,11 +64,7 @@ export default async function Home() {
         <Suspense fallback={<div className="bg-muted/40 h-64 animate-pulse" />}>
           <FlashOffers />
         </Suspense>
-        <OmratySection
-          imageUrl={
-            modules.find((m) => m.moduleSlug === "omraty")?.heroImageUrl
-          }
-        />
+        <OmratySection />
         <Suspense fallback={<div className="bg-muted/40 h-64 animate-pulse" />}>
           <FeaturedDestinationsSection />
         </Suspense>

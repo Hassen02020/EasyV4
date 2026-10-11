@@ -53,11 +53,7 @@ export default async function Home() {
         <Suspense fallback={<div className="bg-muted/40 h-64 animate-pulse" />}>
           <FlashOffers />
         </Suspense>
-        <OmratySection
-          imageUrl={
-            modules.find((m) => m.moduleSlug === "omraty")?.heroImageUrl
-          }
-        />
+        <OmratySection />
         <Suspense fallback={<div className="bg-muted/40 h-64 animate-pulse" />}>
           <FeaturedDestinationsSection />
         </Suspense>

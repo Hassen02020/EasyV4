@@ -36,6 +36,7 @@ import {
   BarChart2,
   Palette,
   Landmark,
+  Tag,
   Target,
   Zap,
   Crown,
@@ -305,6 +306,11 @@ const superAdminNavItems: NavItem[] = [
     title: "Politique FX",
     icon: Landmark,
     href: "/admin/fx-policy",
+  },
+  {
+    title: "Règles commerciales",
+    icon: Tag,
+    href: "/admin/commercial-rules",
   },
   {
     title: "Marque Easy2Book",

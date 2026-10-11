@@ -98,6 +98,45 @@ function isValidCreateResponse(
   )
 }
 
+interface PaymeeStatusResponseData {
+  token?: unknown
+  payment_status?: unknown
+  amount?: unknown
+  received_amount?: unknown
+}
+interface PaymeeStatusResponse {
+  status?: unknown
+  data?: PaymeeStatusResponseData
+}
+
+/** Extrait un statut normalisé depuis une réponse GET /api/v2/payments/{token}.
+ * Fail-closed : tout ce qui ne correspond pas exactement au contrat connu
+ * retourne `{ found: false }` — jamais un statut inventé. */
+function parseStatusResponse(
+  json: unknown,
+): { found: true; status: "pending" | "succeeded"; amountTnd: number } | { found: false } {
+  if (!json || typeof json !== "object") return { found: false }
+  const r = json as PaymeeStatusResponse
+  if (r.status !== true || !r.data || typeof r.data !== "object") {
+    return { found: false }
+  }
+  const d = r.data
+  // amount réel capturé : received_amount si disponible, sinon amount
+  const rawAmount = typeof d.received_amount === "number"
+    ? d.received_amount
+    : typeof d.amount === "number"
+      ? d.amount
+      : null
+  if (rawAmount === null) return { found: false }
+  // payment_status : true = paiement réussi, false = en attente/échoué
+  const succeeded = d.payment_status === true
+  return {
+    found: true,
+    status: succeeded ? "succeeded" : "pending",
+    amountTnd: rawAmount,
+  }
+}
+
 export class PaymeePaymentProvider implements PaymentProvider {
   readonly name = "paymee"
   readonly configured: boolean
@@ -230,22 +269,58 @@ export class PaymeePaymentProvider implements PaymentProvider {
     }
   }
 
-  /** Remboursement Paymee non implémenté — aucune doc de l'API de
-   * remboursement n'a pu être vérifiée (voir avertissement de fichier) ;
-   * jamais fabriqué. À traiter manuellement via le back-office Paymee en
-   * attendant, ou à implémenter une fois le contrat confirmé. */
-  async refundPayment(): Promise<PaymentResult> {
+  /** Paymee ne fournit pas d'API de remboursement programmatique (aucun
+   * endpoint documenté, confirmé par l'absence dans la doc officielle
+   * fournie). Les remboursements se traitent via le back-office Paymee
+   * (app.paymee.tn / sandbox.paymee.tn → Tableau de bord → Transactions).
+   * Cette méthode reste honnête : jamais un succès simulé. */
+  async refundPayment(
+    _providerPaymentId?: string,
+    _amountTnd?: number,
+  ): Promise<PaymentResult> {
     return {
       ok: false,
       code: "PAYMENT_NOT_FOUND",
       message:
-        "Remboursement Paymee non implémenté (API de remboursement non vérifiée) — traiter manuellement via le back-office Paymee.",
+        "L'API Paymee ne propose pas de remboursement programmatique. Traiter via le tableau de bord Paymee (Transactions → Rembourser).",
     }
   }
 
-  /** Idem — aucun endpoint de statut Paymee vérifié ; jamais de transaction
-   * fantôme rapportée. */
-  async getPaymentStatus(): Promise<PaymentStatusResult> {
-    return { found: false }
+  /** Interroge `GET /api/v2/payments/{token}` pour connaître le statut actuel
+   * d'un paiement. Fail-closed : toute réponse imprévue (réseau, forme
+   * inattendue, clé absente) retourne `{ found: false }` — jamais un statut
+   * inventé (règle anti-fabrication — voir note de fichier). */
+  async getPaymentStatus(
+    providerPaymentId: string,
+  ): Promise<PaymentStatusResult> {
+    if (!this.apiKey) return { found: false }
+
+    const url = `${resolvePaymeeBaseUrl()}/api/v2/payments/${encodeURIComponent(providerPaymentId)}`
+    const controller = new AbortController()
+    const timer = setTimeout(() => controller.abort(), this.timeoutMs)
+
+    let response: Response
+    try {
+      response = await this.fetchImpl(url, {
+        method: "GET",
+        headers: { Authorization: `Token ${this.apiKey}` },
+        signal: controller.signal,
+      })
+    } catch {
+      return { found: false }
+    } finally {
+      clearTimeout(timer)
+    }
+
+    if (!response.ok) return { found: false }
+
+    let json: unknown
+    try {
+      json = await response.json()
+    } catch {
+      return { found: false }
+    }
+
+    return parseStatusResponse(json)
   }
 }

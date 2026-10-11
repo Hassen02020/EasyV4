@@ -13,7 +13,7 @@
 "use server"
 
 import { and, eq } from "drizzle-orm"
-import { withSystemContext } from "@/lib/db/tenant-context"
+import { withPublicReadContext } from "@/lib/db/tenant-context"
 import { catalogTransferZones } from "@/lib/db/schema"
 import { getDefaultAgencyId } from "@/lib/agencies/default-agency"
 
@@ -23,7 +23,7 @@ export async function getActiveTransferZones() {
     // l'agence OTA directe, même modèle que Packages/Attractions/Car.
     const agencyId = await getDefaultAgencyId()
     if (!agencyId) return []
-    return await withSystemContext((db) =>
+    return await withPublicReadContext((db) =>
       db
         .select()
         .from(catalogTransferZones)

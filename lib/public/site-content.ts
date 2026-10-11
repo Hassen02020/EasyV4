@@ -8,7 +8,7 @@ import {
   publicPromotions,
 } from "@/lib/db/schema"
 import { getDefaultAgencyId } from "@/lib/agencies/default-agency"
-import { withSystemContext } from "@/lib/db/tenant-context"
+import { withPublicReadContext } from "@/lib/db/tenant-context"
 
 export interface PublicSiteConfig {
   brandName: string
@@ -27,7 +27,7 @@ export async function getPublicSiteConfig(): Promise<PublicSiteConfig | null> {
   if (!agencyId) return null
 
   try {
-    return await withSystemContext(async (db) => {
+    return await withPublicReadContext(async (db) => {
       const [row] = await db
         .select({
           brandName: agencies.brandName,
@@ -73,7 +73,7 @@ export async function getPublicModuleVisuals() {
   if (!agencyId) return []
 
   try {
-    return await withSystemContext(async (db) =>
+    return await withPublicReadContext(async (db) =>
       db
         .select({
           moduleSlug: publicModuleVisuals.moduleSlug,
@@ -97,7 +97,7 @@ export async function getPublicModuleVisual(
   if (!agencyId) return null
 
   try {
-    return await withSystemContext(async (db) => {
+    return await withPublicReadContext(async (db) => {
       const [row] = await db
         .select({ heroImageUrl: publicModuleVisuals.heroImageUrl })
         .from(publicModuleVisuals)
@@ -123,7 +123,7 @@ export async function getPublicPromotions() {
   const now = new Date()
 
   try {
-    return await withSystemContext(async (db) =>
+    return await withPublicReadContext(async (db) =>
       db
         .select({
           id: publicPromotions.id,

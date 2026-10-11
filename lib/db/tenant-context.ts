@@ -130,6 +130,33 @@ export async function withSystemContext<T>(
 }
 
 /**
+ * Variante de `withSystemContext` réservée aux lectures publiques B2C
+ * (pages storefront, trafic anonyme).
+ *
+ * Ajoute `statement_timeout = '1500ms'` (LOCAL à la transaction) pour
+ * garantir que la connexion est libérée côté serveur DB si la requête est
+ * lente — évite les connexions orphelines qui saturent le pool Supavisor
+ * session-mode (confirmé : >1 000 `terminate_with_error` / heure en prod,
+ * 2026-10-11, supavisor_logs).
+ *
+ * Ne jamais utiliser pour des écritures ou des opérations admin.
+ */
+export async function withPublicReadContext<T>(
+  fn: (tx: DrizzleTransaction) => Promise<T>,
+): Promise<T> {
+  const db = getDb()
+  return db.transaction(async (tx) => {
+    await tx.execute(sql`
+      select
+        set_config('app.current_agency_id', '', true),
+        set_config('app.is_super_admin', 'true', true),
+        set_config('statement_timeout', '1500ms', true)
+    `)
+    return fn(tx)
+  })
+}
+
+/**
  * UUID nul, réservé comme valeur sentinelle pour `app.current_user_id` dans
  * `withPublicAgencyContext()` — jamais un vrai id de ligne `users`.
  */

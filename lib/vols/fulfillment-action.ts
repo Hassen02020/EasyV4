@@ -36,6 +36,7 @@ import { getCurrentAdminProfile } from "@/lib/auth/profile"
 import { isAllowedIntoAdmin } from "@/lib/auth/admin-gate"
 import { recordReservationTransition } from "@/lib/admin/reservation-status-history"
 import { finalizeFlightBookingFinancials } from "./flight-financials"
+import { autoRefundOnFlightFailure } from "./flight-refund-on-failure"
 
 // ─── roles allowed to trigger fulfillment ────────────────────────────────────
 // PROVIDER-CONNECTIVITY-BRIDGE (P3) : exportée pour être réutilisée telle
@@ -361,6 +362,13 @@ export async function fulfillFlightBooking(
         recheckMs,
       )
       await updateFlightStatus(bookingId, "FAILED")
+      await autoRefundOnFlightFailure({
+        reservationId,
+        agencyId: claimed.agencyId,
+        actorUserId: user.id,
+        reason:
+          "Échec revalidation fournisseur (recheck) — remboursement automatique",
+      })
       return {
         ok: false,
         error: "Erreur lors de la revalidation fournisseur.",
@@ -409,6 +417,12 @@ export async function fulfillFlightBooking(
     }
     if (recheckResult.status !== "AVAILABLE") {
       await updateFlightStatus(bookingId, "FAILED")
+      await autoRefundOnFlightFailure({
+        reservationId,
+        agencyId: claimed.agencyId,
+        actorUserId: user.id,
+        reason: `Offre vol non disponible (${recheckResult.status}) — remboursement automatique`,
+      })
       return {
         ok: false,
         error: "Cette offre n'est plus disponible.",
@@ -435,6 +449,13 @@ export async function fulfillFlightBooking(
         bookMs,
       )
       await updateFlightStatus(bookingId, "FAILED")
+      await autoRefundOnFlightFailure({
+        reservationId,
+        agencyId: claimed.agencyId,
+        actorUserId: user.id,
+        reason:
+          "Échec réservation fournisseur (book) — remboursement automatique",
+      })
       return {
         ok: false,
         error: "La réservation fournisseur a échoué.",
@@ -537,6 +558,12 @@ export async function fulfillFlightBooking(
     }
 
     await updateFlightStatus(bookingId, "FAILED")
+    await autoRefundOnFlightFailure({
+      reservationId,
+      agencyId: claimed.agencyId,
+      actorUserId: user.id,
+      reason: "Échec émission billet (issue) — remboursement automatique",
+    })
     return {
       ok: false,
       error: "L'émission du billet a échoué.",

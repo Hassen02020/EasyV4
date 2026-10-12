@@ -82,7 +82,9 @@ export async function getCancellationFinancialsSummary(): Promise<CancellationFi
       )
       .where(baseFilter)
       .groupBy(reservations.module)
-      .orderBy(sql`sum(${reservationFinancials.cancellationFee}::numeric) desc nulls last`)
+      .orderBy(
+        sql`sum(${reservationFinancials.cancellationFee}::numeric) desc nulls last`,
+      )
 
     /* ── Tendance journalière ─────────────────────────────────── */
     const dailyRows = await tx

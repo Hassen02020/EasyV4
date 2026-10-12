@@ -128,7 +128,9 @@ export default async function CancellationFinancesPage() {
             <p className="text-2xl font-bold tabular-nums">
               {formatTnd(netRetained)}
             </p>
-            <p className="text-muted-foreground text-xs">frais − remboursements</p>
+            <p className="text-muted-foreground text-xs">
+              frais − remboursements
+            </p>
           </CardContent>
         </Card>
       </div>

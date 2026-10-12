@@ -33,12 +33,18 @@ test("CANCEL-REPORTING-WIRING-01/R1b : withSystemContext appelé (pas juste impo
 
 // R2 : isNotNull guard sur cancellationFee
 test("CANCEL-REPORTING-WIRING-01/R2 : isNotNull(reservationFinancials.cancellationFee) — filtre lignes sans annulation", () => {
-  assert.match(src, /isNotNull\s*\(\s*reservationFinancials\.cancellationFee\s*\)/)
+  assert.match(
+    src,
+    /isNotNull\s*\(\s*reservationFinancials\.cancellationFee\s*\)/,
+  )
 })
 
 // R3 : gte() sur cancelledAt pour la fenêtre temporelle
 test("CANCEL-REPORTING-WIRING-01/R3 : gte(reservationFinancials.cancelledAt, since) — fenêtre 90j glissants", () => {
-  assert.match(src, /gte\s*\(\s*reservationFinancials\.cancelledAt\s*,\s*since\s*\)/)
+  assert.match(
+    src,
+    /gte\s*\(\s*reservationFinancials\.cancelledAt\s*,\s*since\s*\)/,
+  )
 })
 
 // R4 : reservations.module utilisé dans le groupBy
@@ -55,5 +61,8 @@ test("CANCEL-REPORTING-WIRING-01/R5 : lecture seule — aucun tx.insert() ni tx.
 
 // R6 : export de la fonction principale
 test("CANCEL-REPORTING-WIRING-01/R6 : getCancellationFinancialsSummary exportée", () => {
-  assert.match(src, /export\s+async\s+function\s+getCancellationFinancialsSummary\s*\(/)
+  assert.match(
+    src,
+    /export\s+async\s+function\s+getCancellationFinancialsSummary\s*\(/,
+  )
 })

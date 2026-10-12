@@ -5,26 +5,26 @@
  *
  *  A. `debit_platform_commission()` (SQL SECURITY DEFINER, migration 0133) :
  *     débite wallet_accounts.current_balance et insère une ligne
- *     wallet_ledger (type='adjustment', category='fee', amount=-commissionAmount).
+ *     wallet_ledger (type='adjustment', category='fee', amount=-montant).
  *     Idempotent via p_idempotency_key = 'commission-reversal:{reservationId}'.
  *
  *  B. INSERT economic_entitlements compensatoire (qualification='commission',
  *     partyType='easy2book', amount négatif) pointant vers la ligne d'origine
  *     via compensatesId — append-only par construction (0092).
  *
- * Guard commun :
- *   - Pas de ligne reservation_financials → no-op silencieux (réservation
- *     antérieure au chantier 37A, commissionAmount non renseigné).
- *   - commissionAmount ≤ 0 → no-op (aucune commission n'avait été prélevée).
- *   - Pas d'entitlement original → on n'insère pas de ligne compensatoire
- *     (le wallet a quand même été débité si commissionAmount > 0).
+ * Ordre d'exécution :
+ *   1. Lire reservation_financials → garde rapide si aucune commission
+ *   2. Lire l'entitlement d'origine (AVANT tout débit) :
+ *      - Absent         → no-op + warn (impossible de vérifier le crédit initial)
+ *      - non_refundable → insert 0.00 traçabilité uniquement, PAS de débit wallet
+ *      - full_reversal  → débit wallet + insert compensatoire (montant = entitlement)
+ *      - pro_rata_fee   → TODO CANCEL-COMMISSION-POLICY-01 (Direction) ; fallback full_reversal
+ *   3. Montant autorisé = |originalEntitlement.amount|, pas reservationFinancials.commissionAmount
+ *      (l'entitlement est la trace comptable de ce qui a été effectivement crédité)
  *
- * DÉCISION COMMERCIALE REQUISE (non implémentée ici) :
- *   La politique d'annulation (full_reversal / pro_rata_fee / non_refundable)
- *   est lue depuis `economic_entitlements.cancellationTreatment`. En l'absence
- *   de valeur, on applique full_reversal par défaut (conservateur). Direction
- *   doit valider la politique par produit/module avant de déployer pro_rata ou
- *   non_refundable — voir TODO CANCEL-COMMISSION-POLICY-01 ci-dessous.
+ * DÉCISION COMMERCIALE REQUISE (TODO CANCEL-COMMISSION-POLICY-01) :
+ *   Direction doit valider full_reversal / pro_rata_fee / non_refundable par
+ *   produit/module avant déploiement de ces variantes.
  */
 
 import { and, eq, sql } from "drizzle-orm"
@@ -42,7 +42,7 @@ export async function reverseCommissionOnCancellation(
 ): Promise<void> {
   const { reservationId, publicRef } = params
 
-  // ── 1. Lire commissionAmount depuis reservation_financials ──────────────────
+  // ── 1. Garde rapide : commissionAmount dans reservation_financials ──────────
   const [finRow] = await tx
     .select({ commissionAmount: reservationFinancials.commissionAmount })
     .from(reservationFinancials)
@@ -50,27 +50,17 @@ export async function reverseCommissionOnCancellation(
     .limit(1)
 
   if (!finRow) return // Réservation antérieure au chantier 37A — no-op
+  const earlyAmount = parseFloat(finRow.commissionAmount ?? "0")
+  if (earlyAmount <= 0) return // Aucune commission enregistrée
 
-  const commissionAmount = parseFloat(finRow.commissionAmount ?? "0")
-  if (commissionAmount <= 0) return // Aucune commission à reverser
-
-  const idempotencyKey = `commission-reversal:${reservationId}`
-
-  // ── A. Débit wallet commission (SECURITY DEFINER, idempotent) ──────────────
-  await tx.execute(sql`
-    SELECT debit_platform_commission(
-      ${PLATFORM_COMMISSION_WALLET_ID}::uuid,
-      ${reservationId}::uuid,
-      ${commissionAmount}::numeric,
-      ${"Reversement commission — annulation " + publicRef},
-      ${idempotencyKey}
-    )
-  `)
-
-  // ── B. Ligne compensatoire economic_entitlements ───────────────────────────
+  // ── 2. Entitlement d'origine AVANT tout débit ──────────────────────────────
+  // L'entitlement est la preuve comptable que la commission a bien été créditée
+  // et quel montant a été effectivement enregistré. Sans lui, le débit serait
+  // aveugle — on s'abstient (conservateur) et on alerte pour investigation.
   const [originalEntitlement] = await tx
     .select({
       id: economicEntitlements.id,
+      amount: economicEntitlements.amount,
       cancellationTreatment: economicEntitlements.cancellationTreatment,
     })
     .from(economicEntitlements)
@@ -83,29 +73,84 @@ export async function reverseCommissionOnCancellation(
     )
     .limit(1)
 
-  if (!originalEntitlement) return // Pas d'entitlement d'origine — wallet débité, pas de compensatoire
+  if (!originalEntitlement) {
+    // Pas de trace comptable initiale : ne pas débiter le wallet.
+    // Cas attendus : réservation antérieure aux entitlements, ou erreur amont.
+    console.warn(
+      JSON.stringify({
+        tag: "COMMISSION_REVERSAL_NO_ENTITLEMENT",
+        reservationId,
+        earlyAmount,
+        ts: new Date().toISOString(),
+      }),
+    )
+    return
+  }
 
-  // TODO CANCEL-COMMISSION-POLICY-01 :
-  // Direction doit confirmer la politique par module (hotel/flight/transfer/…)
-  // avant d'activer pro_rata_fee ou non_refundable.
-  // Défaut actuel = full_reversal (conservateur — ne fait jamais pire que reverser la commission).
+  // ── 3. Politique d'annulation ──────────────────────────────────────────────
+  // TODO CANCEL-COMMISSION-POLICY-01 : Direction doit confirmer par module.
   const treatment = (originalEntitlement.cancellationTreatment ??
     "full_reversal") as "full_reversal" | "pro_rata_fee" | "non_refundable"
 
-  // Pour non_refundable : la commission est méritée même en annulation — on
-  // insère la ligne compensatoire avec amount=0 pour traçabilité mais le wallet
-  // a déjà été débité ci-dessus. Ce cas ne devrait pas se produire tant que
-  // Direction n'a pas activé cette politique.
-  const reversedAmount =
-    treatment === "non_refundable" ? 0 : -commissionAmount
+  // non_refundable : commission méritée même en annulation — PAS de débit wallet.
+  // On insère uniquement une ligne de traçabilité à 0.00.
+  if (treatment === "non_refundable") {
+    await tx.insert(economicEntitlements).values({
+      reservationId,
+      partyType: "easy2book",
+      partyId: null,
+      role: "easy2book",
+      qualification: "commission",
+      amount: "0.00",
+      currency: "TND",
+      basis: `Reversement commission — annulation ${publicRef} (non_refundable — commission conservée)`,
+      status: "pending",
+      effectiveAt: new Date(),
+      compensatesId: originalEntitlement.id,
+      cancellationTreatment: "non_refundable",
+    })
+    return
+  }
 
+  // ── 4. Montant autorisé : source = entitlement d'origine ───────────────────
+  // reservationFinancials.commissionAmount est un garde d'entrée rapide ;
+  // le montant effectivement crédité au wallet est dans l'entitlement.
+  if (treatment === "pro_rata_fee") {
+    // TODO CANCEL-COMMISSION-POLICY-01 : calcul pro_rata non défini par Direction.
+    // Fallback full_reversal jusqu'à décision explicite.
+    console.warn(
+      JSON.stringify({
+        tag: "COMMISSION_REVERSAL_PRO_RATA_FALLBACK",
+        reservationId,
+        ts: new Date().toISOString(),
+      }),
+    )
+  }
+
+  const amountToReverse = Math.abs(parseFloat(originalEntitlement.amount ?? "0"))
+  if (amountToReverse <= 0) return
+
+  const idempotencyKey = `commission-reversal:${reservationId}`
+
+  // ── A. Débit wallet commission (SECURITY DEFINER, idempotent) ──────────────
+  await tx.execute(sql`
+    SELECT debit_platform_commission(
+      ${PLATFORM_COMMISSION_WALLET_ID}::uuid,
+      ${reservationId}::uuid,
+      ${amountToReverse}::numeric,
+      ${"Reversement commission — annulation " + publicRef},
+      ${idempotencyKey}
+    )
+  `)
+
+  // ── B. Ligne compensatoire economic_entitlements ─────────────────────────
   await tx.insert(economicEntitlements).values({
     reservationId,
     partyType: "easy2book",
     partyId: null,
     role: "easy2book",
     qualification: "commission",
-    amount: reversedAmount.toFixed(2),
+    amount: (-amountToReverse).toFixed(2),
     currency: "TND",
     basis: `Reversement commission — annulation ${publicRef} (${treatment})`,
     status: "pending",

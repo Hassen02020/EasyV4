@@ -44,6 +44,10 @@ function notSettledFilter(tx: any) {
 // associée est annulée ou remboursée — une commission sur réservation annulée
 // ne doit jamais être settlée (le reversement a déjà débité le wallet via
 // debit_platform_commission). Entrées sans reservationId (cas rare) : incluses.
+//
+// LIMITATION CONNUE : ce filtre protège les prochains settlements mais ne
+// récupère pas une commission déjà settlée avant l'annulation (race settlement
+// → annulation). Ce cas exige un chantier de recovery séparé sur GO Direction.
 function notCancelledFilter() {
   return or(
     isNull(walletLedger.reservationId),

@@ -2,14 +2,16 @@
  * CANCEL-COMMISSION-01 — Tests unitaires : reverseCommissionOnCancellation.
  *
  * Couvre :
- *  1. No-op silencieux quand pas de ligne reservation_financials.
- *  2. No-op silencieux quand commissionAmount <= 0.
- *  3. Appel à debit_platform_commission() quand commissionAmount > 0.
- *  4. Clé d'idempotence = 'commission-reversal:{reservationId}'.
- *  5. Insertion compensatoire economic_entitlements quand entitlement original trouvé.
- *  6. Pas d'insertion compensatoire quand entitlement original absent.
- *  7. Défaut full_reversal quand cancellationTreatment = null.
- *  8. non_refundable → amount compensatoire = 0 (pas de remboursement commission).
+ *  1.  No-op silencieux quand pas de ligne reservation_financials.
+ *  2.  No-op silencieux quand commissionAmount <= 0.
+ *  3.  No-op silencieux quand commissionAmount = null.
+ *  4.  No-op + warn quand entitlement original absent (wallet PAS débité).
+ *  5.  Appel à debit_platform_commission() quand entitlement trouvé et amount > 0.
+ *  6.  Clé d'idempotence = 'commission-reversal:{reservationId}'.
+ *  7.  Insertion compensatoire economic_entitlements quand entitlement original trouvé.
+ *  8.  Pas d'insertion compensatoire et pas de débit quand entitlement absent.
+ *  9.  Défaut full_reversal — montant = |originalEntitlement.amount|, PAS commissionAmount.
+ *  10. non_refundable → ZÉRO débit wallet, compensation traçabilité = 0.00.
  *
  * Pas de DB réelle — mock tx minimal.
  */
@@ -26,12 +28,12 @@ import type { DrizzleTransaction } from "@/lib/db/client"
 
 type MockSelectResult =
   | { commissionAmount: string | null }
-  | { id: string; cancellationTreatment: string | null }
+  | { id: string; amount: string; cancellationTreatment: string | null }
   | null
 
 function makeMockTx(opts: {
   financialsRow: { commissionAmount: string | null } | null
-  originalEntitlement: { id: string; cancellationTreatment: string | null } | null
+  originalEntitlement: { id: string; amount: string; cancellationTreatment: string | null } | null
 }) {
   const executeCalls: unknown[] = []
   const insertValues: Record<string, unknown>[] = []
@@ -121,34 +123,54 @@ test("no-op silencieux — commissionAmount = null", async () => {
   assert.strictEqual(getExecuteCalls().length, 0)
 })
 
-test("appelle debit_platform_commission quand commissionAmount > 0", async () => {
-  const { tx, getExecuteCalls } = makeMockTx({
-    financialsRow: { commissionAmount: "15.50" },
+test("no-op + pas de débit — entitlement original absent (commissionAmount > 0)", async () => {
+  // Même si reservation_financials indique une commission, l'absence d'entitlement
+  // d'origine signifie qu'on ne peut pas vérifier le crédit initial — on ne débite pas.
+  const { tx, getExecuteCalls, getInsertValues } = makeMockTx({
+    financialsRow: { commissionAmount: "20.00" },
     originalEntitlement: null,
   })
 
   await reverseCommissionOnCancellation(tx, {
     reservationId: "res-4",
     publicRef: "REF-004",
+    actorUserId: null,
+  })
+
+  assert.strictEqual(getExecuteCalls().length, 0, "wallet ne doit pas être débité si entitlement absent")
+  assert.strictEqual(getInsertValues().length, 0, "ne doit pas insérer de ligne compensatoire si entitlement absent")
+})
+
+test("appelle debit_platform_commission quand entitlement trouvé et amount > 0", async () => {
+  const { tx, getExecuteCalls } = makeMockTx({
+    financialsRow: { commissionAmount: "15.50" },
+    originalEntitlement: { id: "orig-ent-5", amount: "15.50", cancellationTreatment: null },
+  })
+
+  await reverseCommissionOnCancellation(tx, {
+    reservationId: "res-5",
+    publicRef: "REF-005",
     actorUserId: "admin-1",
   })
 
   assert.strictEqual(getExecuteCalls().length, 1, "doit appeler tx.execute() une fois pour debit_platform_commission")
-  const sqlStr = String(getExecuteCalls()[0])
-  assert.ok(sqlStr.includes("debit_platform_commission") || JSON.stringify(getExecuteCalls()[0]).includes("debit_platform_commission"),
-    "doit appeler debit_platform_commission")
+  const sqlStr = JSON.stringify(getExecuteCalls()[0])
+  assert.ok(
+    sqlStr.includes("debit_platform_commission"),
+    "doit appeler debit_platform_commission",
+  )
 })
 
 test("clé d'idempotence = 'commission-reversal:{reservationId}'", async () => {
   const reservationId = "aaa-bbb-ccc-ddd"
   const { tx, getExecuteCalls } = makeMockTx({
     financialsRow: { commissionAmount: "10.00" },
-    originalEntitlement: null,
+    originalEntitlement: { id: "orig-ent-6", amount: "10.00", cancellationTreatment: null },
   })
 
   await reverseCommissionOnCancellation(tx, {
     reservationId,
-    publicRef: "REF-005",
+    publicRef: "REF-006",
     actorUserId: null,
   })
 
@@ -160,12 +182,12 @@ test("clé d'idempotence = 'commission-reversal:{reservationId}'", async () => {
 test("insère ligne compensatoire economic_entitlements quand entitlement original trouvé", async () => {
   const { tx, getInsertValues } = makeMockTx({
     financialsRow: { commissionAmount: "20.00" },
-    originalEntitlement: { id: "orig-ent-id", cancellationTreatment: null },
+    originalEntitlement: { id: "orig-ent-id", amount: "20.00", cancellationTreatment: null },
   })
 
   await reverseCommissionOnCancellation(tx, {
-    reservationId: "res-6",
-    publicRef: "REF-006",
+    reservationId: "res-7",
+    publicRef: "REF-007",
     actorUserId: null,
   })
 
@@ -176,25 +198,10 @@ test("insère ligne compensatoire economic_entitlements quand entitlement origin
   assert.strictEqual(row.compensatesId, "orig-ent-id")
 })
 
-test("pas d'insertion compensatoire quand entitlement original absent", async () => {
-  const { tx, getInsertValues } = makeMockTx({
+test("pas d'insertion compensatoire et pas de débit quand entitlement original absent", async () => {
+  const { tx, getInsertValues, getExecuteCalls } = makeMockTx({
     financialsRow: { commissionAmount: "20.00" },
     originalEntitlement: null,
-  })
-
-  await reverseCommissionOnCancellation(tx, {
-    reservationId: "res-7",
-    publicRef: "REF-007",
-    actorUserId: null,
-  })
-
-  assert.strictEqual(getInsertValues().length, 0, "ne doit pas insérer de ligne compensatoire si pas d'entitlement original")
-})
-
-test("défaut full_reversal — amount = -commissionAmount", async () => {
-  const { tx, getInsertValues } = makeMockTx({
-    financialsRow: { commissionAmount: "30.00" },
-    originalEntitlement: { id: "orig-id", cancellationTreatment: null },
   })
 
   await reverseCommissionOnCancellation(tx, {
@@ -203,15 +210,16 @@ test("défaut full_reversal — amount = -commissionAmount", async () => {
     actorUserId: null,
   })
 
-  const row = getInsertValues()[0]
-  assert.strictEqual(row.amount, "-30.00", "full_reversal doit inverser la commission")
-  assert.strictEqual(row.cancellationTreatment, "full_reversal")
+  assert.strictEqual(getExecuteCalls().length, 0, "wallet ne doit pas être débité si entitlement absent")
+  assert.strictEqual(getInsertValues().length, 0, "ne doit pas insérer de ligne compensatoire si pas d'entitlement original")
 })
 
-test("non_refundable → amount compensatoire = 0.00", async () => {
+test("full_reversal — amount = -|originalEntitlement.amount|, pas commissionAmount", async () => {
+  // commissionAmount (35.00) diffère volontairement de l'entitlement (30.00)
+  // pour vérifier que c'est bien l'entitlement qui fait foi.
   const { tx, getInsertValues } = makeMockTx({
-    financialsRow: { commissionAmount: "25.00" },
-    originalEntitlement: { id: "orig-id-2", cancellationTreatment: "non_refundable" },
+    financialsRow: { commissionAmount: "35.00" },
+    originalEntitlement: { id: "orig-id", amount: "30.00", cancellationTreatment: null },
   })
 
   await reverseCommissionOnCancellation(tx, {
@@ -220,6 +228,26 @@ test("non_refundable → amount compensatoire = 0.00", async () => {
     actorUserId: null,
   })
 
+  const row = getInsertValues()[0]
+  assert.strictEqual(row.amount, "-30.00", "full_reversal doit inverser le montant de l'entitlement d'origine (30.00), pas commissionAmount (35.00)")
+  assert.strictEqual(row.cancellationTreatment, "full_reversal")
+})
+
+test("non_refundable → ZÉRO débit wallet, compensatoire traçabilité = 0.00", async () => {
+  // La commission est méritée même en annulation — le wallet NE DOIT PAS être débité.
+  const { tx, getInsertValues, getExecuteCalls } = makeMockTx({
+    financialsRow: { commissionAmount: "25.00" },
+    originalEntitlement: { id: "orig-id-2", amount: "25.00", cancellationTreatment: "non_refundable" },
+  })
+
+  await reverseCommissionOnCancellation(tx, {
+    reservationId: "res-10",
+    publicRef: "REF-010",
+    actorUserId: null,
+  })
+
+  assert.strictEqual(getExecuteCalls().length, 0, "non_refundable : wallet commission ne doit PAS être débité")
+  assert.strictEqual(getInsertValues().length, 1, "doit insérer une ligne de traçabilité")
   const row = getInsertValues()[0]
   assert.strictEqual(row.amount, "0.00", "non_refundable : amount compensatoire doit être 0.00")
   assert.strictEqual(row.cancellationTreatment, "non_refundable")

@@ -4,6 +4,14 @@
 -- Symétrique de credit_platform_commission() (migration 0066) :
 -- débite le solde réel du wallet commission Easy2Book lors d'une annulation.
 --
+-- Ordre des opérations (verrou AVANT idempotence) :
+--   1. SELECT FOR UPDATE sur wallet_accounts → sérialise les appels concurrents.
+--   2. Idempotency guard (après verrou) → un second appel concurrent voit la
+--      clé déjà insérée par le premier et retourne silencieusement.
+--   3. Garde solde négatif → rejette tout débit qui ferait passer current_balance
+--      sous zéro (indique une erreur amont ou une commission non collectée).
+--   4. UPDATE wallet_accounts + INSERT wallet_ledger.
+--
 -- Architecture identique à credit_platform_commission() :
 --   SELECT … FOR UPDATE  → garantit cohérence balance_before/after sous charge
 --   UPDATE wallet_accounts → solde réel, jamais shadow
@@ -40,15 +48,9 @@ DECLARE
   v_balance_before numeric;
   v_balance_after  numeric;
 BEGIN
-  -- Idempotency guard : si la clé existe déjà, le débit a déjà eu lieu — no-op.
-  IF EXISTS (
-    SELECT 1 FROM wallet_ledger
-    WHERE idempotency_key = p_idempotency_key
-  ) THEN
-    RETURN;
-  END IF;
-
-  -- Verrou exclusif sur le compte commission platform
+  -- Verrou exclusif en premier : sérialise les appels concurrents sur ce wallet.
+  -- L'idempotency guard doit être APRÈS le verrou pour éviter la race où deux
+  -- appels passent tous deux le EXISTS check avant que l'un committe l'INSERT.
   SELECT current_balance INTO v_balance_before
   FROM wallet_accounts WHERE id = p_wallet_id FOR UPDATE;
 
@@ -57,8 +59,23 @@ BEGIN
       USING ERRCODE = 'P0002';
   END IF;
 
-  -- p_amount est positif ; on le soustrait du solde
+  -- Idempotency guard après verrou : le second appel concurrent voit ici la
+  -- clé déjà committée par le premier.
+  IF EXISTS (
+    SELECT 1 FROM wallet_ledger
+    WHERE idempotency_key = p_idempotency_key
+  ) THEN
+    RETURN;
+  END IF;
+
+  -- Garde solde négatif : un reversement de commission ne peut pas excéder
+  -- les commissions collectées. Solde négatif = erreur amont à investiguer.
   v_balance_after := v_balance_before - p_amount;
+  IF v_balance_after < 0 THEN
+    RAISE EXCEPTION 'INSUFFICIENT_COMMISSION_BALANCE: balance=% amount=%',
+      v_balance_before, p_amount
+      USING ERRCODE = 'P0001';
+  END IF;
 
   UPDATE wallet_accounts
   SET current_balance = v_balance_after,

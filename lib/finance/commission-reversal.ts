@@ -105,10 +105,39 @@
  * Cette fonction ne crée AUCUN débit rétroactif au-delà du solde wallet
  * courant — RÈGLE FINANCIÈRE respectée.
  *
- * DÉCISION COMMERCIALE REQUISE (TODO CANCEL-COMMISSION-POLICY-01) :
- *   Direction doit valider full_reversal / pro_rata_fee / non_refundable par
- *   produit/module avant qu'un writer ne renseigne `cancellationTreatment`
- *   à la création d'un entitlement de commission.
+ * DÉCISION COMMERCIALE CAPTURÉE (TODO CANCEL-COMMISSION-POLICY-01,
+ * 2026-10-12) — MODÈLE VALIDÉ, IMPLÉMENTATION PAS ENCORE FAITE :
+ *   Direction a validé le modèle suivant pour déterminer
+ *   `cancellationTreatment` à la création d'un entitlement de commission
+ *   (aucun writer ne le fait aujourd'hui — ce fichier continue donc de voir
+ *   100% des entitlements à `cancellationTreatment = NULL` et de sauter le
+ *   reversement jusqu'à ce qu'un chantier séparé implémente ce qui suit) :
+ *
+ *   1. Pour les modules couverts par `cancellation_policies`
+ *      (package/omra/activity/network/car/transfer — table existante,
+ *      configurée par agence/productType, gouverne le remboursement CLIENT,
+ *      PAS la commission Easy2Book) : DÉRIVER `cancellationTreatment` de la
+ *      ligne `cancellation_policies` applicable au moment de l'annulation —
+ *      `nonRefundable=true` → `non_refundable` ; `refundAllowed=true` sans
+ *      frais → `full_reversal` ; `cancellationFeePercent` défini → logique
+ *      `pro_rata_fee` (actuellement rejetée par ce fichier — nécessitera de
+ *      lever le `throw` de l'étape 3 une fois la règle pro_rata elle-même
+ *      validée et implémentée). Cas ambigu/non résolu → défaut (point 3).
+ *   2. Pour hotel/hotel_monde/flight (NON couverts par `cancellation_policies`
+ *      — mécanismes de frais fournisseur/GDS distincts) : valeur fixe
+ *      `non_refundable`.
+ *   3. Défaut si la dérivation du point 1 est ambiguë/indéterminée :
+ *      `non_refundable` (même valeur que le point 2, par cohérence).
+ *
+ *   Ce modèle N'EST PAS IMPLÉMENTÉ par ce fichier ni par aucun writer du
+ *   dépôt. L'implémenter (ajouter l'écriture de `cancellationTreatment` aux
+ *   points de création d'entitlement de commission des ~15 modules
+ *   concernés, dérivée de `cancellation_policies` où applicable) est un
+ *   chantier séparé, avec son propre audit/proposition/GO — jamais enchaîné
+ *   automatiquement à la suite de ce correctif (RÈGLE OPÉRATIONNELLE
+ *   ABSOLUE, CLAUDE.md). Jusqu'à ce chantier, ce fichier continue de sauter
+ *   le reversement (comportement actuel, sûr) plutôt que d'improviser une
+ *   politique non encore câblée.
  */
 
 import { and, eq, sql } from "drizzle-orm"

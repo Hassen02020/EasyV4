@@ -3068,6 +3068,39 @@ export const walletRechargeRequests = pgTable(
 )
 
 /* -------------------------------------------------------------------------- */
+/* B2C WALLET TOP-UP REQUESTS                                                 */
+/* -------------------------------------------------------------------------- */
+
+export const customerTopupRequests = pgTable(
+  "customer_topup_requests",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    customerId: uuid("customer_id")
+      .notNull()
+      .references(() => customers.id),
+    agencyId: uuid("agency_id")
+      .notNull()
+      .references(() => agencies.id),
+    amount: decimal("amount", { precision: 14, scale: 2 }).notNull(),
+    status: text("status").notNull().default("pending"),
+    paymentReference: text("payment_reference").unique(),
+    psp: text("psp"),
+    paymeeToken: text("paymee_token"),
+    idempotencyKey: text("idempotency_key").unique(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    completedAt: timestamp("completed_at", { withTimezone: true }),
+  },
+  (t) => [
+    index("topup_req_agency_idx").on(t.agencyId),
+    index("topup_req_customer_idx").on(t.customerId),
+    index("topup_req_status_idx").on(t.status),
+    index("topup_req_payment_ref_idx").on(t.paymentReference),
+  ],
+)
+
+/* -------------------------------------------------------------------------- */
 /* PRODUCTS - Catalogue multisectoriel polymorphique                          */
 /* -------------------------------------------------------------------------- */
 

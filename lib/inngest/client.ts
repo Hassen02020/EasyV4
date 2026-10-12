@@ -34,6 +34,15 @@ export type Events = {
       totalTnd: number
     }
   }
+  /** Wallet client B2C crédité (recharge Paymee validée) — déclenche email de confirmation. */
+  "wallet/customer.credited": {
+    data: {
+      customerId: string
+      txId: string
+      amount: number
+      newBalance: number
+    }
+  }
   /** Wallet crédité (top-up validé) — déclenche notification agence. */
   "wallet/credited": {
     data: {

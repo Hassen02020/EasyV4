@@ -39,6 +39,7 @@ import {
   type NormalizedChargeEvent,
 } from "@/lib/payment/webhook-logic"
 import { processWalletWebhookCore } from "@/lib/payment/wallet-webhook-core"
+import { processCustomerTopupWebhookCore } from "@/lib/payment/customer-topup-webhook-core"
 
 /* -------------------------------------------------------------------------- */
 /* Route handler                                                               */
@@ -165,28 +166,55 @@ export async function POST(request: NextRequest) {
   const auditPayload: Record<string, unknown> =
     spsBody ?? JSON.parse(bodyBuffer.toString("utf8"))
 
-  const result = await withSystemContext((tx) =>
-    processWalletWebhookCore(tx, {
-      provider: provider as "stripe" | "sps" | "paymee",
-      eventId: eventId!,
-      eventType: eventType!,
-      charge,
-      signatureOk,
-      auditPayload,
-    }),
+  const webhookInput = {
+    provider: provider as "stripe" | "sps" | "paymee",
+    eventId: eventId!,
+    eventType: eventType!,
+    charge,
+    signatureOk,
+    auditPayload,
+  }
+
+  // 1. Tente la corrélation B2B (wallet_recharge_requests)
+  let result = await withSystemContext((tx) =>
+    processWalletWebhookCore(tx, webhookInput),
   )
 
+  // 2. Si aucune demande B2B trouvée, tente la corrélation B2C (customer_topup_requests)
+  if (result.status === "no_match") {
+    const b2cResult = await withSystemContext((tx) =>
+      processCustomerTopupWebhookCore(tx, webhookInput),
+    )
+    if (b2cResult.status !== "no_match") {
+      result = b2cResult as unknown as typeof result
+    }
+    // Email de confirmation B2C — fire-and-forget, hors transaction
+    if (b2cResult.status === "credited") {
+      await sendEvent("wallet/customer.credited", {
+        customerId: b2cResult.customerId,
+        txId: b2cResult.txId,
+        amount: b2cResult.amount,
+        newBalance: b2cResult.newBalance,
+      }).catch(() => {
+        /* fire-and-forget */
+      })
+    }
+  }
+
   if (result.status === "credited") {
-    await sendEvent("wallet/credited", {
-      agencyId: result.agencyId,
-      txId: result.txId,
-      amount: result.amount,
-      newBalance: result.newBalance,
-      method: `PSP_${provider.toUpperCase()}`,
-      adminUserId: "webhook",
-    }).catch(() => {
-      /* fire-and-forget — le retry Inngest suffira */
-    })
+    // Inngest event pour B2B agency wallet
+    if ("agencyId" in result) {
+      await sendEvent("wallet/credited", {
+        agencyId: result.agencyId,
+        txId: result.txId,
+        amount: result.amount,
+        newBalance: result.newBalance,
+        method: `PSP_${provider.toUpperCase()}`,
+        adminUserId: "webhook",
+      }).catch(() => {
+        /* fire-and-forget */
+      })
+    }
   }
 
   console.log(

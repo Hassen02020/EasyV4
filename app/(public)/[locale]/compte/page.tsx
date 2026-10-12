@@ -7,12 +7,17 @@ import {
   MapPin,
   Phone,
   User as UserIcon,
+  Wallet,
 } from "lucide-react"
 import { createServerSupabase } from "@/lib/supabase/server"
 import { listMyReservations } from "@/app/actions/list-my-reservations"
 import { getMyLoyaltySummary } from "@/app/actions/get-my-loyalty-summary"
 import { getMyLoyaltyHistory } from "@/app/actions/get-my-loyalty-history"
 import { listMyFavorites } from "@/app/actions/list-my-favorites"
+import { getCustomerWalletBalance } from "@/lib/finance/customer-wallet"
+import { withTenantContext } from "@/lib/db/tenant-context"
+import { customers } from "@/lib/db/schema"
+import { eq, and } from "drizzle-orm"
 import { getRequestTenantInfo } from "@/lib/tenant/current-tenant"
 import { getSiteContactInfo } from "@/lib/tenant/site-config"
 import { CompteReservationList } from "@/components/compte/compte-reservation-list"
@@ -51,6 +56,38 @@ export default async function ComptePage() {
   const tc = await getTranslations("Common")
 
   const tenant = await getRequestTenantInfo()
+
+  // Résolution du customer B2C pour le wallet (best-effort — non bloquant)
+  let walletBalance = 0
+  if (tenant?.agencyId) {
+    try {
+      const { guestTenantContext } =
+        await import("@/lib/hotel-suppliers/tenant/live-resolution")
+      const guestTenant = await guestTenantContext()
+      if (guestTenant && guestTenant.agencyId) {
+        const guestAgencyId = guestTenant.agencyId
+        const rows = await withTenantContext(guestTenant, (tx) =>
+          tx
+            .select({ id: customers.id })
+            .from(customers)
+            .where(
+              and(
+                eq(customers.authUserId, user.id),
+                eq(customers.agencyId, guestAgencyId),
+              ),
+            )
+            .limit(1),
+        )
+        const customerRow = rows[0]
+        if (customerRow) {
+          walletBalance = await getCustomerWalletBalance(customerRow.id)
+        }
+      }
+    } catch {
+      // Non bloquant
+    }
+  }
+
   const [result, loyalty, loyaltyHistory, favorites, contact] =
     await Promise.all([
       listMyReservations(),
@@ -184,6 +221,34 @@ export default async function ComptePage() {
             )}
           </div>
         )}
+
+        {/* Wallet B2C */}
+        <Link
+          href="/compte/wallet"
+          className="bg-card border-border hover:border-accent/40 mb-6 flex items-center justify-between rounded-2xl border p-4 transition-colors"
+        >
+          <div className="flex items-center gap-3">
+            <div className="bg-accent/10 rounded-xl p-2">
+              <Wallet className="text-accent h-5 w-5" />
+            </div>
+            <div>
+              <p className="text-foreground text-sm font-semibold">
+                {t("walletSectionTitle")}
+              </p>
+              <p className="text-muted-foreground text-xs">
+                {t("walletBalance")}
+              </p>
+            </div>
+          </div>
+          <div className="text-right">
+            <p className="text-foreground text-sm font-bold tabular-nums">
+              {walletBalance.toFixed(3)} DT
+            </p>
+            <p className="text-accent text-xs font-medium">
+              {t("walletTopUpLink")} →
+            </p>
+          </div>
+        </Link>
 
         {favorites.ok && (
           <CompteFavoritesCard favorites={favorites.favorites} />

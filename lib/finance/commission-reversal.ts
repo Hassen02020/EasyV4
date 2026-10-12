@@ -113,6 +113,27 @@
  *   100% des entitlements à `cancellationTreatment = NULL` et de sauter le
  *   reversement jusqu'à ce qu'un chantier séparé implémente ce qui suit) :
  *
+ *   ⚠️ PRÉCAUTION EXPLICITE (2026-10-12, suite audit) : `cancellationTreatment`
+ *   (ce fichier, commission EASY2BOOK) et `cancellation_policies`
+ *   (remboursement CLIENT) restent DEUX MÉCANISMES DISTINCTS, jamais
+ *   équivalents. Le remboursement client est déjà décidé et exécuté AVANT
+ *   l'appel à `reverseCommissionOnCancellation()` (`recordCancellationFinancials`
+ *   + `applyReservationRefund`/`creditCustomerWallet`, wallet CLIENT) — cette
+ *   fonction ne touche JAMAIS ce wallet, uniquement
+ *   `PLATFORM_COMMISSION_WALLET_ID` (le wallet interne Easy2Book). Le point 1
+ *   ci-dessous DÉRIVE `cancellationTreatment` à partir de
+ *   `cancellation_policies.nonRefundable`/`refundAllowed` comme PROXY
+ *   pragmatique validé par Direction (un client non remboursé plaide pour
+ *   qu'Easy2Book garde aussi sa commission, et inversement) — PAS comme une
+ *   équivalence automatique ou un principe général. "non_refundable" sur
+ *   `cancellationTreatment` signifie UNIQUEMENT "Easy2Book garde sa
+ *   commission" ; cela ne doit JAMAIS être lu, documenté ou implémenté comme
+ *   "le client n'est pas remboursé" — ce sont deux lignes d'écriture, deux
+ *   wallets, deux décisions. Un futur chantier pourrait découvrir un cas où
+ *   Direction veut les découpler (ex. client remboursé intégralement mais
+ *   Easy2Book garde sa commission quand même, ou l'inverse) — le modèle
+ *   ci-dessous est le défaut validé AUJOURD'HUI, pas une loi immuable.
+ *
  *   1. Pour les modules couverts par `cancellation_policies`
  *      (package/omra/activity/network/car/transfer — table existante,
  *      configurée par agence/productType, gouverne le remboursement CLIENT,
@@ -125,7 +146,9 @@
  *      validée et implémentée). Cas ambigu/non résolu → défaut (point 3).
  *   2. Pour hotel/hotel_monde/flight (NON couverts par `cancellation_policies`
  *      — mécanismes de frais fournisseur/GDS distincts) : valeur fixe
- *      `non_refundable`.
+ *      `non_refundable` (commission Easy2Book conservée — sans lien avec ce
+ *      que le client récupère sur ces modules, décidé séparément par
+ *      `recordCancellationFinancials`/`applyReservationRefund`).
  *   3. Défaut si la dérivation du point 1 est ambiguë/indéterminée :
  *      `non_refundable` (même valeur que le point 2, par cohérence).
  *

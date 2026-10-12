@@ -252,6 +252,7 @@ export async function cancelPolicyReservationCore(
         actorUserId,
       })
 
+
       await tx
         .update(reservations)
         .set({ status: "cancelled", cancelledAt: new Date() })

@@ -22,6 +22,7 @@ import { createServerSupabase } from "@/lib/supabase/server"
 import { sendBroadcast } from "@/lib/supabase/broadcast"
 import { getCurrentAdminProfile } from "@/lib/auth/profile"
 import { applyReservationRefund } from "@/lib/finance/refund-logic"
+import { recordCancellationFinancials } from "@/lib/finance/cancellation-financials"
 import { getReservationPaymentSummary } from "@/lib/finance/payment-summary"
 import {
   earnPendingPoints,
@@ -367,6 +368,15 @@ export async function updateReservationStatus(
           // remboursement en échec.
           throw new Error(refund.error)
         }
+
+        await recordCancellationFinancials({
+          tx: db,
+          reservationId,
+          cancellationFeeTnd: providerCancellationFee ?? 0,
+          refundAmountTnd: refundedTnd ?? 0,
+          reason: "Annulation admin",
+          cancelledAt: cancelledAt ?? new Date(),
+        })
       }
 
       try {

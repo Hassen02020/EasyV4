@@ -113,3 +113,20 @@ test("UPDATE-STATUS-WIRING-01 : audit auditEvents best-effort — commentaire ex
   // Le catch contient un commentaire "best-effort" — preuve que l'insert est volontairement isolé
   assert.match(src, /catch[\s\S]{0,50}\/\*[\s\S]{0,100}best-effort/)
 })
+
+// ─── Invariant 7 : cancelled → recordCancellationFinancials ──────────────────
+
+test("UPDATE-STATUS-WIRING-01 : recordCancellationFinancials importé depuis cancellation-financials", () => {
+  assert.match(
+    src,
+    /import\s*\{[^}]*recordCancellationFinancials[^}]*\}\s*from\s*["']@\/lib\/finance\/cancellation-financials["']/,
+  )
+})
+
+test("UPDATE-STATUS-WIRING-01 : recordCancellationFinancials appelé avec providerCancellationFee ?? 0 (cancellationFeeTnd)", () => {
+  assert.match(src, /cancellationFeeTnd:\s*providerCancellationFee\s*\?\?\s*0/)
+})
+
+test("UPDATE-STATUS-WIRING-01 : recordCancellationFinancials appelé avec refundedTnd ?? 0 (refundAmountTnd)", () => {
+  assert.match(src, /refundAmountTnd:\s*refundedTnd\s*\?\?\s*0/)
+})

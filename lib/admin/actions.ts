@@ -23,6 +23,7 @@ import { sendBroadcast } from "@/lib/supabase/broadcast"
 import { getCurrentAdminProfile } from "@/lib/auth/profile"
 import { applyReservationRefund } from "@/lib/finance/refund-logic"
 import { recordCancellationFinancials } from "@/lib/finance/cancellation-financials"
+import { reverseCommissionOnCancellation } from "@/lib/finance/commission-reversal"
 import { getReservationPaymentSummary } from "@/lib/finance/payment-summary"
 import {
   earnPendingPoints,
@@ -376,6 +377,12 @@ export async function updateReservationStatus(
           refundAmountTnd: refundedTnd ?? 0,
           reason: "Annulation admin",
           cancelledAt: cancelledAt ?? new Date(),
+        })
+
+        await reverseCommissionOnCancellation(db, {
+          reservationId,
+          publicRef: row.publicRef,
+          actorUserId: user.id,
         })
       }
 

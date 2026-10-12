@@ -59,6 +59,7 @@ import {
   reinstateRedeemedPoints,
 } from "@/lib/loyalty/rewards-core"
 import { recordCancellationFinancials } from "@/lib/finance/cancellation-financials"
+import { reverseCommissionOnCancellation } from "@/lib/finance/commission-reversal"
 import { recordReservationTransition } from "@/lib/admin/reservation-status-history"
 import { logger } from "@/lib/logger"
 
@@ -276,6 +277,12 @@ export async function cancelMyHotelReservation(
         refundAmountTnd: effectiveRefundTnd,
         reason: `Annulation client — frais fournisseur ${formatTnd(feeTnd)} DT`,
         cancelledAt,
+      })
+
+      await reverseCommissionOnCancellation(tx, {
+        reservationId,
+        publicRef: preCheck.publicRef,
+        actorUserId: user.id,
       })
 
       await tx.insert(auditEvents).values({
@@ -532,6 +539,12 @@ export async function cancelMyHotelMondeReservation(
         refundAmountTnd: refundedTnd,
         reason: "Annulation client Hôtel Monde",
         cancelledAt,
+      })
+
+      await reverseCommissionOnCancellation(tx, {
+        reservationId,
+        publicRef: preCheck.publicRef,
+        actorUserId: user.id,
       })
 
       await tx.insert(auditEvents).values({

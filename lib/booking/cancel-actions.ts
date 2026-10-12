@@ -40,6 +40,7 @@ import { createServerSupabase } from "@/lib/supabase/server"
 import { getMyGoClient } from "@/lib/mygo"
 import { formatTnd, parseTnd } from "@/lib/pro/booking-actions"
 import { recordCancellationFinancials } from "@/lib/finance/cancellation-financials"
+import { reverseCommissionOnCancellation } from "@/lib/finance/commission-reversal"
 import { recordReservationTransition } from "@/lib/admin/reservation-status-history"
 import { toMillimes } from "@/lib/finance/millimes"
 import { logger } from "@/lib/logger"
@@ -230,6 +231,12 @@ export async function cancelHotelReservation(
           refundAmountTnd: refundTnd,
           reason: `Annulation partenaire — frais fournisseur ${formatTnd(feeTnd)} DT`,
           cancelledAt,
+        })
+
+        await reverseCommissionOnCancellation(tx, {
+          reservationId,
+          publicRef: preCheck.publicRef,
+          actorUserId: user.id,
         })
 
         await tx

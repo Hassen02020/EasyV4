@@ -13,6 +13,8 @@ import { eq } from "drizzle-orm"
 import { withSystemContext } from "@/lib/db/tenant-context"
 import { reservations } from "@/lib/db/schema"
 import { applyReservationRefund } from "@/lib/finance/refund-logic"
+import { recordCancellationFinancials } from "@/lib/finance/cancellation-financials"
+import { reverseCommissionOnCancellation } from "@/lib/finance/commission-reversal"
 
 export async function autoRefundOnFlightFailure({
   reservationId,
@@ -48,6 +50,26 @@ export async function autoRefundOnFlightFailure({
         reason,
         actorUserId,
       })
+
+      if (result.ok || result.code === "NO_CAPTURED_PAYMENT") {
+        const refundedTnd = result.ok ? result.refundedTnd : 0
+        const cancelledAt = new Date()
+
+        await recordCancellationFinancials({
+          tx,
+          reservationId,
+          cancellationFeeTnd: 0,
+          refundAmountTnd: refundedTnd,
+          reason,
+          cancelledAt,
+        })
+
+        await reverseCommissionOnCancellation(tx, {
+          reservationId,
+          publicRef: row.publicRef,
+          actorUserId,
+        })
+      }
 
       if (!result.ok && result.code !== "NO_CAPTURED_PAYMENT") {
         console.error(

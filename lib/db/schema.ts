@@ -888,7 +888,13 @@ export const economicEntitlements = pgTable(
     index("economic_entitlements_reservation_idx").on(t.reservationId),
     index("economic_entitlements_party_idx").on(t.partyId),
     index("economic_entitlements_status_idx").on(t.status),
-    index("economic_entitlements_compensates_idx").on(t.compensatesId),
+    // CANCEL-COMMISSION-01 (migration 0134) : UNIQUE partiel, pas un index
+    // simple — un entitlement d'origine ne peut être compensé qu'une seule
+    // fois, jamais deux (protection anti-double-compensation sous concurrence
+    // réelle, voir lib/finance/commission-reversal.ts).
+    uniqueIndex("economic_entitlements_compensates_uniq")
+      .on(t.compensatesId)
+      .where(sql`${t.compensatesId} is not null`),
     check(
       "economic_entitlements_qualification_check",
       sql`${t.qualification} in ('supplier_cost','seller_margin','owner_share','commission','platform_fee','distribution_fee','revenue_share','service_fee','tax','discount')`,

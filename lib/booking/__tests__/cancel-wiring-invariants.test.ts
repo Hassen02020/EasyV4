@@ -185,7 +185,10 @@ test("CANCEL-WIRING-01/policy : recordCancellationFinancials importé depuis can
 
 // P2 : recordCancellationFinancials appelé dans la transaction
 test("CANCEL-WIRING-01/policy : recordCancellationFinancials appelé dans la transaction (traçabilité financière)", () => {
-  assert.match(policyCancelSrc, /await\s+recordCancellationFinancials\s*\(\s*\{/)
+  assert.match(
+    policyCancelSrc,
+    /await\s+recordCancellationFinancials\s*\(\s*\{/,
+  )
 })
 
 // P3 : cancellationFeeTnd = tndAmount - creditableTnd (Formula A)

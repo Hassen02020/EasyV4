@@ -41,6 +41,7 @@ import {
   type ReservationStatus,
 } from "@/lib/admin/reservation-status"
 import { applyReservationRefund, REFUND_ALLOWED_ROLES } from "./refund-logic"
+import { reverseCommissionOnCancellation } from "./commission-reversal"
 import { recordReservationTransition } from "@/lib/admin/reservation-status-history"
 import {
   releaseStock,
@@ -188,6 +189,12 @@ export async function refundReservation(
           to: "refunded",
           triggeredBy: user.id,
           reason: input.reason,
+        })
+
+        await reverseCommissionOnCancellation(tx, {
+          reservationId: reservation.id,
+          publicRef: reservation.publicRef,
+          actorUserId: user.id,
         })
 
         // Certification E2E — un remboursement TOTAL libère la capacité

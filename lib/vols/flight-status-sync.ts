@@ -17,18 +17,36 @@ import {
   type ReservationStatus,
 } from "@/lib/admin/reservation-status"
 import { recordReservationTransition } from "@/lib/admin/reservation-status-history"
+import { autoRefundOnFlightFailure } from "./flight-refund-on-failure"
 
 /**
  * Updates flight_bookings.status and keeps reservations.status in sync.
  * Pass an open tx to run atomically inside an existing transaction, or omit
  * to open a new system transaction.
+ *
+ * FLIGHT-CANCELLED-REFUND-GUARD-01 : si newStatus === "CANCELLED" fait
+ * réellement passer la réservation à "cancelled" (jamais aujourd'hui — aucun
+ * appelant réel ne passe ce statut, voir flight-status-utils.ts), le
+ * remboursement + reversement de commission (autoRefundOnFlightFailure, déjà
+ * utilisé pour "FAILED" dans fulfillment-action.ts) se déclenche
+ * automatiquement ici — jamais sauté silencieusement pour un futur appelant
+ * (ex. webhook d'annulation GDS) qui oublierait de le câbler lui-même.
+ * Uniquement quand `tx` n'est PAS fourni par l'appelant : dans ce cas la
+ * transaction est gérée en interne (withSystemContext ci-dessous) et on sait
+ * qu'elle a committé avant de déclencher le remboursement — même discipline
+ * que fulfillment-action.ts (appel séparé, après commit, jamais imbriqué
+ * dans la même transaction). Si un futur appelant passe un `tx` externe avec
+ * "CANCELLED", le remboursement reste à sa charge, après son propre commit —
+ * exactement comme fulfillment-action.ts le fait aujourd'hui pour "FAILED".
  */
 export async function updateFlightStatus(
   flightBookingId: string,
   newStatus: FlightStatus,
   tx?: DrizzleTransaction,
 ): Promise<void> {
-  const run = async (db: DrizzleTransaction) => {
+  const run = async (
+    db: DrizzleTransaction,
+  ): Promise<{ reservationId: string; agencyId: string } | null> => {
     await db
       .update(flightBookings)
       .set({ status: newStatus, updatedAt: new Date() })
@@ -54,7 +72,7 @@ export async function updateFlightStatus(
       // transition n'est pas légale — le cas `from === to` (statut déjà à
       // jour, le plus fréquent) est aussi un no-op silencieux.
       const [current] = await db
-        .select({ status: reservations.status })
+        .select({ status: reservations.status, agencyId: reservations.agencyId })
         .from(reservations)
         .where(eq(reservations.id, row.reservationId))
         .limit(1)
@@ -62,7 +80,7 @@ export async function updateFlightStatus(
 
       if (fromStatus && fromStatus !== reservationStatus) {
         if (!isTransitionAllowed(fromStatus, reservationStatus)) {
-          return
+          return null
         }
         await db
           .update(reservations)
@@ -81,13 +99,26 @@ export async function updateFlightStatus(
           automated: true,
           reason: `Sync statut fournisseur vol : ${newStatus}`,
         })
+
+        if (newStatus === "CANCELLED" && current?.agencyId) {
+          return { reservationId: row.reservationId, agencyId: current.agencyId }
+        }
       }
     }
+    return null
   }
 
   if (tx) {
     await run(tx)
   } else {
-    await withSystemContext(run)
+    const pendingCancelRefund = await withSystemContext(run)
+    if (pendingCancelRefund) {
+      await autoRefundOnFlightFailure({
+        reservationId: pendingCancelRefund.reservationId,
+        agencyId: pendingCancelRefund.agencyId,
+        actorUserId: null,
+        reason: "Sync statut fournisseur vol : CANCELLED",
+      })
+    }
   }
 }

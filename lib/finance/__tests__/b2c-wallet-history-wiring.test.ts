@@ -118,3 +118,10 @@ test("B2C-WALLET-HISTORY-01: page wallet importe WalletTransactionList", () => {
 test("B2C-WALLET-HISTORY-01: page passe customerId à getCustomerWalletTransactions", () => {
   assert.match(pageSrc, /getCustomerWalletTransactions\(c\.id\)/)
 })
+
+// ─── 13. isCredit utilise lowercase "credit" (enum DB) ───────────────────────
+
+test("B2C-WALLET-HISTORY-01: isCredit compare avec valeurs lowercase de l'enum DB", () => {
+  assert.match(componentSrc, /tx\.type\s*===\s*["']credit["']/)
+  assert.doesNotMatch(componentSrc, /tx\.type\s*===\s*["']CREDIT["']/)
+})

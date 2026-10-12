@@ -30,7 +30,7 @@ export async function WalletTransactionList({ transactions, locale }: Props) {
       ) : (
         <ul className="divide-border divide-y">
           {transactions.map((tx) => {
-            const isCredit = tx.type === "CREDIT"
+            const isCredit = tx.type === "credit" || tx.type === "adjustment"
             return (
               <li
                 key={tx.id}

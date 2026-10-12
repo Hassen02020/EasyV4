@@ -39,14 +39,8 @@ test("définit notCancelledFilter avec reservations.status", () => {
 })
 
 test("exclut les statuts cancelled et refunded", () => {
-  assert.ok(
-    src.includes('"cancelled"'),
-    "doit exclure le statut cancelled",
-  )
-  assert.ok(
-    src.includes('"refunded"'),
-    "doit exclure le statut refunded",
-  )
+  assert.ok(src.includes('"cancelled"'), "doit exclure le statut cancelled")
+  assert.ok(src.includes('"refunded"'), "doit exclure le statut refunded")
 })
 
 test("settleCommissions() applique leftJoin reservations", () => {
@@ -60,7 +54,9 @@ test("settleCommissions() applique leftJoin reservations", () => {
 })
 
 test("getUnsettledCommissionBalance() applique leftJoin reservations", () => {
-  const balanceStart = src.indexOf("export async function getUnsettledCommissionBalance")
+  const balanceStart = src.indexOf(
+    "export async function getUnsettledCommissionBalance",
+  )
   const balanceBody = src.slice(balanceStart)
   assert.ok(
     balanceBody.includes("leftJoin") && balanceBody.includes("reservations"),
@@ -80,7 +76,9 @@ test("notCancelledFilter est appelé dans settleCommissions()", () => {
 })
 
 test("notCancelledFilter est appelé dans getUnsettledCommissionBalance()", () => {
-  const balanceStart = src.indexOf("export async function getUnsettledCommissionBalance")
+  const balanceStart = src.indexOf(
+    "export async function getUnsettledCommissionBalance",
+  )
   const balanceBody = src.slice(balanceStart)
   assert.ok(
     balanceBody.includes("notCancelledFilter()"),

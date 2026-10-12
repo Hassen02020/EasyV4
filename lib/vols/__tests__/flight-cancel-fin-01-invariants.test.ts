@@ -68,7 +68,10 @@ describe("FLIGHT-CANCEL-FIN-01 — Trace financière sur échec GDS", () => {
     const recordIndex = src.indexOf("await recordCancellationFinancials(")
     const reverseIndex = src.indexOf("await reverseCommissionOnCancellation(")
     // Les deux doivent être présents et reverseCommissionOnCancellation après recordCancellationFinancials
-    assert.ok(recordIndex > 0 && reverseIndex > 0, "les deux appels financiers doivent être présents")
+    assert.ok(
+      recordIndex > 0 && reverseIndex > 0,
+      "les deux appels financiers doivent être présents",
+    )
     assert.ok(
       reverseIndex > recordIndex,
       "reverseCommissionOnCancellation doit être appelé après recordCancellationFinancials",

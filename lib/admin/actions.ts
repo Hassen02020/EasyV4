@@ -202,7 +202,7 @@ export async function updateReservationStatus(
             ok: false as const,
             error: `Confirmation refusée : paiement incomplet (${summary.paymentState}, restant ${summary.remainingTnd.toFixed(2)} DT). Une réservation ne peut être confirmée qu'une fois intégralement réglée.`,
           }
-      }
+        }
         confirmedSummary = summary
       }
 

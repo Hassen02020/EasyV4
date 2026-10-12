@@ -325,13 +325,15 @@ export async function listMyReservations(): Promise<MyReservationsResult> {
         let worldHotelRefundable: boolean | undefined = undefined
         if (row.module === "hotel_monde") {
           const [hotelRow] = await tx
-            .select({ cancellationPolicies: reservationHotel.cancellationPolicies })
+            .select({
+              cancellationPolicies: reservationHotel.cancellationPolicies,
+            })
             .from(reservationHotel)
             .where(eq(reservationHotel.reservationId, row.id))
             .limit(1)
-          const policies = hotelRow?.cancellationPolicies as
-            | { refundable?: boolean }
-            | null
+          const policies = hotelRow?.cancellationPolicies as {
+            refundable?: boolean
+          } | null
           worldHotelRefundable = policies?.refundable ?? false
         }
 

@@ -32,10 +32,7 @@ export async function WalletTransactionList({ transactions, locale }: Props) {
           {transactions.map((tx) => {
             const isCredit = tx.type === "credit" || tx.type === "adjustment"
             return (
-              <li
-                key={tx.id}
-                className="flex items-center gap-3 px-5 py-3.5"
-              >
+              <li key={tx.id} className="flex items-center gap-3 px-5 py-3.5">
                 <div
                   className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${
                     isCredit
@@ -67,7 +64,9 @@ export async function WalletTransactionList({ transactions, locale }: Props) {
                 <div className="shrink-0 text-right">
                   <p
                     className={`text-sm font-semibold tabular-nums ${
-                      isCredit ? "text-emerald-600 dark:text-emerald-400" : "text-foreground"
+                      isCredit
+                        ? "text-emerald-600 dark:text-emerald-400"
+                        : "text-foreground"
                     }`}
                   >
                     {isCredit ? "+" : "−"}

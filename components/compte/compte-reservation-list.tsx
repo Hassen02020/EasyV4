@@ -53,7 +53,10 @@ export function CompteReservationList({
         // d'avertissement est affiché via la clé i18n dans BookingCard.
         return {
           ok: true,
-          messages: result.supplierNotified === false ? ["__MONDE_SUPPLIER_PENDING__"] : [],
+          messages:
+            result.supplierNotified === false
+              ? ["__MONDE_SUPPLIER_PENDING__"]
+              : [],
         }
       }
       return { ok: false, error: result.error }

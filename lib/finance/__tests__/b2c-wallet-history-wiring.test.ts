@@ -44,10 +44,7 @@ const pageSrc = readFileSync(
 // ─── 1. Fonction exportée ────────────────────────────────────────────────────
 
 test("B2C-WALLET-HISTORY-01: getCustomerWalletTransactions exportée", () => {
-  assert.match(
-    walletSrc,
-    /export async function getCustomerWalletTransactions/,
-  )
+  assert.match(walletSrc, /export async function getCustomerWalletTransactions/)
 })
 
 // ─── 2. Interface WalletTransaction exportée ─────────────────────────────────
@@ -77,13 +74,18 @@ test("B2C-WALLET-HISTORY-01: orderBy desc(walletLedger.createdAt)", () => {
 // ─── 6. Paramètre limit ──────────────────────────────────────────────────────
 
 test("B2C-WALLET-HISTORY-01: paramètre limit dans getCustomerWalletTransactions", () => {
-  assert.match(walletSrc, /getCustomerWalletTransactions[\s\S]{0,80}limit\s*=\s*\d+/)
+  assert.match(
+    walletSrc,
+    /getCustomerWalletTransactions[\s\S]{0,80}limit\s*=\s*\d+/,
+  )
 })
 
 // ─── 7. withSystemContext (bypass RLS) ───────────────────────────────────────
 
 test("B2C-WALLET-HISTORY-01: withSystemContext utilisé dans getCustomerWalletTransactions", () => {
-  const fnStart = walletSrc.indexOf("export async function getCustomerWalletTransactions")
+  const fnStart = walletSrc.indexOf(
+    "export async function getCustomerWalletTransactions",
+  )
   const fnBlock = walletSrc.slice(fnStart, fnStart + 600)
   assert.match(fnBlock, /withSystemContext/)
 })

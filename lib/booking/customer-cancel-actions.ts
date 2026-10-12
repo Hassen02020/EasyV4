@@ -421,9 +421,9 @@ export async function cancelMyHotelMondeReservation(
     }
   }
 
-  const policies = preCheck.cancellationPolicies as
-    | { refundable?: boolean }
-    | null
+  const policies = preCheck.cancellationPolicies as {
+    refundable?: boolean
+  } | null
   const refundable = policies?.refundable ?? false
 
   // ---------------------------------------------------------------------

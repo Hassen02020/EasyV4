@@ -175,7 +175,10 @@ export default async function WalletPage({ searchParams }: Props) {
         {/* Historique des transactions */}
         {customerId && (
           <div className="mt-6">
-            <WalletTransactionList transactions={transactions} locale={locale} />
+            <WalletTransactionList
+              transactions={transactions}
+              locale={locale}
+            />
           </div>
         )}
       </div>

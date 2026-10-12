@@ -320,6 +320,21 @@ export async function listMyReservations(): Promise<MyReservationsResult> {
             : null
         }
 
+        // Hôtel Monde — politique de remboursement figée à la réservation
+        // (reservationHotel.cancellationPolicies.refundable).
+        let worldHotelRefundable: boolean | undefined = undefined
+        if (row.module === "hotel_monde") {
+          const [hotelRow] = await tx
+            .select({ cancellationPolicies: reservationHotel.cancellationPolicies })
+            .from(reservationHotel)
+            .where(eq(reservationHotel.reservationId, row.id))
+            .limit(1)
+          const policies = hotelRow?.cancellationPolicies as
+            | { refundable?: boolean }
+            | null
+          worldHotelRefundable = policies?.refundable ?? false
+        }
+
         result.push({
           id: row.id,
           publicRef: row.publicRef,
@@ -345,6 +360,7 @@ export async function listMyReservations(): Promise<MyReservationsResult> {
             phone: row.phone ?? null,
           },
           cancellationPolicy,
+          worldHotelRefundable,
           hasReview: existingReview != null,
           product,
         })

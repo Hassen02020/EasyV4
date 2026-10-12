@@ -284,13 +284,13 @@ export function BookingCard({
     })
   }
 
-  // Hôtel (myGo, `cancelMyHotelReservation`) + Omra/Package/Activity
-  // (Policy Engine, `cancelMyPolicyReservation`) — les deux mécanismes
-  // réels d'annulation en ligne existants à ce jour.
+  // Hôtel (myGo), Hôtel Monde (virtual/local) + Omra/Package/Activity
+  // (Policy Engine) — les trois mécanismes d'annulation en ligne.
   const isPolicyEngineModule = POLICY_ENGINE_MODULES.includes(booking.module)
+  const isHotelMonde = booking.module === "hotel_monde"
   const canCancelOnline =
     Boolean(onCancel) &&
-    (booking.module === "hotel" || isPolicyEngineModule) &&
+    (booking.module === "hotel" || isHotelMonde || isPolicyEngineModule) &&
     (booking.status === "pending" ||
       booking.status === "confirmed" ||
       booking.status === "on_request")
@@ -679,15 +679,26 @@ export function BookingCard({
         )}
 
         {successMessages && successMessages.length > 0 && (
-          <div className="flex items-start gap-2 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">
-            <Wallet className="mt-0.5 h-4 w-4 shrink-0" />
-            <div className="space-y-0.5">
-              {successMessages.map((m) => (
-                <p key={m} className="font-medium">
-                  {m}
-                </p>
-              ))}
-            </div>
+          <div className="space-y-2">
+            {successMessages.includes("__MONDE_SUPPLIER_PENDING__") ? (
+              // Notice honnête Hôtel Monde : réservation annulée dans
+              // Easy2Book MAIS demande NON transmise au fournisseur.
+              <div className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+                <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+                <p className="font-medium">{t("cancelMondeSupplierPendingNotice")}</p>
+              </div>
+            ) : (
+              <div className="flex items-start gap-2 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">
+                <Wallet className="mt-0.5 h-4 w-4 shrink-0" />
+                <div className="space-y-0.5">
+                  {successMessages.map((m) => (
+                    <p key={m} className="font-medium">
+                      {m}
+                    </p>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         )}
 
@@ -697,7 +708,11 @@ export function BookingCard({
               <AlertTriangle className="text-destructive mt-0.5 h-4 w-4 shrink-0" />
               {isPolicyEngineModule
                 ? t("cancelConfirmPolicyText")
-                : t("cancelConfirmHotelText")}
+                : isHotelMonde
+                  ? booking.worldHotelRefundable
+                    ? t("cancelConfirmMondeRefundableText")
+                    : t("cancelConfirmMondeNonRefundableText")
+                  : t("cancelConfirmHotelText")}
             </p>
             {cancelError && (
               <p className="text-destructive text-xs font-medium">

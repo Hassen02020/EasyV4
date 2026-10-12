@@ -68,6 +68,17 @@ export type CancelMyReservationResult =
   | { ok: true; refundedTnd: number; feeTnd: number }
   | { ok: false; error: string; code?: string }
 
+/**
+ * Résultat de l'annulation B2C Hôtel Monde — distinct de
+ * `CancelMyReservationResult` (myGo, feeTnd réel) : ici `feeTnd` est
+ * toujours 0 (pas de frais calculés par le fournisseur virtuel dans cette
+ * itération) et `supplierNotified` est toujours `false` — l'annulation
+ * n'est PAS transmise au fournisseur réel automatiquement.
+ */
+export type CancelMyHotelMondeResult =
+  | { ok: true; refundedTnd: number; feeTnd: 0; supplierNotified: false }
+  | { ok: false; error: string; code?: string }
+
 export async function cancelMyHotelReservation(
   reservationId: string,
 ): Promise<CancelMyReservationResult> {
@@ -305,6 +316,281 @@ export async function cancelMyHotelReservation(
       ok: false,
       error:
         "La réservation fournisseur a été annulée, mais l'enregistrement côté serveur a échoué. Contactez le support immédiatement avec la référence " +
+        preCheck.publicRef +
+        ".",
+    }
+  }
+}
+
+/**
+ * Annulation B2C self-service pour les réservations Hôtel Monde
+ * (`module = "hotel_monde"`).
+ *
+ * DIFFÉRENCES CLÉS par rapport à `cancelMyHotelReservation` (myGo) :
+ *
+ * 1. PAS d'appel au fournisseur virtuel — `offerId` n'est pas stocké en DB
+ *    pour cette itération (`reservationHotel.providerBookingId` = numéro de
+ *    confirmation, pas l'offerId requis par `cancel()`). L'annulation reste
+ *    LOCALE à Easy2Book. Un TODO marqué ci-dessous trace le delta.
+ *
+ * 2. `supplierNotified: false` — TOUJOURS. Le résultat porte ce flag
+ *    explicitement ; l'UI doit l'afficher honnêtement (jamais laisser
+ *    croire que l'hôtel a confirmé l'annulation). L'admin est tracé via
+ *    l'audit event (`supplierNotified: false` dans le diff) et doit
+ *    transmettre la demande au fournisseur manuellement.
+ *
+ * 3. Remboursement conditionné par `cancellationPolicies.refundable`
+ *    (figé à la réservation, jamais recalculé). Si non remboursable :
+ *    `applyReservationRefund` N'EST PAS appelée (évite `creditCustomerWallet(0)`).
+ *    Si remboursable : trois outcomes distincts —
+ *      - `NO_CAPTURED_PAYMENT` → no-op (rien n'a été encaissé), annulation continue
+ *      - `ok: true`            → remboursement réel, montant = `refundResult.refundedTnd`
+ *      - autre erreur          → `throw` → rollback → réservation NON annulée
+ *
+ * 4. `feeTnd = 0` — pas de frais fournisseur dans cette itération.
+ */
+export async function cancelMyHotelMondeReservation(
+  reservationId: string,
+): Promise<CancelMyHotelMondeResult> {
+  if (!process.env.DATABASE_URL) {
+    return { ok: false, error: "Base de données non configurée" }
+  }
+
+  const supabase = await createServerSupabase()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  if (!user?.email)
+    return { ok: false, error: "NOT_AUTHENTICATED", code: "NOT_AUTHENTICATED" }
+
+  const tenant = await guestTenantContext()
+  if (!tenant)
+    return { ok: false, error: "Aucune agence n'est configurée pour ce site." }
+
+  // ---------------------------------------------------------------------
+  // 1. Pré-vérification hors verrou — appartenance, module, statut,
+  //    politique de remboursement.
+  // ---------------------------------------------------------------------
+  const preCheck = await withTenantContext(tenant, async (tx) => {
+    const [row] = await tx
+      .select({
+        id: reservations.id,
+        publicRef: reservations.publicRef,
+        module: reservations.module,
+        status: reservations.status,
+        customerId: reservations.customerId,
+        cancellationPolicies: reservationHotel.cancellationPolicies,
+      })
+      .from(reservations)
+      .innerJoin(customers, eq(reservations.customerId, customers.id))
+      .leftJoin(
+        reservationHotel,
+        eq(reservationHotel.reservationId, reservations.id),
+      )
+      .where(
+        and(
+          eq(reservations.id, reservationId),
+          ownedByCurrentCustomer({
+            agencyId: tenant.agencyId ?? "",
+            authUserId: user.id,
+            verifiedEmail: user.email!,
+          }),
+        ),
+      )
+      .limit(1)
+    return row ?? null
+  })
+
+  if (!preCheck)
+    return { ok: false, error: "Réservation introuvable.", code: "NOT_FOUND" }
+  if (
+    !CANCELLABLE_STATUSES.includes(
+      preCheck.status as (typeof CANCELLABLE_STATUSES)[number],
+    )
+  ) {
+    return {
+      ok: false,
+      error: `Cette réservation est déjà "${preCheck.status}" — impossible de l'annuler.`,
+    }
+  }
+  if (preCheck.module !== "hotel_monde") {
+    return {
+      ok: false,
+      error:
+        "Cette action ne s'applique qu'aux réservations Hôtel Monde. Contactez le support.",
+    }
+  }
+
+  const policies = preCheck.cancellationPolicies as
+    | { refundable?: boolean }
+    | null
+  const refundable = policies?.refundable ?? false
+
+  // ---------------------------------------------------------------------
+  // 2. Transaction : re-vérifie sous verrou (anti double-clic), calcule
+  //    le remboursement selon la politique figée, annule la réservation.
+  //
+  //    NOTE : l'annulation auprès du fournisseur virtuel (cancel() de
+  //    lib/hotels-monde/virtual-supplier/engine.ts) N'EST PAS appelée
+  //    dans cette itération — offerId non stocké en DB. L'admin doit
+  //    transmettre la demande manuellement.
+  //    TODO B2C-CANCEL-MONDE-02 : stocker offerId + appeler cancel().
+  // ---------------------------------------------------------------------
+  try {
+    return await withTenantContext(tenant, async (tx) => {
+      const [locked] = await tx
+        .select({
+          status: reservations.status,
+          tndAmount: reservations.tndAmount,
+        })
+        .from(reservations)
+        .where(eq(reservations.id, reservationId))
+        .for("update")
+
+      if (
+        !locked ||
+        !CANCELLABLE_STATUSES.includes(
+          locked.status as (typeof CANCELLABLE_STATUSES)[number],
+        )
+      ) {
+        throw new Error("ALREADY_CANCELLED_CONCURRENTLY")
+      }
+
+      // ------------------------------------------------------------------
+      // Remboursement : trois outcomes selon la politique et l'état des
+      // paiements.
+      // ------------------------------------------------------------------
+      let refundedTnd = 0
+
+      if (refundable) {
+        const refundResult = await applyReservationRefund({
+          tx,
+          agencyId: tenant.agencyId ?? "",
+          reservationId,
+          customerId: preCheck.customerId,
+          publicRef: preCheck.publicRef,
+          reason: "Annulation client Hôtel Monde",
+          actorUserId: user.id,
+          // amountTnd omis = remboursement total du montant remboursable
+          // (borné par ce qui a réellement été encaissé moins les
+          // remboursements déjà effectués — jamais supérieur).
+        })
+
+        if (refundResult.ok) {
+          // Outcome 2 : remboursement réussi — montant RÉEL crédité.
+          refundedTnd = refundResult.refundedTnd
+        } else if (refundResult.code === "NO_CAPTURED_PAYMENT") {
+          // Outcome 1 : rien n'a été encaissé — no-op légitime, annulation
+          // continue sans remboursement (réservation "pending cash/transfer").
+          refundedTnd = 0
+        } else {
+          // Outcome 3 : erreur de remboursement — rollback via throw,
+          // réservation NON annulée, client peut réessayer.
+          throw new Error(
+            `REFUND_ERROR:${refundResult.code}:${refundResult.error}`,
+          )
+        }
+      }
+      // Si non remboursable : refundedTnd reste 0, pas d'appel à
+      // applyReservationRefund (évite creditCustomerWallet(0)).
+
+      await tx
+        .update(reservations)
+        .set({ status: "cancelled", cancelledAt: new Date() })
+        .where(eq(reservations.id, reservationId))
+
+      await recordReservationTransition(tx, {
+        reservationId,
+        from: locked.status as (typeof CANCELLABLE_STATUSES)[number],
+        to: "cancelled",
+        triggeredBy: user.id,
+        reason: "Annulation self-service client Hôtel Monde",
+      })
+
+      await reverseEarnedPoints(tx, {
+        agencyId: tenant.agencyId ?? "",
+        customerId: preCheck.customerId,
+        reservationId,
+        idempotencyKey: `reverse:${reservationId}`,
+        actorUserId: user.id,
+      })
+
+      await reinstateRedeemedPoints(tx, {
+        agencyId: tenant.agencyId ?? "",
+        customerId: preCheck.customerId,
+        reservationId,
+        idempotencyKey: `reinstate:${reservationId}`,
+        actorUserId: user.id,
+      })
+
+      const cancelledAt = new Date()
+
+      await recordCancellationFinancials({
+        tx,
+        reservationId,
+        cancellationFeeTnd: 0,
+        refundAmountTnd: refundedTnd,
+        reason: "Annulation client Hôtel Monde",
+        cancelledAt,
+      })
+
+      await tx.insert(auditEvents).values({
+        agencyId: tenant.agencyId ?? "",
+        actorUserId: user.id,
+        entityType: "reservation",
+        entityId: reservationId,
+        action: "reservation.cancelled",
+        diff: {
+          publicRef: preCheck.publicRef,
+          module: "hotel_monde",
+          refundedTnd,
+          refundable,
+          actor: "customer",
+          supplierNotified: false,
+          requiresSupplierAction: true,
+        },
+      })
+
+      return {
+        ok: true,
+        refundedTnd,
+        feeTnd: 0,
+        supplierNotified: false,
+      } as CancelMyHotelMondeResult
+    })
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err)
+    if (msg === "ALREADY_CANCELLED_CONCURRENTLY") {
+      return {
+        ok: false,
+        error:
+          "Cette réservation vient d'être annulée par une autre action — rafraîchissez la page.",
+      }
+    }
+    if (msg.startsWith("REFUND_ERROR:")) {
+      const parts = msg.split(":")
+      logger.error("[cancelMyHotelMondeReservation] refund error", {
+        reservationId,
+        code: parts[1],
+        detail: parts.slice(2).join(":"),
+      })
+      return {
+        ok: false,
+        code: parts[1],
+        error:
+          "Le remboursement a échoué — la réservation n'a pas été annulée. Réessayez ou contactez le support avec la référence " +
+          preCheck.publicRef +
+          ".",
+      }
+    }
+    logger.error("[cancelMyHotelMondeReservation] transaction failed", {
+      reservationId,
+      err: msg,
+    })
+    return {
+      ok: false,
+      error:
+        "L'annulation a échoué. Réessayez ou contactez le support avec la référence " +
         preCheck.publicRef +
         ".",
     }

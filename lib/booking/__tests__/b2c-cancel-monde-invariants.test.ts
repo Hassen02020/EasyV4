@@ -112,7 +112,10 @@ test("B2C-CANCEL-MONDE-01/11 : supplierNotified toujours false", () => {
   assert.match(mondeSrc, /supplierNotified:\s*false/)
   // Ne doit JAMAIS être true dans le return ok
   const returnOkIdx = mondeSrc.indexOf("supplierNotified: false")
-  assert.ok(returnOkIdx > 0, "supplierNotified: false doit apparaître dans le résultat")
+  assert.ok(
+    returnOkIdx > 0,
+    "supplierNotified: false doit apparaître dans le résultat",
+  )
 })
 
 // ─── 12. AUDIT EVENT ─────────────────────────────────────────────────────────

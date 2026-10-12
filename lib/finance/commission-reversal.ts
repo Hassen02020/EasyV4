@@ -21,10 +21,25 @@
  *   (`compensatesId`) avant toute écriture. Cette vérification SELECT puis
  *   INSERT dans la même transaction ne ferme pas la fenêtre de course entre
  *   DEUX transactions concurrentes — fermée par la contrainte UNIQUE partielle
- *   `economic_entitlements_compensates_uniq` (migration 0134, préparée mais
- *   PAS appliquée en production par cette session). Le second INSERT
- *   concurrent, bloqué par cette contrainte, est intercepté ici (23505) et
- *   traité comme un no-op — jamais une erreur remontée à l'appelant.
+ *   `economic_entitlements_compensates_uniq` (migration 0134).
+ *
+ *   CORRECTIF ADDITIONNEL (preuve d'intégration PostgreSQL réelle,
+ *   `commission-reversal-integration.test.ts`, 2026-10-12) : la première
+ *   version de ce fichier interceptait le conflit concurrent via un
+ *   `INSERT` nu + `catch` sur le code Postgres `23505`. Un test contre un
+ *   Postgres RÉEL (pas un mock) a prouvé que ce design est incorrect : dès
+ *   qu'UNE instruction échoue à l'intérieur d'une transaction Postgres, le
+ *   serveur marque toute la transaction "aborted" — un `catch` JavaScript
+ *   empêche seulement l'exception de se propager en JS, il ne restaure PAS
+ *   la transaction côté serveur. La transaction appelante (qui contient
+ *   aussi la mise à jour de statut `reservations` dans tous les points
+ *   d'appel) aurait donc échoué silencieusement sur l'instruction suivante
+ *   (`current transaction is aborted, commands ignored until end of
+ *   transaction block`) à chaque course concurrente réellement perdue — un
+ *   défaut que les tests mock-tx ne pouvaient pas détecter. Remplacé par
+ *   `INSERT ... ON CONFLICT (compensates_id) WHERE compensates_id IS NOT
+ *   NULL DO NOTHING RETURNING id` : ne lève JAMAIS d'erreur SQL pour le cas
+ *   de conflit, donc ne peut jamais invalider la transaction appelante.
  *
  * POLITIQUE D'ANNULATION — AUCUN DÉFAUT SILENCIEUX (correctif Bloquant B,
  * audit PR #200) :
@@ -103,7 +118,6 @@ import {
   reservationFinancials,
   walletLedger,
 } from "@/lib/db/schema"
-import { pgErrorCode } from "@/lib/db/pg-error"
 import { PLATFORM_COMMISSION_WALLET_ID } from "./platform-commission"
 
 const KNOWN_TREATMENTS = [
@@ -269,36 +283,35 @@ export async function reverseCommissionOnCancellation(
   if (treatment === "non_refundable") {
     // Commission méritée même en annulation : PAS de débit wallet.
     // Insertion traçabilité uniquement (amount=0.00).
-    try {
-      await tx.insert(economicEntitlements).values({
-        reservationId,
-        partyType: "easy2book",
-        partyId: null,
-        role: "easy2book",
-        qualification: "commission",
-        amount: "0.00",
-        currency: "TND",
-        basis: `Reversement commission — annulation ${publicRef} (non_refundable — commission conservée)`,
-        status: "pending",
-        effectiveAt: new Date(),
-        compensatesId: originalEntitlement.id,
-        cancellationTreatment: "non_refundable",
-      })
-    } catch (err) {
-      if (pgErrorCode(err) === "23505") {
-        // Un appel concurrent a déjà inséré cette compensation entre notre
-        // vérification (étape 4) et cet INSERT — no-op, jamais une erreur.
-        console.warn(
-          JSON.stringify({
-            tag: "COMMISSION_REVERSAL_RACE_LOST",
-            reservationId,
-            entitlementId: originalEntitlement.id,
-            ts: new Date().toISOString(),
-          }),
-        )
-        return
-      }
-      throw err
+    // ON CONFLICT DO NOTHING (jamais un INSERT nu + catch 23505, voir
+    // en-tête de fichier) : un conflit ne lève aucune erreur SQL, donc ne
+    // peut jamais faire passer la transaction appelante en état "aborted".
+    const [inserted] = await tx.execute<{ id: string }>(sql`
+      INSERT INTO economic_entitlements (
+        reservation_id, party_type, party_id, role, qualification, amount,
+        currency, basis, status, effective_at, compensates_id,
+        cancellation_treatment
+      ) VALUES (
+        ${reservationId}, 'easy2book', NULL, 'easy2book', 'commission',
+        '0.00', 'TND',
+        ${`Reversement commission — annulation ${publicRef} (non_refundable — commission conservée)`},
+        'pending', now(), ${originalEntitlement.id}, 'non_refundable'
+      )
+      ON CONFLICT (compensates_id) WHERE compensates_id IS NOT NULL
+      DO NOTHING
+      RETURNING id
+    `)
+    if (!inserted) {
+      // Un appel concurrent a déjà inséré cette compensation entre notre
+      // vérification (étape 4) et cet INSERT — no-op, jamais une erreur.
+      console.warn(
+        JSON.stringify({
+          tag: "COMMISSION_REVERSAL_RACE_LOST",
+          reservationId,
+          entitlementId: originalEntitlement.id,
+          ts: new Date().toISOString(),
+        }),
+      )
     }
     return
   }
@@ -371,37 +384,36 @@ export async function reverseCommissionOnCancellation(
   `)
 
   // ── B. Ligne compensatoire economic_entitlements ─────────────────────────
-  try {
-    await tx.insert(economicEntitlements).values({
-      reservationId,
-      partyType: "easy2book",
-      partyId: null,
-      role: "easy2book",
-      qualification: "commission",
-      amount: negateDecimalString(creditEntry.amount),
-      currency: "TND",
-      basis: `Reversement commission — annulation ${publicRef} (${treatment})`,
-      status: "pending",
-      effectiveAt: new Date(),
-      compensatesId: originalEntitlement.id,
-      cancellationTreatment: treatment,
-    })
-  } catch (err) {
-    if (pgErrorCode(err) === "23505") {
-      // Un appel concurrent a gagné la course entre notre vérification
-      // (étape 4) et cet INSERT — le débit wallet ci-dessus a déjà été
-      // absorbé par l'idempotency key SQL (aucun double débit), seule cette
-      // insertion était en course. No-op, jamais une erreur remontée.
-      console.warn(
-        JSON.stringify({
-          tag: "COMMISSION_REVERSAL_RACE_LOST",
-          reservationId,
-          entitlementId: originalEntitlement.id,
-          ts: new Date().toISOString(),
-        }),
-      )
-      return
-    }
-    throw err
+  // ON CONFLICT DO NOTHING (jamais un INSERT nu + catch 23505, voir
+  // en-tête de fichier) : un conflit ne lève aucune erreur SQL, donc ne
+  // peut jamais faire passer la transaction appelante en état "aborted".
+  const [inserted] = await tx.execute<{ id: string }>(sql`
+    INSERT INTO economic_entitlements (
+      reservation_id, party_type, party_id, role, qualification, amount,
+      currency, basis, status, effective_at, compensates_id,
+      cancellation_treatment
+    ) VALUES (
+      ${reservationId}, 'easy2book', NULL, 'easy2book', 'commission',
+      ${negateDecimalString(creditEntry.amount)}, 'TND',
+      ${`Reversement commission — annulation ${publicRef} (${treatment})`},
+      'pending', now(), ${originalEntitlement.id}, ${treatment}
+    )
+    ON CONFLICT (compensates_id) WHERE compensates_id IS NOT NULL
+    DO NOTHING
+    RETURNING id
+  `)
+  if (!inserted) {
+    // Un appel concurrent a gagné la course entre notre vérification
+    // (étape 4) et cet INSERT — le débit wallet ci-dessus a déjà été
+    // absorbé par l'idempotency key SQL (aucun double débit), seule cette
+    // insertion était en course. No-op, jamais une erreur remontée.
+    console.warn(
+      JSON.stringify({
+        tag: "COMMISSION_REVERSAL_RACE_LOST",
+        reservationId,
+        entitlementId: originalEntitlement.id,
+        ts: new Date().toISOString(),
+      }),
+    )
   }
 }

@@ -25,17 +25,31 @@
  *      → skip + warn (jamais un choix arbitraire).
  *  17. Ambiguïté : 2 crédits wallet_ledger candidats → skip + warn (jamais
  *      le premier résultat SQL choisi arbitrairement).
- *  18. Course perdue (23505 sur l'INSERT compensatoire, full_reversal) →
- *      absorbée silencieusement, jamais une erreur remontée.
- *  19. Course perdue (23505 sur l'INSERT compensatoire, non_refundable) →
- *      même traitement.
+ *  18. Course perdue (INSERT ... ON CONFLICT DO NOTHING ne retourne aucune
+ *      ligne, full_reversal) → absorbée silencieusement, jamais une erreur.
+ *  19. Course perdue (même mécanisme, non_refundable) → même traitement.
  *  20. negateDecimalString : inversion de signe par chaîne, pas de passage
  *      par un float (ex. "10.10" → "-10.10" exact).
  *
  * Pas de DB réelle — mock tx minimal. Les garanties PostgreSQL réelles
- * (FOR UPDATE, contrainte UNIQUE, concurrence réelle) nécessitent un
- * environnement d'intégration séparé — voir rapport d'audit PR #200,
- * section tests d'intégration.
+ * (FOR UPDATE, contrainte UNIQUE, concurrence réelle, atomicité
+ * transactionnelle) sont couvertes par
+ * `lib/finance/__tests__/commission-reversal-integration.test.ts` (Postgres
+ * réel) — voir rapport d'audit PR #200, section Bloquant D.
+ *
+ * NOTE DE CONCEPTION (depuis la preuve d'intégration PostgreSQL réelle,
+ * 2026-10-12) : les deux INSERT compensatoires n'utilisent plus
+ * `tx.insert(...).values(...)` + `catch(23505)` mais
+ * `tx.execute(sql\`INSERT ... ON CONFLICT ... DO NOTHING RETURNING id\`)` —
+ * un test contre un Postgres réel a prouvé qu'un `catch` JS sur une
+ * violation de contrainte à l'intérieur d'une transaction ne restaure PAS
+ * la transaction côté serveur (Postgres la marque "aborted" dès l'échec
+ * d'UNE instruction, indépendamment de ce qu'en fait le code appelant) —
+ * ce que `ON CONFLICT DO NOTHING` évite structurellement en ne levant
+ * jamais d'erreur SQL pour ce cas. Ce mock reflète donc ce nouveau chemin :
+ * le résultat de l'INSERT compensatoire est lu via `getExecuteCalls()`
+ * (plus `getInsertValues()`, qui n'a plus de source puisque `tx.insert`
+ * n'est plus appelé par ce fichier).
  */
 
 import test from "node:test"
@@ -50,25 +64,23 @@ import type { DrizzleTransaction } from "@/lib/db/client"
 
 type EntitlementRow = { id: string; cancellationTreatment: string | null }
 
-/** Erreur imitant une violation de contrainte UNIQUE Postgres (23505),
- * exactement la forme que `pgErrorCode()` (lib/db/pg-error.ts) sait lire :
- * le code réel vit sur `.cause.code`, pas directement sur l'erreur. */
-class MockUniqueViolation extends Error {
-  cause = { code: "23505" }
+function queryText(query: unknown): string {
+  return JSON.stringify(query)
 }
 
 function makeMockTx(opts: {
   financialsRow: { commissionAmount: string | null } | null
   originalEntitlement: EntitlementRow | null
-  /** NOUVEAU (Bloquant A) : compensation(s) déjà existante(s) pour cet entitlement. */
+  /** Compensation(s) déjà existante(s) pour cet entitlement. */
   existingCompensations?: EntitlementRow[]
   /** Entrée(s) wallet_ledger (type='commission', category='commission') du crédit initial. */
   creditLedgerEntries?: { amount: string }[]
-  /** Si true, le prochain INSERT economic_entitlements rejette avec 23505. */
-  insertThrowsUniqueViolation?: boolean
+  /** Si true, le prochain INSERT compensatoire (ON CONFLICT DO NOTHING) ne
+   * retourne aucune ligne — simule une course concurrente perdue contre la
+   * contrainte UNIQUE (migration 0134), sans jamais lever d'erreur SQL. */
+  compensationInsertConflicts?: boolean
 }) {
   const executeCalls: unknown[] = []
-  const insertValues: Record<string, unknown>[] = []
   let selectCallIndex = 0
 
   const selectResults: unknown[][] = [
@@ -91,22 +103,25 @@ function makeMockTx(opts: {
     }),
     execute: async (query: unknown) => {
       executeCalls.push(query)
+      const text = queryText(query)
+      if (text.includes("INSERT INTO economic_entitlements")) {
+        return opts.compensationInsertConflicts
+          ? []
+          : [{ id: "mock-compensation-id" }]
+      }
+      return []
     },
-    insert: (_table: unknown) => ({
-      values: (row: Record<string, unknown>) => {
-        if (opts.insertThrowsUniqueViolation) {
-          return Promise.reject(new MockUniqueViolation("duplicate key"))
-        }
-        insertValues.push(row)
-        return Promise.resolve()
-      },
-    }),
   } as unknown as DrizzleTransaction
 
   return {
     tx,
     getExecuteCalls: () => executeCalls,
-    getInsertValues: () => insertValues,
+    /** Sous-ensemble des appels execute() qui sont l'INSERT compensatoire
+     * (jamais la SELECT debit_platform_commission). */
+    getCompensationInsertCalls: () =>
+      executeCalls.filter((c) =>
+        queryText(c).includes("INSERT INTO economic_entitlements"),
+      ),
   }
 }
 
@@ -115,7 +130,7 @@ function makeMockTx(opts: {
 /* -------------------------------------------------------------------------- */
 
 test("no-op silencieux — pas de ligne reservation_financials", async () => {
-  const { tx, getExecuteCalls, getInsertValues } = makeMockTx({
+  const { tx, getExecuteCalls } = makeMockTx({
     financialsRow: null,
     originalEntitlement: null,
   })
@@ -127,7 +142,6 @@ test("no-op silencieux — pas de ligne reservation_financials", async () => {
   })
 
   assert.strictEqual(getExecuteCalls().length, 0)
-  assert.strictEqual(getInsertValues().length, 0)
 })
 
 test("no-op silencieux — commissionAmount = '0.00'", async () => {
@@ -161,7 +175,7 @@ test("no-op silencieux — commissionAmount = null", async () => {
 })
 
 test("no-op + pas de débit — entitlement original absent", async () => {
-  const { tx, getExecuteCalls, getInsertValues } = makeMockTx({
+  const { tx, getExecuteCalls } = makeMockTx({
     financialsRow: { commissionAmount: "20.00" },
     originalEntitlement: null,
   })
@@ -177,11 +191,6 @@ test("no-op + pas de débit — entitlement original absent", async () => {
     0,
     "wallet ne doit pas être débité si entitlement absent",
   )
-  assert.strictEqual(
-    getInsertValues().length,
-    0,
-    "ne doit pas insérer de ligne compensatoire si entitlement absent",
-  )
 })
 
 /* -------------------------------------------------------------------------- */
@@ -189,7 +198,7 @@ test("no-op + pas de débit — entitlement original absent", async () => {
 /* -------------------------------------------------------------------------- */
 
 test("BLOQUANT B — cancellationTreatment=null → SKIP (pas de défaut full_reversal inventé)", async () => {
-  const { tx, getExecuteCalls, getInsertValues } = makeMockTx({
+  const { tx, getExecuteCalls } = makeMockTx({
     financialsRow: { commissionAmount: "20.00" },
     originalEntitlement: { id: "orig-id", cancellationTreatment: null },
   })
@@ -203,17 +212,12 @@ test("BLOQUANT B — cancellationTreatment=null → SKIP (pas de défaut full_re
   assert.strictEqual(
     getExecuteCalls().length,
     0,
-    "politique absente : AUCUN débit, jamais un full_reversal par défaut",
-  )
-  assert.strictEqual(
-    getInsertValues().length,
-    0,
-    "politique absente : AUCUNE compensation insérée",
+    "politique absente : AUCUN débit, jamais un full_reversal par défaut, AUCUNE compensation",
   )
 })
 
 test("BLOQUANT B — cancellationTreatment inconnu ('bogus') → SKIP", async () => {
-  const { tx, getExecuteCalls, getInsertValues } = makeMockTx({
+  const { tx, getExecuteCalls } = makeMockTx({
     financialsRow: { commissionAmount: "20.00" },
     originalEntitlement: { id: "orig-id", cancellationTreatment: "bogus" },
   })
@@ -225,7 +229,6 @@ test("BLOQUANT B — cancellationTreatment inconnu ('bogus') → SKIP", async ()
   })
 
   assert.strictEqual(getExecuteCalls().length, 0)
-  assert.strictEqual(getInsertValues().length, 0)
 })
 
 /* -------------------------------------------------------------------------- */
@@ -233,7 +236,7 @@ test("BLOQUANT B — cancellationTreatment inconnu ('bogus') → SKIP", async ()
 /* -------------------------------------------------------------------------- */
 
 test("no-op + pas de débit — crédit wallet_ledger absent (entitlement présent)", async () => {
-  const { tx, getExecuteCalls, getInsertValues } = makeMockTx({
+  const { tx, getExecuteCalls } = makeMockTx({
     financialsRow: { commissionAmount: "20.00" },
     originalEntitlement: {
       id: "orig-ent-id",
@@ -253,7 +256,6 @@ test("no-op + pas de débit — crédit wallet_ledger absent (entitlement prése
     0,
     "wallet ne doit pas être débité si crédit ledger absent",
   )
-  assert.strictEqual(getInsertValues().length, 0)
 })
 
 test("appelle debit_platform_commission quand toutes les données sont présentes", async () => {
@@ -272,12 +274,10 @@ test("appelle debit_platform_commission quand toutes les données sont présente
     actorUserId: "admin-1",
   })
 
-  assert.strictEqual(
-    getExecuteCalls().length,
-    1,
-    "doit appeler tx.execute() une fois pour debit_platform_commission",
-  )
-  const sqlStr = JSON.stringify(getExecuteCalls()[0])
+  // 2 appels execute() attendus : la SELECT debit_platform_commission puis
+  // l'INSERT compensatoire (ON CONFLICT DO NOTHING RETURNING id).
+  assert.strictEqual(getExecuteCalls().length, 2)
+  const sqlStr = queryText(getExecuteCalls()[0])
   assert.ok(
     sqlStr.includes("debit_platform_commission"),
     "doit appeler debit_platform_commission",
@@ -301,7 +301,7 @@ test("clé d'idempotence = 'commission-reversal:{reservationId}'", async () => {
     actorUserId: null,
   })
 
-  const call = JSON.stringify(getExecuteCalls()[0])
+  const call = queryText(getExecuteCalls()[0])
   const expectedKey = `commission-reversal:${reservationId}`
   assert.ok(
     call.includes(expectedKey),
@@ -310,7 +310,7 @@ test("clé d'idempotence = 'commission-reversal:{reservationId}'", async () => {
 })
 
 test("insère ligne compensatoire economic_entitlements", async () => {
-  const { tx, getInsertValues } = makeMockTx({
+  const { tx, getCompensationInsertCalls } = makeMockTx({
     financialsRow: { commissionAmount: "20.00" },
     originalEntitlement: {
       id: "orig-ent-id",
@@ -326,14 +326,14 @@ test("insère ligne compensatoire economic_entitlements", async () => {
   })
 
   assert.strictEqual(
-    getInsertValues().length,
+    getCompensationInsertCalls().length,
     1,
     "doit insérer exactement une ligne compensatoire",
   )
-  const row = getInsertValues()[0]
-  assert.strictEqual(row.qualification, "commission")
-  assert.strictEqual(row.partyType, "easy2book")
-  assert.strictEqual(row.compensatesId, "orig-ent-id")
+  const call = queryText(getCompensationInsertCalls()[0])
+  assert.ok(call.includes("commission"))
+  assert.ok(call.includes("easy2book"))
+  assert.ok(call.includes("orig-ent-id"))
 })
 
 test("full_reversal — montant = creditEntry.amount (écriture wallet réelle), pas financials ni entitlement", async () => {
@@ -341,7 +341,7 @@ test("full_reversal — montant = creditEntry.amount (écriture wallet réelle),
   // financials.commissionAmount = 35.00  ← ignoré (garde rapide uniquement)
   // creditLedgerEntries[0].amount = 30.00  ← source authoritative
   // → compensatoire attendu = -30.00
-  const { tx, getInsertValues } = makeMockTx({
+  const { tx, getCompensationInsertCalls } = makeMockTx({
     financialsRow: { commissionAmount: "35.00" },
     originalEntitlement: {
       id: "orig-id",
@@ -356,13 +356,13 @@ test("full_reversal — montant = creditEntry.amount (écriture wallet réelle),
     actorUserId: null,
   })
 
-  const row = getInsertValues()[0]
-  assert.strictEqual(
-    row.amount,
-    "-30.00",
+  const call = queryText(getCompensationInsertCalls()[0])
+  assert.ok(
+    call.includes("-30.00"),
     "doit utiliser creditEntry.amount (30.00), pas financials (35.00)",
   )
-  assert.strictEqual(row.cancellationTreatment, "full_reversal")
+  assert.ok(!call.includes("-35.00"))
+  assert.ok(call.includes("full_reversal"))
 })
 
 /* -------------------------------------------------------------------------- */
@@ -370,7 +370,7 @@ test("full_reversal — montant = creditEntry.amount (écriture wallet réelle),
 /* -------------------------------------------------------------------------- */
 
 test("non_refundable → ZÉRO débit wallet, compensatoire traçabilité = 0.00", async () => {
-  const { tx, getInsertValues, getExecuteCalls } = makeMockTx({
+  const { tx, getCompensationInsertCalls } = makeMockTx({
     financialsRow: { commissionAmount: "25.00" },
     originalEntitlement: {
       id: "orig-id-2",
@@ -384,23 +384,17 @@ test("non_refundable → ZÉRO débit wallet, compensatoire traçabilité = 0.00
     actorUserId: null,
   })
 
-  assert.strictEqual(
-    getExecuteCalls().length,
-    0,
-    "non_refundable : wallet commission NE DOIT PAS être débité",
-  )
-  assert.strictEqual(
-    getInsertValues().length,
-    1,
-    "doit insérer une ligne de traçabilité",
-  )
-  const row = getInsertValues()[0]
-  assert.strictEqual(
-    row.amount,
-    "0.00",
+  const inserts = getCompensationInsertCalls()
+  assert.strictEqual(inserts.length, 1, "doit insérer une ligne de traçabilité")
+  const call = queryText(inserts[0])
+  assert.ok(
+    call.includes("'0.00'"),
     "non_refundable : amount compensatoire = 0.00",
   )
-  assert.strictEqual(row.cancellationTreatment, "non_refundable")
+  assert.ok(call.includes("non_refundable"))
+  // Wallet commission NE DOIT PAS être débité : aucun appel
+  // debit_platform_commission (seul l'INSERT compensatoire doit apparaître).
+  assert.ok(!queryText(inserts[0]).includes("debit_platform_commission"))
 })
 
 test("pro_rata_fee → throw explicite (politique non validée par Direction)", async () => {
@@ -434,7 +428,7 @@ test("pro_rata_fee → throw explicite (politique non validée par Direction)", 
 /* -------------------------------------------------------------------------- */
 
 test("BLOQUANT A — retry idempotent : compensation déjà existante, MÊME traitement → no-op total", async () => {
-  const { tx, getExecuteCalls, getInsertValues } = makeMockTx({
+  const { tx, getExecuteCalls } = makeMockTx({
     financialsRow: { commissionAmount: "20.00" },
     originalEntitlement: {
       id: "orig-id-4",
@@ -455,12 +449,7 @@ test("BLOQUANT A — retry idempotent : compensation déjà existante, MÊME tra
   assert.strictEqual(
     getExecuteCalls().length,
     0,
-    "retry idempotent : AUCUN second débit",
-  )
-  assert.strictEqual(
-    getInsertValues().length,
-    0,
-    "retry idempotent : AUCUNE seconde compensation insérée",
+    "retry idempotent : AUCUN second débit, AUCUNE seconde compensation",
   )
 })
 
@@ -494,7 +483,7 @@ test("BLOQUANT A — retry avec traitement INCOMPATIBLE → throw explicite", as
 })
 
 test("BLOQUANT A — 2 compensations déjà existantes (ambigu) → skip + warn, jamais un choix arbitraire", async () => {
-  const { tx, getExecuteCalls, getInsertValues } = makeMockTx({
+  const { tx, getExecuteCalls } = makeMockTx({
     financialsRow: { commissionAmount: "20.00" },
     originalEntitlement: {
       id: "orig-id-6",
@@ -513,11 +502,10 @@ test("BLOQUANT A — 2 compensations déjà existantes (ambigu) → skip + warn,
   })
 
   assert.strictEqual(getExecuteCalls().length, 0)
-  assert.strictEqual(getInsertValues().length, 0)
 })
 
 test("BLOQUANT C — 2 crédits wallet_ledger candidats (ambigu) → skip + warn, jamais le premier résultat SQL", async () => {
-  const { tx, getExecuteCalls, getInsertValues } = makeMockTx({
+  const { tx, getExecuteCalls } = makeMockTx({
     financialsRow: { commissionAmount: "20.00" },
     originalEntitlement: {
       id: "orig-id-7",
@@ -537,14 +525,13 @@ test("BLOQUANT C — 2 crédits wallet_ledger candidats (ambigu) → skip + warn
     0,
     "ambigu : AUCUN débit tant que non résolu",
   )
-  assert.strictEqual(getInsertValues().length, 0)
 })
 
 /* -------------------------------------------------------------------------- */
-/* 18-19. Course concurrente perdue (23505) — absorbée, jamais une erreur     */
+/* 18-19. Course concurrente perdue (ON CONFLICT DO NOTHING) — absorbée       */
 /* -------------------------------------------------------------------------- */
 
-test("course concurrente perdue (full_reversal) — 23505 sur l'INSERT absorbé silencieusement", async () => {
+test("course concurrente perdue (full_reversal) — INSERT ON CONFLICT DO NOTHING sans ligne retournée → absorbé silencieusement", async () => {
   const { tx } = makeMockTx({
     financialsRow: { commissionAmount: "20.00" },
     originalEntitlement: {
@@ -552,7 +539,7 @@ test("course concurrente perdue (full_reversal) — 23505 sur l'INSERT absorbé 
       cancellationTreatment: "full_reversal",
     },
     creditLedgerEntries: [{ amount: "20.00" }],
-    insertThrowsUniqueViolation: true,
+    compensationInsertConflicts: true,
   })
 
   // Ne doit PAS rejeter — la course perdue est un no-op, pas une erreur.
@@ -563,14 +550,14 @@ test("course concurrente perdue (full_reversal) — 23505 sur l'INSERT absorbé 
   })
 })
 
-test("course concurrente perdue (non_refundable) — 23505 sur l'INSERT absorbé silencieusement", async () => {
+test("course concurrente perdue (non_refundable) — même mécanisme", async () => {
   const { tx } = makeMockTx({
     financialsRow: { commissionAmount: "20.00" },
     originalEntitlement: {
       id: "orig-id-9",
       cancellationTreatment: "non_refundable",
     },
-    insertThrowsUniqueViolation: true,
+    compensationInsertConflicts: true,
   })
 
   await reverseCommissionOnCancellation(tx, {
@@ -580,8 +567,7 @@ test("course concurrente perdue (non_refundable) — 23505 sur l'INSERT absorbé
   })
 })
 
-test("erreur non-23505 sur l'INSERT compensatoire → remontée, jamais absorbée", async () => {
-  const insertValues: Record<string, unknown>[] = []
+test("erreur SQL non liée à un conflit (ex. connexion perdue) sur l'INSERT compensatoire → remontée, jamais absorbée", async () => {
   const tx = {
     select: () => ({
       from: () => ({
@@ -598,13 +584,12 @@ test("erreur non-23505 sur l'INSERT compensatoire → remontée, jamais absorbé
         }),
       }),
     }),
-    execute: async () => {},
-    insert: () => ({
-      values: (row: Record<string, unknown>) => {
-        insertValues.push(row)
-        return Promise.reject(new Error("connection reset"))
-      },
-    }),
+    execute: async (query: unknown) => {
+      if (queryText(query).includes("INSERT INTO economic_entitlements")) {
+        throw new Error("connection reset")
+      }
+      return []
+    },
   } as unknown as DrizzleTransaction
   let selectIdx = 0
 

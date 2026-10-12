@@ -17,7 +17,10 @@
 
 import { useRouter } from "@/i18n/navigation"
 import { BookingCard } from "@/components/booking-summary-card"
-import { cancelMyHotelReservation } from "@/lib/booking/customer-cancel-actions"
+import {
+  cancelMyHotelReservation,
+  cancelMyHotelMondeReservation,
+} from "@/lib/booking/customer-cancel-actions"
 import { cancelMyPolicyReservation } from "@/lib/booking/policy-cancel-actions"
 import { submitReview } from "@/app/actions/submit-review"
 import type { BookingSummary } from "@/lib/booking/summary-types"
@@ -40,6 +43,20 @@ export function CompteReservationList({
       if (!result.allowed) return { ok: false, error: result.reason }
       router.refresh()
       return { ok: true, messages: result.messages }
+    }
+
+    if (module === "hotel_monde") {
+      const result = await cancelMyHotelMondeReservation(bookingId)
+      if (result.ok) {
+        router.refresh()
+        // supplierNotified est toujours false pour hotel_monde — le message
+        // d'avertissement est affiché via la clé i18n dans BookingCard.
+        return {
+          ok: true,
+          messages: result.supplierNotified === false ? ["__MONDE_SUPPLIER_PENDING__"] : [],
+        }
+      }
+      return { ok: false, error: result.error }
     }
 
     const result = await cancelMyHotelReservation(bookingId)

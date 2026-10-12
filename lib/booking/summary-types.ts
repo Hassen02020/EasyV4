@@ -60,6 +60,12 @@ export interface BookingSummary {
   }
   /** Omra/Package/Activity uniquement — `undefined` pour les autres modules. */
   cancellationPolicy?: BookingCancellationPolicySummary | null
+  /**
+   * Hôtel Monde (`hotel_monde`) uniquement — `undefined` pour les autres
+   * modules. Extrait de `reservationHotel.cancellationPolicies.refundable`
+   * (figé à la réservation, jamais recalculé).
+   */
+  worldHotelRefundable?: boolean
   /** Vrai si un avis existe déjà pour cette réservation (peu importe son statut de modération) — jamais un second avis. */
   hasReview: boolean
   /**

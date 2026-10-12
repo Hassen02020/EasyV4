@@ -4,13 +4,18 @@
 -- Symétrique de credit_platform_commission() (migration 0066) :
 -- débite le solde réel du wallet commission Easy2Book lors d'une annulation.
 --
--- Ordre des opérations (verrou AVANT idempotence) :
+-- Ordre des opérations :
+--   0. Garde montant : rejette NULL, zéro et négatif avant toute mutation
+--      (un montant négatif transformerait le débit en crédit silencieux).
 --   1. SELECT FOR UPDATE sur wallet_accounts → sérialise les appels concurrents.
---   2. Idempotency guard (après verrou) → un second appel concurrent voit la
---      clé déjà insérée par le premier et retourne silencieusement.
---   3. Garde solde négatif → rejette tout débit qui ferait passer current_balance
---      sous zéro (indique une erreur amont ou une commission non collectée).
---   4. UPDATE wallet_accounts + INSERT wallet_ledger.
+--   2. Idempotency guard APRÈS verrou : un second appel concurrent voit ici la
+--      clé déjà committée par le premier et retourne silencieusement.
+--      (ORDER IMPORTANT : si le guard précède le verrou, deux appels peuvent
+--       passer tous deux le EXISTS check avant que l'un committe l'INSERT —
+--       race window éliminée en plaçant le guard après le FOR UPDATE.)
+--   3. Garde solde négatif : rejette tout débit qui ferait passer current_balance
+--      sous zéro (commission jamais collectée ou déjà reversée).
+--   4. UPDATE wallet_accounts + INSERT wallet_ledger (append-only).
 --
 -- Architecture identique à credit_platform_commission() :
 --   SELECT … FOR UPDATE  → garantit cohérence balance_before/after sous charge
@@ -23,8 +28,8 @@
 --
 -- GUARD COMMERCIAL : cette fonction ne décide PAS de la politique d'annulation
 -- (full_reversal / pro_rata_fee / non_refundable). L'appelant TypeScript
--- (lib/finance/commission-reversal.ts) reçoit le montant calculé selon la
--- politique — cette fonction ne reçoit que le montant final à débiter.
+-- (lib/finance/commission-reversal.ts) transmet le montant calculé selon la
+-- politique — cette fonction ne reçoit que le montant final validé à débiter.
 --
 -- Application :
 --   psql "$DATABASE_DIRECT_URL" -f drizzle/manual/0133_debit_platform_commission.sql
@@ -48,9 +53,16 @@ DECLARE
   v_balance_before numeric;
   v_balance_after  numeric;
 BEGIN
+  -- Garde 0 : montant invalide — rejette avant toute mutation.
+  -- Un montant nul ou négatif indiquerait une erreur d'appel ; un montant
+  -- négatif transformerait silencieusement le débit en crédit (catastrophique).
+  IF p_amount IS NULL OR p_amount <= 0 THEN
+    RAISE EXCEPTION 'INVALID_COMMISSION_AMOUNT: amount must be > 0, got %', p_amount
+      USING ERRCODE = 'P0001';
+  END IF;
+
   -- Verrou exclusif en premier : sérialise les appels concurrents sur ce wallet.
-  -- L'idempotency guard doit être APRÈS le verrou pour éviter la race où deux
-  -- appels passent tous deux le EXISTS check avant que l'un committe l'INSERT.
+  -- L'idempotency guard doit être APRÈS ce verrou (voir commentaire migration).
   SELECT current_balance INTO v_balance_before
   FROM wallet_accounts WHERE id = p_wallet_id FOR UPDATE;
 
@@ -59,8 +71,8 @@ BEGIN
       USING ERRCODE = 'P0002';
   END IF;
 
-  -- Idempotency guard après verrou : le second appel concurrent voit ici la
-  -- clé déjà committée par le premier.
+  -- Garde idempotence (après verrou) : le second appel concurrent voit ici
+  -- la clé déjà committée par le premier.
   IF EXISTS (
     SELECT 1 FROM wallet_ledger
     WHERE idempotency_key = p_idempotency_key
@@ -68,8 +80,8 @@ BEGIN
     RETURN;
   END IF;
 
-  -- Garde solde négatif : un reversement de commission ne peut pas excéder
-  -- les commissions collectées. Solde négatif = erreur amont à investiguer.
+  -- Garde solde négatif : le reversement ne peut jamais excéder les commissions
+  -- collectées. Solde négatif = erreur amont ou double-reversement à investiguer.
   v_balance_after := v_balance_before - p_amount;
   IF v_balance_after < 0 THEN
     RAISE EXCEPTION 'INSUFFICIENT_COMMISSION_BALANCE: balance=% amount=%',
@@ -82,7 +94,7 @@ BEGIN
       updated_at      = now()
   WHERE id = p_wallet_id;
 
-  -- amount négatif dans le ledger : convention d'un flux sortant
+  -- amount négatif dans le ledger : convention flux sortant (symétrique du crédit)
   INSERT INTO wallet_ledger (
     wallet_account_id, type, status,
     amount, balance_before, balance_after,

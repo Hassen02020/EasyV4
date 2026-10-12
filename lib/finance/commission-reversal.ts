@@ -13,14 +13,19 @@
  *     via compensatesId — append-only par construction (0092).
  *
  * Ordre d'exécution :
- *   1. Lire reservation_financials → garde rapide si aucune commission
- *   2. Lire l'entitlement d'origine (AVANT tout débit) :
- *      - Absent         → no-op + warn (impossible de vérifier le crédit initial)
- *      - non_refundable → insert 0.00 traçabilité uniquement, PAS de débit wallet
- *      - full_reversal  → débit wallet + insert compensatoire (montant = entitlement)
- *      - pro_rata_fee   → TODO CANCEL-COMMISSION-POLICY-01 (Direction) ; fallback full_reversal
- *   3. Montant autorisé = |originalEntitlement.amount|, pas reservationFinancials.commissionAmount
- *      (l'entitlement est la trace comptable de ce qui a été effectivement crédité)
+ *   1. reservation_financials → garde rapide (commissionAmount ≤ 0 → no-op).
+ *   2. economic_entitlements → preuve comptable initiale + politique d'annulation.
+ *      Absent → no-op + warn (pas de trace comptable du crédit initial).
+ *   3. Politique :
+ *      - non_refundable → ZÉRO débit wallet, insertion traçabilité 0.00 uniquement.
+ *      - pro_rata_fee   → REJECT explicite (Direction n'a pas défini la règle).
+ *      - full_reversal  → continuer.
+ *   4. wallet_ledger → vérification que le crédit a bien eu lieu + montant réel crédité.
+ *      Absent → no-op + warn (commission jamais créditée au wallet).
+ *   5. amountToReverse = creditEntry.amount (écriture réelle), jamais le montant
+ *      de l'entitlement ni de reservation_financials — on ne rembourse que ce qui
+ *      a été effectivement crédité.
+ *   6. debit_platform_commission() + INSERT compensatoire.
  *
  * DÉCISION COMMERCIALE REQUISE (TODO CANCEL-COMMISSION-POLICY-01) :
  *   Direction doit valider full_reversal / pro_rata_fee / non_refundable par
@@ -29,7 +34,7 @@
 
 import { and, eq, sql } from "drizzle-orm"
 import type { DrizzleTransaction } from "@/lib/db/client"
-import { economicEntitlements, reservationFinancials } from "@/lib/db/schema"
+import { economicEntitlements, reservationFinancials, walletLedger } from "@/lib/db/schema"
 import { PLATFORM_COMMISSION_WALLET_ID } from "./platform-commission"
 
 export async function reverseCommissionOnCancellation(
@@ -53,14 +58,12 @@ export async function reverseCommissionOnCancellation(
   const earlyAmount = parseFloat(finRow.commissionAmount ?? "0")
   if (earlyAmount <= 0) return // Aucune commission enregistrée
 
-  // ── 2. Entitlement d'origine AVANT tout débit ──────────────────────────────
-  // L'entitlement est la preuve comptable que la commission a bien été créditée
-  // et quel montant a été effectivement enregistré. Sans lui, le débit serait
-  // aveugle — on s'abstient (conservateur) et on alerte pour investigation.
+  // ── 2. Entitlement d'origine — preuve comptable + politique ───────────────
+  // Sans entitlement on ne peut pas connaître la politique ni vérifier que
+  // la commission a bien été comptabilisée. On s'abstient (conservateur).
   const [originalEntitlement] = await tx
     .select({
       id: economicEntitlements.id,
-      amount: economicEntitlements.amount,
       cancellationTreatment: economicEntitlements.cancellationTreatment,
     })
     .from(economicEntitlements)
@@ -74,8 +77,6 @@ export async function reverseCommissionOnCancellation(
     .limit(1)
 
   if (!originalEntitlement) {
-    // Pas de trace comptable initiale : ne pas débiter le wallet.
-    // Cas attendus : réservation antérieure aux entitlements, ou erreur amont.
     console.warn(
       JSON.stringify({
         tag: "COMMISSION_REVERSAL_NO_ENTITLEMENT",
@@ -92,9 +93,9 @@ export async function reverseCommissionOnCancellation(
   const treatment = (originalEntitlement.cancellationTreatment ??
     "full_reversal") as "full_reversal" | "pro_rata_fee" | "non_refundable"
 
-  // non_refundable : commission méritée même en annulation — PAS de débit wallet.
-  // On insère uniquement une ligne de traçabilité à 0.00.
   if (treatment === "non_refundable") {
+    // Commission méritée même en annulation : PAS de débit wallet.
+    // Insertion traçabilité uniquement (amount=0.00).
     await tx.insert(economicEntitlements).values({
       reservationId,
       partyType: "easy2book",
@@ -112,22 +113,50 @@ export async function reverseCommissionOnCancellation(
     return
   }
 
-  // ── 4. Montant autorisé : source = entitlement d'origine ───────────────────
-  // reservationFinancials.commissionAmount est un garde d'entrée rapide ;
-  // le montant effectivement crédité au wallet est dans l'entitlement.
   if (treatment === "pro_rata_fee") {
-    // TODO CANCEL-COMMISSION-POLICY-01 : calcul pro_rata non défini par Direction.
-    // Fallback full_reversal jusqu'à décision explicite.
-    console.warn(
-      JSON.stringify({
-        tag: "COMMISSION_REVERSAL_PRO_RATA_FALLBACK",
-        reservationId,
-        ts: new Date().toISOString(),
-      }),
+    // REJECT : Direction n'a pas défini ni validé le calcul pro_rata.
+    // On ne choisit pas automatiquement une politique financière non validée.
+    // Lever une exception force une investigation manuelle.
+    throw new Error(
+      `COMMISSION_REVERSAL_PRO_RATA_NOT_VALIDATED: reservationId=${reservationId} — ` +
+        `Direction doit définir et valider la règle pro_rata_fee avant déploiement ` +
+        `(TODO CANCEL-COMMISSION-POLICY-01).`,
     )
   }
 
-  const amountToReverse = Math.abs(parseFloat(originalEntitlement.amount ?? "0"))
+  // ── 4. Vérification du crédit réel dans wallet_ledger ─────────────────────
+  // Source authoritative du montant : l'écriture réelle dans wallet_ledger
+  // (type='commission', category='commission', migration 0066).
+  // On ne débite jamais plus que ce qui a été effectivement crédité.
+  const [creditEntry] = await tx
+    .select({ amount: walletLedger.amount })
+    .from(walletLedger)
+    .where(
+      and(
+        eq(walletLedger.walletAccountId, PLATFORM_COMMISSION_WALLET_ID),
+        eq(walletLedger.reservationId, reservationId),
+        eq(walletLedger.type, "commission"),
+        eq(walletLedger.category, "commission"),
+      ),
+    )
+    .limit(1)
+
+  if (!creditEntry) {
+    // Entitlement présent mais aucun crédit wallet correspondant : incohérence
+    // à investiguer. On ne débite pas aveuglément.
+    console.warn(
+      JSON.stringify({
+        tag: "COMMISSION_REVERSAL_NO_LEDGER_CREDIT",
+        reservationId,
+        entitlementId: originalEntitlement.id,
+        ts: new Date().toISOString(),
+      }),
+    )
+    return
+  }
+
+  // ── 5. Montant = crédit wallet réel ───────────────────────────────────────
+  const amountToReverse = parseFloat(creditEntry.amount ?? "0")
   if (amountToReverse <= 0) return
 
   const idempotencyKey = `commission-reversal:${reservationId}`

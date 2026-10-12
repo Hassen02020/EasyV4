@@ -72,6 +72,7 @@ import {
 } from "@/lib/loyalty/rewards-core"
 import { recordReservationTransition } from "@/lib/admin/reservation-status-history"
 import { logger } from "@/lib/logger"
+import { recordCancellationFinancials } from "@/lib/finance/cancellation-financials"
 
 const CANCELLABLE_STATUSES = ["confirmed", "pending", "on_request"] as const
 const CANCELLABLE_MODULES = ["omra", "package", "activity"] as const
@@ -232,6 +233,17 @@ export async function cancelPolicyReservationCore(
         }
         creditedTnd = refundResult.ok ? refundResult.refundedTnd : 0
       }
+
+      await recordCancellationFinancials({
+        tx,
+        reservationId,
+        cancellationFeeTnd: tndAmount - (outcome.creditableTnd ?? 0),
+        refundAmountTnd: creditedTnd,
+        reason:
+          outcome.feePercent != null
+            ? `Annulation client — frais configurés ${outcome.feePercent}%`
+            : "Annulation client",
+      })
 
       await tx
         .update(reservations)

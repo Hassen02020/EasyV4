@@ -429,9 +429,31 @@ test("reverseCommissionOnCancellation() : 2 appels CONCURRENTS réels pour la M�
 test("échec APRÈS un débit SQL réussi, AVANT commit de la même transaction → rollback complet (aucune trace du débit)", async (t) => {
   if (!dbAvailable) return t.skip(skipReason())
 
-  const balanceBefore = await readCommissionWalletBalance()
   const idempotencyKey = `integration-test-rollback:${randomUUID()}`
   const fakeReservationId = randomUUID()
+
+  // Crédit préalable, dans sa PROPRE transaction (commit indépendant) —
+  // garantit un solde suffisant pour le débit ci-dessous quelle que soit la
+  // réservation courante du solde du wallet commission (partagé avec les
+  // autres tests de ce fichier ET, en CI, avec les 14 autres suites listées
+  // dans financial-e2e qui tournent dans la MÊME base éphémère). Un run CI
+  // réel (base fraîche, solde=0.00 au premier appel) a révélé que ce test
+  // supposait à tort un solde ambiant positif — il passait localement par
+  // accident (résidu d'exécutions manuelles répétées dans cette session),
+  // jamais en partant d'un solde propre. Corrigé : ce test crédite et
+  // débite lui-même exactement ce qu'il teste, sans dépendre d'aucun autre
+  // test ni d'aucun état ambiant.
+  await withSystemContext((tx) =>
+    tx.execute(sql`
+      SELECT credit_platform_commission(
+        ${PLATFORM_COMMISSION_WALLET_ID}::uuid,
+        ${randomUUID()}::uuid,
+        10.00::numeric,
+        'intégration — crédit préalable pour test rollback'
+      )
+    `),
+  )
+  const balanceBefore = await readCommissionWalletBalance()
 
   // Preuve directe de l'atomicité Postgres (indépendante du wrapper
   // TypeScript) : à l'intérieur d'UNE SEULE transaction, un débit SQL réussi
@@ -483,6 +505,21 @@ test("échec APRÈS un débit SQL réussi, AVANT commit de la même transaction 
     ledgerRows.length,
     0,
     "aucune ligne wallet_ledger ne doit survivre à un ROLLBACK, même si le débit avait réussi avant l'échec",
+  )
+
+  // Nettoyage : reverse le crédit préalable (+10.00) pour que ce test reste
+  // net-zéro sur le solde du wallet commission partagé, comme tous les
+  // autres tests de ce fichier — jamais de résidu permanent entre runs.
+  await withSystemContext((tx) =>
+    tx.execute(sql`
+      SELECT debit_platform_commission(
+        ${PLATFORM_COMMISSION_WALLET_ID}::uuid,
+        ${randomUUID()}::uuid,
+        10.00::numeric,
+        'intégration — nettoyage crédit préalable test rollback',
+        ${`integration-test-rollback-cleanup:${randomUUID()}`}
+      )
+    `),
   )
 })
 
@@ -558,5 +595,26 @@ test("migration 0134 — contrainte UNIQUE economic_entitlements_compensates_uni
     compensations.length,
     1,
     "exactement une compensation doit exister après le rejet du doublon",
+  )
+
+  // Nettoyage : ce test ne teste que la contrainte UNIQUE sur
+  // economic_entitlements (INSERT direct, jamais debit_platform_commission),
+  // mais seedCommissionedReservation() a réellement crédité +15.00 au
+  // wallet commission (même chemin que la production) — sans ce débit
+  // explicite, ce crédit reste un résidu permanent sur le wallet partagé.
+  // Confirmé empiriquement : un run complet du fichier sans ce nettoyage
+  // laissait le solde à +15.00 au lieu de 0.00 en repartant d'une base
+  // propre (CI), alors que ça passait inaperçu en local par accident
+  // (solde ambiant déjà non nul venant d'exécutions manuelles antérieures).
+  await withSystemContext((tx) =>
+    tx.execute(sql`
+      SELECT debit_platform_commission(
+        ${PLATFORM_COMMISSION_WALLET_ID}::uuid,
+        ${randomUUID()}::uuid,
+        15.00::numeric,
+        'intégration — nettoyage crédit seed migration 0134',
+        ${`integration-test-0134-cleanup:${randomUUID()}`}
+      )
+    `),
   )
 })

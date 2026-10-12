@@ -166,3 +166,50 @@ test("CANCEL-WIRING-01/b2c : reinstateRedeemedPoints appelé (restitution des po
 test("CANCEL-WIRING-01/b2c : ALREADY_CANCELLED_CONCURRENTLY — protection contre double-annulation concurrent", () => {
   assert.match(customerCancelSrc, /ALREADY_CANCELLED_CONCURRENTLY/)
 })
+
+// ─── POLICY-CANCEL-CORE.TS (Omra/Package/Activity) ───────────────────────────
+
+const policyCancelSrc = readFileSync(
+  join(ROOT, "lib/booking/policy-cancel-core.ts"),
+  "utf8",
+)
+
+// P1 : recordCancellationFinancials importé
+test("CANCEL-WIRING-01/policy : recordCancellationFinancials importé depuis cancellation-financials", () => {
+  assert.match(
+    policyCancelSrc,
+    /from\s+["']@\/lib\/finance\/cancellation-financials["']/,
+  )
+  assert.match(policyCancelSrc, /recordCancellationFinancials/)
+})
+
+// P2 : recordCancellationFinancials appelé dans la transaction
+test("CANCEL-WIRING-01/policy : recordCancellationFinancials appelé dans la transaction (traçabilité financière)", () => {
+  assert.match(policyCancelSrc, /await\s+recordCancellationFinancials\s*\(\s*\{/)
+})
+
+// P3 : cancellationFeeTnd = tndAmount - creditableTnd (Formula A)
+test("CANCEL-WIRING-01/policy : cancellationFeeTnd = tndAmount - (outcome.creditableTnd ?? 0) — Formula A, jamais montant inventé", () => {
+  assert.match(
+    policyCancelSrc,
+    /cancellationFeeTnd:\s*tndAmount\s*-\s*\(outcome\.creditableTnd\s*\?\?\s*0\)/,
+  )
+})
+
+// P4 : refundAmountTnd = creditedTnd (remboursement effectivement exécuté)
+test("CANCEL-WIRING-01/policy : refundAmountTnd = creditedTnd — montant réellement crédité au wallet, jamais théorique", () => {
+  assert.match(policyCancelSrc, /refundAmountTnd:\s*creditedTnd/)
+})
+
+// P5 : ALREADY_CANCELLED_CONCURRENTLY — protection race condition
+test("CANCEL-WIRING-01/policy : ALREADY_CANCELLED_CONCURRENTLY — protection contre double-annulation concurrent", () => {
+  assert.match(policyCancelSrc, /ALREADY_CANCELLED_CONCURRENTLY/)
+})
+
+// P6 : NO_CAPTURED_PAYMENT est un no-op légitime
+test("CANCEL-WIRING-01/policy : NO_CAPTURED_PAYMENT est un no-op légitime (annulation aboutit sans remboursement wallet)", () => {
+  assert.match(
+    policyCancelSrc,
+    /refundResult\.code\s*!==\s*["']NO_CAPTURED_PAYMENT["']/,
+  )
+})

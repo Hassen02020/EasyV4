@@ -1171,7 +1171,11 @@
     "walletCancelledDesc": "You cancelled the payment. Your wallet was not modified.",
     "walletErrorTitle": "Error",
     "walletAmountInvalid": "Amount must be between 10 and 5,000 TND.",
-    "walletBackToAccount": "Back to my account"
+    "walletBackToAccount": "Back to my account",
+    "walletHistoryTitle": "Transaction history",
+    "walletHistoryEmpty": "No transactions yet.",
+    "walletHistoryCredit": "Credit",
+    "walletHistoryDebit": "Debit"
   },
   "Legal": {
     "lastUpdated": "Last updated: to be defined",

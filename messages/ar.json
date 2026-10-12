@@ -1171,7 +1171,11 @@
     "walletCancelledDesc": "لقد ألغيتَ عملية الدفع. لم يتغيّر رصيد محفظتك.",
     "walletErrorTitle": "خطأ",
     "walletAmountInvalid": "يجب أن يكون المبلغ بين 10 و 5,000 دينار.",
-    "walletBackToAccount": "العودة إلى حسابي"
+    "walletBackToAccount": "العودة إلى حسابي",
+    "walletHistoryTitle": "سجل المعاملات",
+    "walletHistoryEmpty": "لا توجد معاملات بعد.",
+    "walletHistoryCredit": "إيداع",
+    "walletHistoryDebit": "خصم"
   },
   "Legal": {
     "lastUpdated": "آخر تحيين: لم يحدد بعد",

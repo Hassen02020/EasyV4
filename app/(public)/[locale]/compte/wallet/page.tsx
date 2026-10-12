@@ -5,10 +5,14 @@ import { createServerSupabase } from "@/lib/supabase/server"
 import { guestTenantContext } from "@/lib/hotel-suppliers/tenant/live-resolution"
 import { withTenantContext } from "@/lib/db/tenant-context"
 import { customers } from "@/lib/db/schema"
-import { getCustomerWalletBalance } from "@/lib/finance/customer-wallet"
+import {
+  getCustomerWalletBalance,
+  getCustomerWalletTransactions,
+} from "@/lib/finance/customer-wallet"
 import { eq, and } from "drizzle-orm"
 import { Easy2BookLogo } from "@/components/easy2book-logo"
 import { WalletTopUpForm } from "@/components/compte/wallet-topup-form"
+import { WalletTransactionList } from "@/components/compte/wallet-transaction-list"
 import { buildLanguageAlternates } from "@/lib/seo/alternate-languages"
 
 export const dynamic = "force-dynamic"
@@ -47,6 +51,8 @@ export default async function WalletPage({ searchParams }: Props) {
 
   let customerId: string | null = null
   let balance = 0
+  let transactions: Awaited<ReturnType<typeof getCustomerWalletTransactions>> =
+    []
 
   try {
     const tenant = await guestTenantContext()
@@ -67,7 +73,10 @@ export default async function WalletPage({ searchParams }: Props) {
       const c = rows[0]
       if (c) {
         customerId = c.id
-        balance = await getCustomerWalletBalance(c.id)
+        ;[balance, transactions] = await Promise.all([
+          getCustomerWalletBalance(c.id),
+          getCustomerWalletTransactions(c.id),
+        ])
       }
     }
   } catch {
@@ -160,6 +169,13 @@ export default async function WalletPage({ searchParams }: Props) {
               Profil client introuvable. Effectuez d&apos;abord une réservation
               pour activer votre portefeuille.
             </p>
+          </div>
+        )}
+
+        {/* Historique des transactions */}
+        {customerId && (
+          <div className="mt-6">
+            <WalletTransactionList transactions={transactions} locale={locale} />
           </div>
         )}
       </div>

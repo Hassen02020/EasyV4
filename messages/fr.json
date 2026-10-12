@@ -1171,7 +1171,11 @@
     "walletCancelledDesc": "Vous avez annulé le paiement. Votre portefeuille n'a pas été modifié.",
     "walletErrorTitle": "Erreur",
     "walletAmountInvalid": "Le montant doit être compris entre 10 et 5 000 DT.",
-    "walletBackToAccount": "Retour à mon compte"
+    "walletBackToAccount": "Retour à mon compte",
+    "walletHistoryTitle": "Historique des transactions",
+    "walletHistoryEmpty": "Aucune transaction pour l'instant.",
+    "walletHistoryCredit": "Crédit",
+    "walletHistoryDebit": "Débit"
   },
   "Legal": {
     "lastUpdated": "Dernière mise à jour : à définir",

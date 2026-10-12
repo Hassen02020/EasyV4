@@ -57,7 +57,7 @@
  * ciblé qui nette à zéro pour CE règlement précis.
  */
 
-import { eq, and, isNull, sql } from "drizzle-orm"
+import { eq, and, isNull, sql, desc } from "drizzle-orm"
 import { getDb } from "@/lib/db/client"
 import { toMillimes } from "@/lib/finance/millimes"
 import { withSystemContext } from "@/lib/db/tenant-context"
@@ -740,4 +740,71 @@ export async function getCustomerWalletBalance(
       .limit(1),
   )
   return wallet ? parseTnd(wallet.currentBalance) : 0
+}
+
+export interface WalletTransaction {
+  id: string
+  type: string
+  category: string | null
+  description: string
+  amount: number
+  balanceBefore: number
+  balanceAfter: number
+  reservationId: string | null
+  createdAt: Date
+}
+
+/**
+ * Retourne les N dernières entrées du ledger wallet d'un client B2C,
+ * ordonnées de la plus récente à la plus ancienne.
+ *
+ * Même élévation de contexte que getCustomerWalletBalance (voir tête de
+ * fichier) : la RLS wallet_ledger_tenant_isolation exige current_agency_id()
+ * mais ces lignes B2C n'ont pas d'agencyId — seul withSystemContext permet
+ * la lecture.
+ */
+export async function getCustomerWalletTransactions(
+  customerId: string,
+  limit = 30,
+): Promise<WalletTransaction[]> {
+  if (!process.env.DATABASE_URL) return []
+  const rows = await withSystemContext((tx) =>
+    tx
+      .select({
+        id: walletLedger.id,
+        type: walletLedger.type,
+        category: walletLedger.category,
+        description: walletLedger.description,
+        amount: walletLedger.amount,
+        balanceBefore: walletLedger.balanceBefore,
+        balanceAfter: walletLedger.balanceAfter,
+        reservationId: walletLedger.reservationId,
+        createdAt: walletLedger.createdAt,
+      })
+      .from(walletLedger)
+      .innerJoin(
+        walletAccounts,
+        eq(walletLedger.walletAccountId, walletAccounts.id),
+      )
+      .where(
+        and(
+          eq(walletAccounts.customerId, customerId),
+          eq(walletAccounts.type, "credit"),
+          isNull(walletAccounts.agencyId),
+        ),
+      )
+      .orderBy(desc(walletLedger.createdAt))
+      .limit(limit),
+  )
+  return rows.map((r) => ({
+    id: r.id,
+    type: r.type,
+    category: r.category,
+    description: r.description,
+    amount: parseTnd(r.amount),
+    balanceBefore: parseTnd(r.balanceBefore),
+    balanceAfter: parseTnd(r.balanceAfter),
+    reservationId: r.reservationId,
+    createdAt: r.createdAt,
+  }))
 }

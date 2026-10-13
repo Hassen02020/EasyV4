@@ -37,6 +37,7 @@ import assert from "node:assert/strict"
 import { randomUUID } from "node:crypto"
 import { eq, sql } from "drizzle-orm"
 import { withSystemContext } from "@/lib/db/tenant-context"
+import { cleanupAsSuperuser } from "@/lib/db/test-helpers/superuser-cleanup"
 import {
   agencies,
   customers,
@@ -181,13 +182,17 @@ async function cleanupReservation(
   reservationId: string,
   agencyId: string,
 ): Promise<void> {
+  // wallet_ledger (0084) et economic_entitlements (0092) sont append-only
+  // — app_runtime n'a pas DELETE — nettoyage via le superuser.
+  await cleanupAsSuperuser(
+    (sql) =>
+      sql`delete from wallet_ledger where reservation_id = ${reservationId}`,
+  )
+  await cleanupAsSuperuser(
+    (sql) =>
+      sql`delete from economic_entitlements where reservation_id = ${reservationId}`,
+  )
   await withSystemContext(async (tx) => {
-    await tx
-      .delete(walletLedger)
-      .where(eq(walletLedger.reservationId, reservationId))
-    await tx
-      .delete(economicEntitlements)
-      .where(eq(economicEntitlements.reservationId, reservationId))
     await tx
       .delete(reservationFinancials)
       .where(eq(reservationFinancials.reservationId, reservationId))

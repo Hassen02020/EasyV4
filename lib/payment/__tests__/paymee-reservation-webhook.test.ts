@@ -15,8 +15,9 @@
 import test, { before, after } from "node:test"
 import assert from "node:assert/strict"
 import { randomUUID } from "node:crypto"
-import { eq, inArray, sql } from "drizzle-orm"
+import { eq, sql } from "drizzle-orm"
 import { withSystemContext } from "@/lib/db/tenant-context"
+import { cleanupAsSuperuser } from "@/lib/db/test-helpers/superuser-cleanup"
 import {
   agencies,
   customers,
@@ -25,7 +26,6 @@ import {
   pspWebhooks,
   auditEvents,
   walletAccounts,
-  walletLedger,
 } from "@/lib/db/schema"
 import { processReservationWebhookCore } from "../reservation-webhook-core"
 import { normalizePaymeeEvent } from "../webhook-logic"
@@ -178,23 +178,24 @@ before(async () => {
 
 after(async () => {
   if (!dbAvailable) return
-  await withSystemContext(async (tx) => {
-    // Le règlement carte/Paymee crédite+débite désormais le wallet client
-    // (recordTargetedWalletSettlement, lib/finance/customer-wallet.ts) —
-    // nettoyer wallet_ledger/wallet_accounts AVANT customers, sinon le
-    // DELETE customers échoue (FK).
-    const walletAccountRows = await tx
+  // Le règlement carte/Paymee crédite+débite désormais le wallet client
+  // (recordTargetedWalletSettlement, lib/finance/customer-wallet.ts) —
+  // nettoyer wallet_ledger (append-only, 0084 — app_runtime n'a pas DELETE,
+  // nettoyage via le superuser) AVANT wallet_accounts/customers.
+  const walletAccountRows = await withSystemContext((tx) =>
+    tx
       .select({ id: walletAccounts.id })
       .from(walletAccounts)
-      .where(eq(walletAccounts.customerId, customerId))
-    if (walletAccountRows.length > 0) {
-      await tx.delete(walletLedger).where(
-        inArray(
-          walletLedger.walletAccountId,
-          walletAccountRows.map((r) => r.id),
-        ),
-      )
-    }
+      .where(eq(walletAccounts.customerId, customerId)),
+  )
+  if (walletAccountRows.length > 0) {
+    const walletAccountIds = walletAccountRows.map((r) => r.id)
+    await cleanupAsSuperuser(
+      (sql) =>
+        sql`delete from wallet_ledger where wallet_account_id = any(${walletAccountIds}::uuid[])`,
+    )
+  }
+  await withSystemContext(async (tx) => {
     await tx
       .delete(walletAccounts)
       .where(eq(walletAccounts.customerId, customerId))

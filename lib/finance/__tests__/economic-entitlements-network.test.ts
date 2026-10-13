@@ -49,6 +49,7 @@ import {
   withTenantContext,
   type TenantContext,
 } from "@/lib/db/tenant-context"
+import { cleanupAsSuperuser } from "@/lib/db/test-helpers/superuser-cleanup"
 import {
   agencies,
   customers,
@@ -138,10 +139,13 @@ before(async () => {
 
 after(async () => {
   if (!dbAvailable) return
+  // economic_entitlements (0092) est append-only — app_runtime n'a pas
+  // DELETE — nettoyage via le superuser.
+  await cleanupAsSuperuser(
+    (sql) =>
+      sql`delete from economic_entitlements where reservation_id = ${reservationId}`,
+  )
   await withSystemContext(async (tx) => {
-    await tx
-      .delete(economicEntitlements)
-      .where(eq(economicEntitlements.reservationId, reservationId))
     await tx
       .delete(reservationFinancials)
       .where(eq(reservationFinancials.reservationId, reservationId))

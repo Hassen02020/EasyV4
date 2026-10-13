@@ -10,6 +10,7 @@ import assert from "node:assert/strict"
 import { randomUUID } from "node:crypto"
 import { and, eq, sql } from "drizzle-orm"
 import { withSystemContext } from "@/lib/db/tenant-context"
+import { cleanupAsSuperuser } from "@/lib/db/test-helpers/superuser-cleanup"
 import {
   agencies,
   customers,
@@ -90,13 +91,17 @@ before(async () => {
 
 after(async () => {
   if (!dbAvailable) return
+  // partner_credit_movements (0084) est append-only — app_runtime n'a pas
+  // DELETE — nettoyage via le superuser, avant la suppression de l'agence
+  // (FK restrict).
+  await cleanupAsSuperuser(
+    (sql) =>
+      sql`delete from partner_credit_movements where agency_id = ${agencyId}`,
+  )
   await withSystemContext(async (tx) => {
     await tx.delete(auditEvents).where(eq(auditEvents.agencyId, agencyId))
     await tx.delete(payments).where(eq(payments.agencyId, agencyId))
     await tx.delete(pspWebhooks).where(eq(pspWebhooks.agencyId, agencyId))
-    await tx
-      .delete(partnerCreditMovements)
-      .where(eq(partnerCreditMovements.agencyId, agencyId))
     await tx.delete(reservations).where(eq(reservations.agencyId, agencyId))
     await tx.delete(customers).where(eq(customers.id, customerId))
     await tx.delete(agencies).where(eq(agencies.id, agencyId))

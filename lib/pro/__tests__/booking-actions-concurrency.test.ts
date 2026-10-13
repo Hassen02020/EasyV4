@@ -55,6 +55,7 @@ import assert from "node:assert/strict"
 import { randomUUID } from "node:crypto"
 import { eq, sql } from "drizzle-orm"
 import { withSystemContext, withTenantContext } from "@/lib/db/tenant-context"
+import { cleanupAsSuperuser } from "@/lib/db/test-helpers/superuser-cleanup"
 import { agencies, partnerCreditMovements } from "@/lib/db/schema"
 import { debitPartnerCredit, parseTnd } from "../booking-actions"
 
@@ -91,13 +92,15 @@ async function createTestAgency(depositBalanceTnd: number): Promise<string> {
 }
 
 async function cleanupAgency(agencyId: string): Promise<void> {
+  // partner_credit_movements est append-only (app_runtime n'a pas DELETE,
+  // migration 0084) — nettoyage via le superuser, jamais via la connexion
+  // applicative. `agency_id` référence `agencies.id` en `onDelete:
+  // "restrict"` : les mouvements doivent être supprimés avant l'agence.
+  await cleanupAsSuperuser(
+    (sql) =>
+      sql`delete from partner_credit_movements where agency_id = ${agencyId}`,
+  )
   await withSystemContext(async (tx) => {
-    // `partner_credit_movements.agency_id` référence `agencies.id` en
-    // `onDelete: "restrict"` — les mouvements doivent être supprimés avant
-    // l'agence elle-même.
-    await tx
-      .delete(partnerCreditMovements)
-      .where(eq(partnerCreditMovements.agencyId, agencyId))
     await tx.delete(agencies).where(eq(agencies.id, agencyId))
   })
 }

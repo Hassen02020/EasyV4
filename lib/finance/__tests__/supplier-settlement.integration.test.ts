@@ -1151,13 +1151,36 @@ test("SS01 — correctif financier : deux remboursements déclarés avant confir
     "SUPPLIER_SETTLEMENT_REFUND_EXCEEDS_NET_AT_CONFIRM",
   )
 
-  const rows = await listUnsettledSupplierDebts(fx.supplierNodeId)
-  const row = rows.find((d) => d.entitlementId === fx.entitlementId)
-  assert.ok(row)
+  const rowsAfterRefund = await listUnsettledSupplierDebts(fx.supplierNodeId)
+  assert.ok(
+    !rowsAfterRefund.some((d) => d.entitlementId === fx.entitlementId),
+    "un remboursement fournisseur ne rouvre pas une dette déjà payée",
+  )
+
+  // Le net de trésorerie reste consultable dans le journal, tandis que
+  // la dette déjà réglée ne réapparaît pas dans la liste des dettes ouvertes.
+  const net = await withSystemContext(async (tx) => {
+    const [row] = await tx.execute<{ net: string }>(sql`
+      SELECT COALESCE(SUM(se.amount), 0)::numeric(14,2)::text AS net
+      FROM supplier_settlement_entries se
+      JOIN supplier_settlements s ON s.id = se.settlement_id
+      WHERE se.entitlement_id = ${fx.entitlementId}::uuid
+        AND se.unlinked_at IS NULL
+        AND s.status = 'paid'
+        AND (
+          se.entry_kind = 'normal'
+          OR (
+            se.entry_kind = 'amount_correction'
+            AND s.correction_cause = 'supplier_refund'
+          )
+        )
+    `)
+    return row!.net
+  })
   assert.equal(
-    row!.netDecaisse,
+    net,
     "400.00",
-    "seul le remboursement A confirmé compte : 1000-600=400",
+    "seul le remboursement A confirmé compte : 1000 + (-600) = 400",
   )
 })
 

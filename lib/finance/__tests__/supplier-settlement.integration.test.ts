@@ -1220,3 +1220,94 @@ test("SS01 — remboursement : une correction comptable payée ne peut pas servi
     "SUPPLIER_SETTLEMENT_TARGET_DOES_NOT_CONTAIN_ENTITLEMENT",
   )
 })
+
+test("SS01 — concurrence réelle : 2 CONFIRMATIONS de remboursement simultanées (Promise.all, pas séquentiel) ne peuvent jamais rendre le net négatif", async (t) => {
+  if (!dbAvailable) return t.skip(skipReason())
+  const fx = await seedRealisticFixture()
+
+  const settlementId = await declareSupplierSettlement(
+    fx.superAdminId,
+    fx.supplierNodeId,
+    [{ entitlementId: fx.entitlementId, amount: 1000.0 }],
+    "virement-conc-refund",
+    null,
+  )
+  await confirmSupplierSettlement(fx.superAdminId, settlementId)
+
+  // Les deux remboursements sont déclarés AVANT toute confirmation — chacun
+  // passe la vérification de prévisualisation individuellement (net réel
+  // payé = 1000, aucun des deux ne voit l'autre tant que non confirmé).
+  const refundAId = await requestSupplierSettlementCorrection(
+    fx.superAdminId,
+    fx.entitlementId,
+    settlementId,
+    "supplier_refund",
+    -600.0,
+    "bank-ref-conc-a",
+    null,
+  )
+  const refundBId = await requestSupplierSettlementCorrection(
+    fx.superAdminId,
+    fx.entitlementId,
+    settlementId,
+    "supplier_refund",
+    -600.0,
+    "bank-ref-conc-b",
+    null,
+  )
+
+  // VRAIE concurrence (Promise.all, pas déclarer-puis-confirmer en séquence) :
+  // 2 connexions distinctes du pool confirment en même temps. Le verrou
+  // FOR UPDATE sur l'entitlement (confirm_supplier_settlement) doit sérialiser
+  // les deux — l'une bloque jusqu'à ce que l'autre committe, puis revoit le
+  // net réel désormais réduit et se rejette elle-même si ça dépasserait.
+  const confirmA = withSystemContext((tx) =>
+    tx.execute(
+      sql`SELECT confirm_supplier_settlement(${fx.superAdminId}::uuid, ${refundAId}::uuid)`,
+    ),
+  )
+  const confirmB = withSystemContext((tx) =>
+    tx.execute(
+      sql`SELECT confirm_supplier_settlement(${fx.superAdminId}::uuid, ${refundBId}::uuid)`,
+    ),
+  )
+  const results = await Promise.allSettled([confirmA, confirmB])
+  const succeeded = results.filter((r) => r.status === "fulfilled")
+  const failed = results.filter((r) => r.status === "rejected")
+
+  assert.equal(
+    succeeded.length,
+    1,
+    "une seule des deux confirmations simultanées doit réussir",
+  )
+  assert.equal(
+    failed.length,
+    1,
+    "l'autre doit être rejetée (REFUND_EXCEEDS_NET_AT_CONFIRM), jamais les deux acceptées",
+  )
+  const failure = failed[0] as PromiseRejectedResult
+  const causeMessage = (failure.reason as { cause?: { message?: string } })
+    ?.cause?.message
+  assert.ok(
+    causeMessage?.includes("SUPPLIER_SETTLEMENT_REFUND_EXCEEDS_NET_AT_CONFIRM"),
+    `attendu SUPPLIER_SETTLEMENT_REFUND_EXCEEDS_NET_AT_CONFIRM, reçu: ${causeMessage}`,
+  )
+
+  // Le net réel ne doit jamais être négatif, quel que soit l'ordre réel
+  // d'exécution choisi par Postgres entre les deux transactions concurrentes.
+  const net = await withSystemContext(async (tx) => {
+    const [row] = await tx.execute<{ net: string }>(sql`
+      SELECT COALESCE(SUM(se.amount), 0) AS net
+      FROM supplier_settlement_entries se
+      JOIN supplier_settlements s ON s.id = se.settlement_id
+      WHERE se.entitlement_id = ${fx.entitlementId}::uuid
+        AND se.unlinked_at IS NULL AND s.status = 'paid'
+    `)
+    return row!.net
+  })
+  assert.equal(
+    net,
+    "400.00",
+    "un seul remboursement de -600 appliqué sur 1000 payé : net = 400, jamais négatif",
+  )
+})

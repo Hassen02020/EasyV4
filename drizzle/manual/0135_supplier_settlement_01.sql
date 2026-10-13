@@ -195,6 +195,7 @@ DECLARE
   v_entry record;
   v_reservation_status reservation_status;
   v_party_type varchar(30);
+  v_party_id uuid;
   v_inserted uuid;
 BEGIN
   PERFORM assert_supplier_settlement_actor(p_actor_user_id);
@@ -209,7 +210,7 @@ BEGIN
            e->>'cancellation_review_note' AS cancellation_review_note
     FROM jsonb_array_elements(p_entries) e
   LOOP
-    SELECT r.status, ee.party_type INTO v_reservation_status, v_party_type
+    SELECT r.status, ee.party_type, ee.party_id INTO v_reservation_status, v_party_type, v_party_id
     FROM economic_entitlements ee
     JOIN reservations r ON r.id = ee.reservation_id
     WHERE ee.id = v_entry.entitlement_id;
@@ -221,6 +222,16 @@ BEGIN
     IF v_party_type != 'supplier_node' THEN
       RAISE EXCEPTION 'SUPPLIER_SETTLEMENT_UNSUPPORTED_PARTY_TYPE: entitlement=%, party_type=% (seul supplier_node est couvert par ce mécanisme V1)',
         v_entry.entitlement_id, v_party_type;
+    END IF;
+
+    -- GARDE CROISÉE (étape 2 de la mission) : la créance doit appartenir au
+    -- fournisseur déclaré p_supplier_id — ferme à la fois "dette du fournisseur A
+    -- réglée sous le nom du fournisseur B" et "un même règlement mélange plusieurs
+    -- fournisseurs" (chaque entrée du batch est vérifiée individuellement contre
+    -- LE MÊME p_supplier_id).
+    IF v_party_id IS DISTINCT FROM p_supplier_id THEN
+      RAISE EXCEPTION 'SUPPLIER_SETTLEMENT_SUPPLIER_MISMATCH: entitlement=%, entitlement_supplier=%, declared_supplier=%',
+        v_entry.entitlement_id, v_party_id, p_supplier_id;
     END IF;
 
     IF v_reservation_status IN ('cancelled','refunded')
@@ -288,6 +299,23 @@ BEGIN
     RAISE EXCEPTION 'SUPPLIER_SETTLEMENT_INVALID_CAUSE: %', p_correction_cause;
   END IF;
 
+  -- Récupérer la créance D'ABORD (avant toute vérification liée à p_target_settlement_id) :
+  -- v_supplier_id (= le VRAI fournisseur de cette créance) doit être connu avant de
+  -- pouvoir vérifier que la cible appartient bien à ce même fournisseur (étape 2 de
+  -- la mission : "un remboursement doit cibler un règlement du même fournisseur").
+  SELECT ee.party_id, ee.party_type, r.status INTO v_supplier_id, v_party_type, v_reservation_status
+  FROM economic_entitlements ee JOIN reservations r ON r.id = ee.reservation_id
+  WHERE ee.id = p_entitlement_id
+  FOR UPDATE OF ee;
+
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'SUPPLIER_SETTLEMENT_ENTITLEMENT_NOT_FOUND: %', p_entitlement_id;
+  END IF;
+
+  IF v_party_type != 'supplier_node' THEN
+    RAISE EXCEPTION 'SUPPLIER_SETTLEMENT_UNSUPPORTED_PARTY_TYPE: entitlement=%, party_type=%', p_entitlement_id, v_party_type;
+  END IF;
+
   IF p_correction_cause = 'supplier_refund' THEN
     IF p_target_settlement_id IS NULL OR p_external_reference IS NULL OR btrim(p_external_reference) = '' THEN
       RAISE EXCEPTION 'SUPPLIER_SETTLEMENT_REFUND_REQUIRES_TARGET_AND_REFERENCE';
@@ -296,9 +324,26 @@ BEGIN
       RAISE EXCEPTION 'SUPPLIER_SETTLEMENT_REFUND_MUST_BE_NEGATIVE: %', p_amount;
     END IF;
 
-    PERFORM 1 FROM supplier_settlements WHERE id = p_target_settlement_id AND status = 'paid' FOR UPDATE;
+    -- GARDE CROISÉE : la cible doit être réellement payée ET appartenir au MÊME
+    -- fournisseur que la créance remboursée — un remboursement ne peut jamais
+    -- cibler un règlement d'un autre fournisseur, même s'il est "paid".
+    PERFORM 1 FROM supplier_settlements s
+    WHERE s.id = p_target_settlement_id AND s.status = 'paid' AND s.supplier_id = v_supplier_id
+    FOR UPDATE;
     IF NOT FOUND THEN
-      RAISE EXCEPTION 'SUPPLIER_SETTLEMENT_TARGET_NOT_PAID: %', p_target_settlement_id;
+      RAISE EXCEPTION 'SUPPLIER_SETTLEMENT_TARGET_NOT_PAID_OR_SUPPLIER_MISMATCH: target=%, expected_supplier=%',
+        p_target_settlement_id, v_supplier_id;
+    END IF;
+
+    -- GARDE EXACTE : la cible doit réellement contenir (ou avoir contenu) une
+    -- jonction pour CETTE créance précise — jamais un règlement du même
+    -- fournisseur mais sans rapport avec la dette remboursée.
+    IF NOT EXISTS (
+      SELECT 1 FROM supplier_settlement_entries se
+      WHERE se.settlement_id = p_target_settlement_id AND se.entitlement_id = p_entitlement_id
+    ) THEN
+      RAISE EXCEPTION 'SUPPLIER_SETTLEMENT_TARGET_DOES_NOT_CONTAIN_ENTITLEMENT: target=%, entitlement=%',
+        p_target_settlement_id, p_entitlement_id;
     END IF;
 
     SELECT COALESCE(SUM(se.amount), 0) INTO v_net_decaisse
@@ -312,19 +357,6 @@ BEGIN
     IF p_target_settlement_id IS NOT NULL THEN
       RAISE EXCEPTION 'SUPPLIER_SETTLEMENT_CALC_CORRECTION_MUST_NOT_TARGET_SETTLEMENT';
     END IF;
-  END IF;
-
-  SELECT ee.party_id, ee.party_type, r.status INTO v_supplier_id, v_party_type, v_reservation_status
-  FROM economic_entitlements ee JOIN reservations r ON r.id = ee.reservation_id
-  WHERE ee.id = p_entitlement_id
-  FOR UPDATE OF ee;
-
-  IF NOT FOUND THEN
-    RAISE EXCEPTION 'SUPPLIER_SETTLEMENT_ENTITLEMENT_NOT_FOUND: %', p_entitlement_id;
-  END IF;
-
-  IF v_party_type != 'supplier_node' THEN
-    RAISE EXCEPTION 'SUPPLIER_SETTLEMENT_UNSUPPORTED_PARTY_TYPE: entitlement=%, party_type=%', p_entitlement_id, v_party_type;
   END IF;
 
   IF v_reservation_status IN ('cancelled','refunded')

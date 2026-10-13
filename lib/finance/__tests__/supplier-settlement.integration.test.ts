@@ -49,6 +49,7 @@ import {
 import {
   declareSupplierSettlement,
   confirmSupplierSettlement,
+  requestSupplierSettlementCorrection,
   listUnsettledSupplierDebts,
 } from "../supplier-settlement"
 
@@ -178,6 +179,31 @@ async function seedRealisticFixture(): Promise<{
       reservationId: reservation!.id,
       entitlementId: entitlement!.id,
     }
+  })
+}
+
+/** Fournisseur B indépendant — pour les tests anti-mélange de fournisseurs. */
+async function seedAnotherSupplierNode(): Promise<string> {
+  const suffix = randomUUID().slice(0, 8)
+  return withSystemContext(async (tx) => {
+    const [supplier] = await tx
+      .insert(suppliers)
+      .values({
+        name: `SS01 Supplier B ${suffix}`,
+        type: "custom",
+        status: "active",
+      })
+      .returning({ id: suppliers.id })
+    const [node] = await tx
+      .insert(supplierNodes)
+      .values({
+        supplierId: supplier!.id,
+        slug: `ss01-node-b-${suffix}`,
+        displayName: `SS01 Node B ${suffix}`,
+        onboardingStatus: "active",
+      })
+      .returning({ id: supplierNodes.id })
+    return node!.id
   })
 }
 
@@ -643,4 +669,245 @@ test("SS01 — raccordement réel Network : products -> reservation_network_prod
     0,
     "aucune ligne wallet_ledger créée par ce règlement fournisseur",
   )
+})
+
+test("SS01 — garde croisée : une créance du fournisseur A ne peut pas être déclarée sous le fournisseur B", async (t) => {
+  if (!dbAvailable) return t.skip(skipReason())
+  const fx = await seedRealisticFixture()
+  const otherSupplierNodeId = await seedAnotherSupplierNode()
+
+  const before = await withSystemContext(async (tx) => {
+    const [row] = await tx.execute<{ n: string }>(
+      sql`SELECT count(*)::text AS n FROM supplier_settlements`,
+    )
+    return Number(row!.n)
+  })
+
+  await assertRejectsWithPgError(
+    withSystemContext((tx) =>
+      tx.execute(sql`
+        SELECT declare_supplier_settlement(${fx.superAdminId}::uuid, ${otherSupplierNodeId}::uuid,
+          ${JSON.stringify([{ entitlement_id: fx.entitlementId, amount: 1000.0 }])}::jsonb, NULL, NULL)
+      `),
+    ),
+    "SUPPLIER_SETTLEMENT_SUPPLIER_MISMATCH",
+  )
+
+  const afterCount = await withSystemContext(async (tx) => {
+    const [row] = await tx.execute<{ n: string }>(
+      sql`SELECT count(*)::text AS n FROM supplier_settlements`,
+    )
+    return Number(row!.n)
+  })
+  assert.equal(
+    afterCount,
+    before,
+    "aucune ligne supplier_settlements créée par une tentative rejetée (pas d'écriture partielle)",
+  )
+})
+
+test("SS01 — garde croisée : un règlement ne peut pas mélanger les créances de deux fournisseurs (batch rejeté intégralement)", async (t) => {
+  if (!dbAvailable) return t.skip(skipReason())
+  const fxA = await seedRealisticFixture()
+  const fxB = await seedRealisticFixture()
+
+  const beforeEntries = await withSystemContext(async (tx) => {
+    const [row] = await tx.execute<{ n: string }>(
+      sql`SELECT count(*)::text AS n FROM supplier_settlement_entries`,
+    )
+    return Number(row!.n)
+  })
+
+  await assertRejectsWithPgError(
+    withSystemContext((tx) =>
+      tx.execute(sql`
+        SELECT declare_supplier_settlement(${fxA.superAdminId}::uuid, ${fxA.supplierNodeId}::uuid,
+          ${JSON.stringify([
+            { entitlement_id: fxA.entitlementId, amount: 1000.0 },
+            { entitlement_id: fxB.entitlementId, amount: 1000.0 },
+          ])}::jsonb, NULL, NULL)
+      `),
+    ),
+    "SUPPLIER_SETTLEMENT_SUPPLIER_MISMATCH",
+  )
+
+  // Pas d'écriture partielle : même la créance A (traitée avant B dans la boucle,
+  // donc qui aurait pu être insérée seule) ne doit laisser aucune jonction résiduelle.
+  const afterEntries = await withSystemContext(async (tx) => {
+    const [row] = await tx.execute<{ n: string }>(
+      sql`SELECT count(*)::text AS n FROM supplier_settlement_entries`,
+    )
+    return Number(row!.n)
+  })
+  assert.equal(afterEntries, beforeEntries)
+  const [stillUnsettledA, stillUnsettledB] = await Promise.all([
+    listUnsettledSupplierDebts(fxA.supplierNodeId),
+    listUnsettledSupplierDebts(fxB.supplierNodeId),
+  ])
+  assert.ok(stillUnsettledA.some((d) => d.entitlementId === fxA.entitlementId))
+  assert.ok(stillUnsettledB.some((d) => d.entitlementId === fxB.entitlementId))
+})
+
+test("SS01 — garde croisée : un remboursement ne peut pas cibler un règlement payé d'un AUTRE fournisseur", async (t) => {
+  if (!dbAvailable) return t.skip(skipReason())
+  const fxA = await seedRealisticFixture()
+  const fxB = await seedRealisticFixture()
+
+  const settlementBId = await declareSupplierSettlement(
+    fxB.superAdminId,
+    fxB.supplierNodeId,
+    [{ entitlementId: fxB.entitlementId, amount: 1000.0 }],
+    "virement-B",
+    null,
+  )
+  await confirmSupplierSettlement(fxB.superAdminId, settlementBId)
+
+  // fxA.entitlementId appartient au fournisseur A, settlementBId est payé mais
+  // appartient au fournisseur B — doit être rejeté, jamais accepté parce que
+  // "le règlement cible est payé".
+  await assertRejectsWithPgError(
+    withSystemContext((tx) =>
+      tx.execute(sql`
+        SELECT request_supplier_settlement_correction(${fxA.superAdminId}::uuid, ${fxA.entitlementId}::uuid,
+          ${settlementBId}::uuid, 'supplier_refund', -100.00, 'bank-ref-cross', NULL)
+      `),
+    ),
+    "SUPPLIER_SETTLEMENT_TARGET_NOT_PAID_OR_SUPPLIER_MISMATCH",
+  )
+})
+
+test("SS01 — garde croisée : un remboursement ne peut pas cibler un règlement du même fournisseur mais ne contenant pas la créance concernée", async (t) => {
+  if (!dbAvailable) return t.skip(skipReason())
+  const fx = await seedRealisticFixture()
+
+  // Une 2e créance, même fournisseur, réglée séparément.
+  const otherEntitlementId = await withSystemContext(async (tx) => {
+    const [row] = await tx
+      .insert(economicEntitlements)
+      .values({
+        reservationId: fx.reservationId,
+        partyType: "supplier_node",
+        partyId: fx.supplierNodeId,
+        role: "supplier",
+        qualification: "supplier_cost",
+        amount: "50.00",
+        status: "earned",
+        effectiveAt: new Date(),
+      })
+      .returning({ id: economicEntitlements.id })
+    return row!.id
+  })
+  const otherSettlementId = await declareSupplierSettlement(
+    fx.superAdminId,
+    fx.supplierNodeId,
+    [{ entitlementId: otherEntitlementId, amount: 50.0 }],
+    "virement-other",
+    null,
+  )
+  await confirmSupplierSettlement(fx.superAdminId, otherSettlementId)
+
+  // fx.entitlementId (la créance de 1000) n'a jamais été réglée du tout — donc
+  // "otherSettlementId" est bien payé, même fournisseur, mais NE CONTIENT PAS
+  // fx.entitlementId. Doit être rejeté.
+  await assertRejectsWithPgError(
+    withSystemContext((tx) =>
+      tx.execute(sql`
+        SELECT request_supplier_settlement_correction(${fx.superAdminId}::uuid, ${fx.entitlementId}::uuid,
+          ${otherSettlementId}::uuid, 'supplier_refund', -10.00, 'bank-ref-wrong-target', NULL)
+      `),
+    ),
+    "SUPPLIER_SETTLEMENT_TARGET_DOES_NOT_CONTAIN_ENTITLEMENT",
+  )
+})
+
+test("SS01 — concurrence réelle sur réversion : 2 demandes de réversion simultanées sur le même règlement, une seule réussit", async (t) => {
+  if (!dbAvailable) return t.skip(skipReason())
+  const fx = await seedRealisticFixture()
+  const settlementId = await declareSupplierSettlement(
+    fx.superAdminId,
+    fx.supplierNodeId,
+    [{ entitlementId: fx.entitlementId, amount: 1000.0 }],
+    "virement-rev-conc",
+    null,
+  )
+  await confirmSupplierSettlement(fx.superAdminId, settlementId)
+
+  const call = () =>
+    withSystemContext((tx) =>
+      tx.execute(sql`
+        SELECT request_supplier_settlement_reversal(${fx.superAdminId}::uuid, ${settlementId}::uuid, 'rejected_payment', 'notice-conc')
+      `),
+    )
+  const results = await Promise.allSettled([call(), call()])
+  const succeeded = results.filter((r) => r.status === "fulfilled")
+  const failed = results.filter((r) => r.status === "rejected")
+  assert.equal(
+    succeeded.length,
+    1,
+    "une seule demande de réversion doit réussir",
+  )
+  assert.equal(
+    failed.length,
+    1,
+    "l'autre doit être rejetée (anti-double-reversal)",
+  )
+
+  const reversalCount = await withSystemContext(async (tx) => {
+    const [row] = await tx.execute<{ n: string }>(sql`
+      SELECT count(*)::text AS n FROM supplier_settlements
+      WHERE corrects_settlement_id = ${settlementId}::uuid AND correction_type = 'reversal'
+        AND status NOT IN ('failed','cancelled')
+    `)
+    return Number(row!.n)
+  })
+  assert.equal(
+    reversalCount,
+    1,
+    "jamais 2 réversions actives pour le même règlement",
+  )
+})
+
+test("SS01 — lecture financière : un trop-payé réel (après correction calculation_error) n'est jamais masqué comme 'réglée'", async (t) => {
+  if (!dbAvailable) return t.skip(skipReason())
+  const fx = await seedRealisticFixture()
+
+  const settlementId = await declareSupplierSettlement(
+    fx.superAdminId,
+    fx.supplierNodeId,
+    [{ entitlementId: fx.entitlementId, amount: 1000.0 }],
+    "virement-ref-over",
+    null,
+  )
+  await confirmSupplierSettlement(fx.superAdminId, settlementId)
+
+  // Après règlement exact : correctement absente de la liste (ni reste à payer, ni trop-payé).
+  const afterExactSettlement = await listUnsettledSupplierDebts(
+    fx.supplierNodeId,
+  )
+  assert.ok(
+    !afterExactSettlement.some((d) => d.entitlementId === fx.entitlementId),
+  )
+
+  // Erreur de calcul découverte : la dette reconnue est en réalité 800, pas 1000.
+  const corrId = await requestSupplierSettlementCorrection(
+    fx.superAdminId,
+    fx.entitlementId,
+    null,
+    "calculation_error",
+    -200.0,
+    null,
+    null,
+  )
+  await confirmSupplierSettlement(fx.superAdminId, corrId)
+
+  const after = await listUnsettledSupplierDebts(fx.supplierNodeId)
+  const row = after.find((d) => d.entitlementId === fx.entitlementId)
+  assert.ok(
+    row,
+    "la créance doit réapparaître : payé_réel=1000 > recognized_debt=800 est un trop-payé réel, jamais masqué",
+  )
+  assert.equal(row!.paidReal, "1000.00")
+  assert.equal(row!.recognizedDebt, "800.00")
+  assert.equal(row!.overpaid, "200.00")
+  assert.equal(row!.remaining, "0.00")
 })

@@ -1190,15 +1190,8 @@ test("SS01 — remboursement : une correction comptable payée ne peut pas servi
   await assertRejectsWithPgError(
     withSystemContext((tx) =>
       tx.execute(sql`
-        SELECT request_supplier_settlement_correction(
-          ${fx.superAdminId}::uuid,
-          ${fx.entitlementId}::uuid,
-          ${correctionSettlementId}::uuid,
-          'supplier_refund',
-          -50.00,
-          'bank-ref-accounting-target',
-          NULL
-        )
+        SELECT request_supplier_settlement_correction(${fx.superAdminId}::uuid, ${fx.entitlementId}::uuid,
+          ${correctionSettlementId}::uuid, 'supplier_refund', -50.00, 'bank-ref-accounting-target', NULL)
       `),
     ),
     "SUPPLIER_SETTLEMENT_TARGET_DOES_NOT_CONTAIN_ENTITLEMENT",

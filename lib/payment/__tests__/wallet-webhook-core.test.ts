@@ -17,13 +17,13 @@ import assert from "node:assert/strict"
 import { randomUUID } from "node:crypto"
 import { eq, sql } from "drizzle-orm"
 import { withSystemContext } from "@/lib/db/tenant-context"
+import { cleanupAsSuperuser } from "@/lib/db/test-helpers/superuser-cleanup"
 import {
   agencies,
   users,
   walletRechargeRequests,
   paymentEvents,
   pspWebhooks,
-  partnerCreditMovements,
 } from "@/lib/db/schema"
 import { processWalletWebhookCore } from "../wallet-webhook-core"
 import type { NormalizedChargeEvent } from "../webhook-logic"
@@ -79,13 +79,16 @@ before(async () => {
 
 after(async () => {
   if (!dbAvailable) return
+  // partner_credit_movements est append-only (app_runtime n'a pas DELETE,
+  // migration 0084) — nettoyage via le superuser, jamais via la connexion
+  // applicative (voir lib/db/test-helpers/superuser-cleanup.ts).
+  await cleanupAsSuperuser(
+    (sql) =>
+      sql`delete from partner_credit_movements where agency_id = ${agencyId}`,
+  )
   await withSystemContext(async (tx) => {
-    // Ordre impératif : partner_credit_movements (FK restrict) avant agencies ;
-    // walletRechargeRequests avant users (onDelete "set null" + notNull conflict) ;
-    // users (FK restrict) avant agencies.
-    await tx
-      .delete(partnerCreditMovements)
-      .where(eq(partnerCreditMovements.agencyId, agencyId))
+    // Ordre impératif : walletRechargeRequests avant users (onDelete "set
+    // null" + notNull conflict) ; users (FK restrict) avant agencies.
     await tx.delete(pspWebhooks).where(eq(pspWebhooks.agencyId, agencyId))
     await tx
       .delete(walletRechargeRequests)

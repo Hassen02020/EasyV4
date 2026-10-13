@@ -335,14 +335,22 @@ BEGIN
         p_target_settlement_id, v_supplier_id;
     END IF;
 
-    -- GARDE EXACTE : la cible doit réellement contenir (ou avoir contenu) une
-    -- jonction pour CETTE créance précise — jamais un règlement du même
-    -- fournisseur mais sans rapport avec la dette remboursée.
+    -- GARDE EXACTE : la cible doit être un règlement NORMAL payé, avec la
+    -- jonction NORMALE ACTIVE de cette créance précise. Une correction comptable
+    -- payée, une jonction désactivée ou une autre créance ne justifie pas un
+    -- remboursement, même si le fournisseur est identique.
     IF NOT EXISTS (
-      SELECT 1 FROM supplier_settlement_entries se
-      WHERE se.settlement_id = p_target_settlement_id AND se.entitlement_id = p_entitlement_id
+      SELECT 1
+      FROM supplier_settlement_entries se
+      JOIN supplier_settlements target ON target.id = se.settlement_id
+      WHERE se.settlement_id = p_target_settlement_id
+        AND se.entitlement_id = p_entitlement_id
+        AND se.entry_kind = 'normal'
+        AND se.unlinked_at IS NULL
+        AND target.status = 'paid'
+        AND target.correction_type IS NULL
     ) THEN
-      RAISE EXCEPTION 'SUPPLIER_SETTLEMENT_TARGET_DOES_NOT_CONTAIN_ENTITLEMENT: target=%, entitlement=%',
+      RAISE EXCEPTION 'SUPPLIER_SETTLEMENT_TARGET_DOES_NOT_CONTAIN_ENTITLEMENT: target=%, entitlement=% (requires active normal entry)',
         p_target_settlement_id, p_entitlement_id;
     END IF;
 

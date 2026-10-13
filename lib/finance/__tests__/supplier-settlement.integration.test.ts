@@ -913,14 +913,14 @@ test("SS01 — lecture financière : un trop-payé réel (après correction calc
   assert.equal(row!.remaining, "0.00")
 })
 
-test("SS01 — correctif financier : paiement 1000 puis remboursement 150 → net décaissé 850, reste à payer 150", async (t) => {
+test("SS01 — remboursement : dette restante inchangée, seul le net décaissé baisse", async (t) => {
   if (!dbAvailable) return t.skip(skipReason())
   const fx = await seedRealisticFixture()
 
   const settlementId = await declareSupplierSettlement(
     fx.superAdminId,
     fx.supplierNodeId,
-    [{ entitlementId: fx.entitlementId, amount: 1000.0 }],
+    [{ entitlementId: fx.entitlementId, amount: 500.0 }],
     "virement-fix-1",
     null,
   )
@@ -939,15 +939,15 @@ test("SS01 — correctif financier : paiement 1000 puis remboursement 150 → ne
 
   const rows = await listUnsettledSupplierDebts(fx.supplierNodeId)
   const row = rows.find((d) => d.entitlementId === fx.entitlementId)
-  assert.ok(row, "reste à payer de 150 doit apparaître dans la liste")
-  assert.equal(row!.paidReal, "1000.00")
+  assert.ok(row, "la dette restante doit toujours apparaître dans la liste")
+  assert.equal(row!.paidReal, "500.00")
   assert.equal(
     row!.netDecaisse,
-    "850.00",
-    "net décaissé = paid_real + refunded (refunded déjà négatif) = 1000 + (-150) = 850, jamais 1150",
+    "350.00",
+    "net décaissé = paid_real + refunded (refunded déjà négatif) = 500 + (-150) = 350",
   )
   assert.equal(row!.recognizedDebt, "1000.00")
-  assert.equal(row!.remaining, "150.00")
+  assert.equal(row!.remaining, "500.00")
   assert.equal(row!.overpaid, "0.00")
 })
 
@@ -1160,3 +1160,48 @@ test("SS01 — correctif financier : deux remboursements déclarés avant confir
     "seul le remboursement A confirmé compte : 1000-600=400",
   )
 })
+
+test("SS01 — remboursement : une correction comptable payée ne peut pas servir de règlement cible", async (t) => {
+  if (!dbAvailable) return t.skip(skipReason())
+  const fx = await seedRealisticFixture()
+
+  const normalSettlementId = await declareSupplierSettlement(
+    fx.superAdminId,
+    fx.supplierNodeId,
+    [{ entitlementId: fx.entitlementId, amount: 1000.0 }],
+    "virement-target-normal",
+    null,
+  )
+  await confirmSupplierSettlement(fx.superAdminId, normalSettlementId)
+
+  // Cette correction est payée et vise la même créance, mais ce n'est pas
+  // un règlement normal. Elle ne doit pas autoriser un remboursement.
+  const correctionSettlementId = await requestSupplierSettlementCorrection(
+    fx.superAdminId,
+    fx.entitlementId,
+    null,
+    "calculation_error",
+    -100.0,
+    null,
+    null,
+  )
+  await confirmSupplierSettlement(fx.superAdminId, correctionSettlementId)
+
+  await assertRejectsWithPgError(
+    withSystemContext((tx) =>
+      tx.execute(sql`
+        SELECT request_supplier_settlement_correction(
+          ${fx.superAdminId}::uuid,
+          ${fx.entitlementId}::uuid,
+          ${correctionSettlementId}::uuid,
+          'supplier_refund',
+          -50.00,
+          'bank-ref-accounting-target',
+          NULL
+        )
+      `),
+    ),
+    "SUPPLIER_SETTLEMENT_TARGET_DOES_NOT_CONTAIN_ENTITLEMENT",
+  )
+})
+

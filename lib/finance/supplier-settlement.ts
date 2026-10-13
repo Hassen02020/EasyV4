@@ -131,9 +131,9 @@ export interface SupplierDueEntitlement {
   /** `paidReal + refunded(O)` — `refunded` est déjà stocké négatif, donc une
    * addition (jamais une soustraction) ; position de caisse réelle nette. */
   netDecaisse: string
-  /** `max(0, netDecaisse − recognizedDebt)` — jamais masqué derrière "réglée". */
+  /** `max(0, paidReal − recognizedDebt)` — remboursement exclu de la dette réglée. */
   overpaid: string
-  /** `max(0, recognizedDebt − netDecaisse)`. */
+  /** `max(0, recognizedDebt − paidReal)` — un remboursement ne rouvre pas le reste dû. */
   remaining: string
   /** true si la réservation est annulée/remboursée — règlement bloqué sans note (0135). */
   disputedCancellation: boolean
@@ -207,8 +207,8 @@ export async function listUnsettledSupplierDebts(
         (ee.amount + COALESCE(agg.recognized_adjustment, 0)) AS recognized_debt,
         COALESCE(agg.paid_real, 0)::numeric(14,2) AS paid_real,
         (COALESCE(agg.paid_real, 0) + COALESCE(agg.refunded, 0))::numeric(14,2) AS net_decaisse,
-        GREATEST(0, (COALESCE(agg.paid_real, 0) + COALESCE(agg.refunded, 0)) - (ee.amount + COALESCE(agg.recognized_adjustment, 0)))::numeric(14,2) AS overpaid,
-        GREATEST(0, (ee.amount + COALESCE(agg.recognized_adjustment, 0)) - (COALESCE(agg.paid_real, 0) + COALESCE(agg.refunded, 0)))::numeric(14,2) AS remaining
+        GREATEST(0, COALESCE(agg.paid_real, 0) - (ee.amount + COALESCE(agg.recognized_adjustment, 0)))::numeric(14,2) AS overpaid,
+        GREATEST(0, (ee.amount + COALESCE(agg.recognized_adjustment, 0)) - COALESCE(agg.paid_real, 0))::numeric(14,2) AS remaining
       FROM economic_entitlements ee
       JOIN reservations r ON r.id = ee.reservation_id
       LEFT JOIN agg ON agg.entitlement_id = ee.id
@@ -216,8 +216,8 @@ export async function listUnsettledSupplierDebts(
         AND ee.party_type = 'supplier_node'
         AND ee.party_id = ${supplierNodeId}::uuid
         AND (
-          GREATEST(0, (COALESCE(agg.paid_real, 0) + COALESCE(agg.refunded, 0)) - (ee.amount + COALESCE(agg.recognized_adjustment, 0))) > 0
-          OR GREATEST(0, (ee.amount + COALESCE(agg.recognized_adjustment, 0)) - (COALESCE(agg.paid_real, 0) + COALESCE(agg.refunded, 0))) > 0
+          GREATEST(0, COALESCE(agg.paid_real, 0) - (ee.amount + COALESCE(agg.recognized_adjustment, 0))) > 0
+          OR GREATEST(0, (ee.amount + COALESCE(agg.recognized_adjustment, 0)) - COALESCE(agg.paid_real, 0)) > 0
         )
     `)
     return rows.map((r) => ({

@@ -46,6 +46,7 @@ import {
   requestSupplierSettlementReversalAction,
 } from "@/lib/finance/supplier-settlement-actions"
 import type { SupplierDueEntitlement } from "@/lib/finance/supplier-settlement"
+import { getEligibleSupplierDebts } from "@/lib/finance/supplier-settlement-ui"
 
 /* -------------------------------------------------------------------------- */
 /* DeclareSettlementDialog                                                     */
@@ -68,7 +69,7 @@ export function DeclareSettlementDialog({
   const [error, setError] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
 
-  const eligible = debts.filter((d) => Number(d.remaining) > 0)
+  const eligible = getEligibleSupplierDebts(debts)
 
   function toggle(entitlementId: string, defaultAmount: string) {
     setSelected((prev) => {
@@ -132,12 +133,20 @@ export function DeclareSettlementDialog({
         if (!v) setError(null)
       }}
     >
-      <DialogTrigger asChild>
-        <Button className="gap-2" disabled={eligible.length === 0}>
-          <CheckCircle2 className="h-4 w-4" />
-          Déclarer un règlement
-        </Button>
-      </DialogTrigger>
+      <div className="flex flex-col items-end gap-1.5">
+        <DialogTrigger asChild>
+          <Button className="gap-2" disabled={eligible.length === 0}>
+            <CheckCircle2 className="h-4 w-4" />
+            Déclarer un règlement
+          </Button>
+        </DialogTrigger>
+        {eligible.length === 0 && (
+          <p className="text-muted-foreground max-w-[220px] text-right text-xs">
+            Désactivé : aucune créance avec un reste à payer pour ce
+            fournisseur.
+          </p>
+        )}
+      </div>
       <DialogContent className="max-h-[85vh] max-w-2xl overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Déclarer un règlement fournisseur</DialogTitle>

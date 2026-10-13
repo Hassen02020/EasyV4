@@ -44,6 +44,7 @@ import {
   Lightbulb,
   BookCheck,
   Send,
+  Network,
 } from "lucide-react"
 import { Easy2BookLogo } from "@/components/easy2book-logo"
 import { ThemeToggle } from "@/components/theme-toggle"
@@ -322,9 +323,25 @@ const superAdminNavItems: NavItem[] = [
     // /admin/suppliers (Phase 27) EST la configuration fournisseurs réelle
     // — déjà construite, déjà réelle (super_admin uniquement, voir sa
     // propre doc de tête), mais jusqu'ici jamais reliée à un lien de nav.
+    //
+    // SUPPLIER-SETTLEMENT-ADMIN-UI-01 : /admin/suppliers/nodes (module
+    // Network — nœuds fournisseurs L0/L1 + leurs règlements) existait déjà
+    // en code (NETWORK-01) mais n'avait jamais eu de lien de nav non plus,
+    // trouvé lors de la QA visuelle de ce chantier — même trou que
+    // /admin/suppliers ci-dessus à l'origine. Les deux restent des concepts
+    // distincts (API hôtelière vs réseau de nœuds), d'où 2 sous-items plutôt
+    // qu'un seul lien fusionné.
     title: "Fournisseurs",
     icon: Settings,
     href: "/admin/suppliers",
+    subItems: [
+      { title: "Hôtels (API)", href: "/admin/suppliers", icon: Settings },
+      {
+        title: "Nœuds fournisseurs",
+        href: "/admin/suppliers/nodes",
+        icon: Network,
+      },
+    ],
   },
   {
     title: "Veille marché",
@@ -361,7 +378,7 @@ const superAdminNavItems: NavItem[] = [
   },
 ]
 
-function getNavItems(role: AdminShellRole): NavItem[] {
+export function getNavItems(role: AdminShellRole): NavItem[] {
   switch (role) {
     case "super_admin":
       return [
@@ -399,11 +416,23 @@ function getNavItems(role: AdminShellRole): NavItem[] {
   }
 }
 
-function getBreadcrumb(pathname: string) {
+// UUID brut (ex. l'`[id]` de /admin/suppliers/nodes/[id]) — jamais
+// significatif pour un humain dans un fil d'Ariane. Masqué génériquement
+// pour TOUTES les routes dynamiques `[id]` de /admin (agences, réservations,
+// nœuds fournisseurs, etc.), pas seulement celle-ci : le href de l'étape
+// suivante reste correct (calculé sur le chemin complet, UUID inclus), seul
+// le rendu de CETTE miette est sauté. Le nom réel (ex. nom du fournisseur)
+// reste visible dans le contenu de la page elle-même (h1), jamais perdu.
+const UUID_SEGMENT_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
+export function getBreadcrumb(pathname: string) {
   const paths = pathname.split("/").filter(Boolean)
   const breadcrumbs: { label: string; href: string }[] = []
 
   for (let i = 0; i < paths.length; i++) {
+    if (UUID_SEGMENT_RE.test(paths[i])) continue
+
     const href = "/" + paths.slice(0, i + 1).join("/")
     let label = paths[i].charAt(0).toUpperCase() + paths[i].slice(1)
 
@@ -412,6 +441,8 @@ function getBreadcrumb(pathname: string) {
     if (paths[i] === "config") label = "Configuration XML"
     if (paths[i] === "inventory") label = "Verrous d'inventaire"
     if (paths[i] === "suppliers") label = "Fournisseurs"
+    if (paths[i] === "nodes") label = "Nœuds fournisseurs"
+    if (paths[i] === "settlements") label = "Règlements"
     if (paths[i] === "support") label = "Support"
     if (paths[i] === "vols") label = "Vols"
     if (paths[i] === "hotels") label = "Hôtels Tunisie"

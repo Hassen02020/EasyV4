@@ -44,6 +44,7 @@ import {
   Lightbulb,
   BookCheck,
   Send,
+  Network,
 } from "lucide-react"
 import { Easy2BookLogo } from "@/components/easy2book-logo"
 import { ThemeToggle } from "@/components/theme-toggle"
@@ -322,9 +323,25 @@ const superAdminNavItems: NavItem[] = [
     // /admin/suppliers (Phase 27) EST la configuration fournisseurs réelle
     // — déjà construite, déjà réelle (super_admin uniquement, voir sa
     // propre doc de tête), mais jusqu'ici jamais reliée à un lien de nav.
+    //
+    // SUPPLIER-SETTLEMENT-ADMIN-UI-01 : /admin/suppliers/nodes (module
+    // Network — nœuds fournisseurs L0/L1 + leurs règlements) existait déjà
+    // en code (NETWORK-01) mais n'avait jamais eu de lien de nav non plus,
+    // trouvé lors de la QA visuelle de ce chantier — même trou que
+    // /admin/suppliers ci-dessus à l'origine. Les deux restent des concepts
+    // distincts (API hôtelière vs réseau de nœuds), d'où 2 sous-items plutôt
+    // qu'un seul lien fusionné.
     title: "Fournisseurs",
     icon: Settings,
     href: "/admin/suppliers",
+    subItems: [
+      { title: "Hôtels (API)", href: "/admin/suppliers", icon: Settings },
+      {
+        title: "Réseau (Nœuds)",
+        href: "/admin/suppliers/nodes",
+        icon: Network,
+      },
+    ],
   },
   {
     title: "Veille marché",
@@ -412,6 +429,8 @@ function getBreadcrumb(pathname: string) {
     if (paths[i] === "config") label = "Configuration XML"
     if (paths[i] === "inventory") label = "Verrous d'inventaire"
     if (paths[i] === "suppliers") label = "Fournisseurs"
+    if (paths[i] === "nodes") label = "Nœuds Fournisseurs"
+    if (paths[i] === "settlements") label = "Règlements"
     if (paths[i] === "support") label = "Support"
     if (paths[i] === "vols") label = "Vols"
     if (paths[i] === "hotels") label = "Hôtels Tunisie"

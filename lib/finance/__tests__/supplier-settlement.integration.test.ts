@@ -49,6 +49,7 @@ import {
 import {
   declareSupplierSettlement,
   confirmSupplierSettlement,
+  cancelSupplierSettlementDeclaration,
   requestSupplierSettlementCorrection,
   listUnsettledSupplierDebts,
 } from "../supplier-settlement"
@@ -910,4 +911,252 @@ test("SS01 — lecture financière : un trop-payé réel (après correction calc
   assert.equal(row!.recognizedDebt, "800.00")
   assert.equal(row!.overpaid, "200.00")
   assert.equal(row!.remaining, "0.00")
+})
+
+test("SS01 — correctif financier : paiement 1000 puis remboursement 150 → net décaissé 850, reste à payer 150", async (t) => {
+  if (!dbAvailable) return t.skip(skipReason())
+  const fx = await seedRealisticFixture()
+
+  const settlementId = await declareSupplierSettlement(
+    fx.superAdminId,
+    fx.supplierNodeId,
+    [{ entitlementId: fx.entitlementId, amount: 1000.0 }],
+    "virement-fix-1",
+    null,
+  )
+  await confirmSupplierSettlement(fx.superAdminId, settlementId)
+
+  const refundId = await requestSupplierSettlementCorrection(
+    fx.superAdminId,
+    fx.entitlementId,
+    settlementId,
+    "supplier_refund",
+    -150.0,
+    "bank-ref-fix-1",
+    null,
+  )
+  await confirmSupplierSettlement(fx.superAdminId, refundId)
+
+  const rows = await listUnsettledSupplierDebts(fx.supplierNodeId)
+  const row = rows.find((d) => d.entitlementId === fx.entitlementId)
+  assert.ok(row, "reste à payer de 150 doit apparaître dans la liste")
+  assert.equal(row!.paidReal, "1000.00")
+  assert.equal(
+    row!.netDecaisse,
+    "850.00",
+    "net décaissé = paid_real + refunded (refunded déjà négatif) = 1000 + (-150) = 850, jamais 1150",
+  )
+  assert.equal(row!.recognizedDebt, "1000.00")
+  assert.equal(row!.remaining, "150.00")
+  assert.equal(row!.overpaid, "0.00")
+})
+
+test("SS01 — correctif financier : déclaration non confirmée → aucun paiement réel dans les calculs", async (t) => {
+  if (!dbAvailable) return t.skip(skipReason())
+  const fx = await seedRealisticFixture()
+
+  // Déclarée mais JAMAIS confirmée.
+  await declareSupplierSettlement(
+    fx.superAdminId,
+    fx.supplierNodeId,
+    [{ entitlementId: fx.entitlementId, amount: 1000.0 }],
+    "virement-fix-2",
+    null,
+  )
+
+  const rows = await listUnsettledSupplierDebts(fx.supplierNodeId)
+  const row = rows.find((d) => d.entitlementId === fx.entitlementId)
+  assert.ok(
+    row,
+    "doit apparaître comme non réglée : la déclaration n'est pas confirmée",
+  )
+  assert.equal(
+    row!.paidReal,
+    "0.00",
+    "aucun paiement réel tant que non confirmé",
+  )
+  assert.equal(row!.netDecaisse, "0.00")
+  assert.equal(row!.remaining, "1000.00")
+})
+
+test("SS01 — correctif financier : déclaration annulée → aucun paiement fantôme", async (t) => {
+  if (!dbAvailable) return t.skip(skipReason())
+  const fx = await seedRealisticFixture()
+
+  const settlementId = await declareSupplierSettlement(
+    fx.superAdminId,
+    fx.supplierNodeId,
+    [{ entitlementId: fx.entitlementId, amount: 1000.0 }],
+    "virement-fix-3",
+    null,
+  )
+  await cancelSupplierSettlementDeclaration(fx.superAdminId, settlementId)
+
+  const rows = await listUnsettledSupplierDebts(fx.supplierNodeId)
+  const row = rows.find((d) => d.entitlementId === fx.entitlementId)
+  assert.ok(
+    row,
+    "toujours due : la déclaration annulée n'a jamais été un paiement réel",
+  )
+  assert.equal(row!.paidReal, "0.00")
+  assert.equal(row!.remaining, "1000.00")
+
+  // Réaffectation possible : l'annulation n'a laissé aucune jonction active résiduelle.
+  const newSettlementId = await declareSupplierSettlement(
+    fx.superAdminId,
+    fx.supplierNodeId,
+    [{ entitlementId: fx.entitlementId, amount: 1000.0 }],
+    "virement-fix-3b",
+    null,
+  )
+  await confirmSupplierSettlement(fx.superAdminId, newSettlementId)
+  const afterReassign = await listUnsettledSupplierDebts(fx.supplierNodeId)
+  assert.ok(!afterReassign.some((d) => d.entitlementId === fx.entitlementId))
+})
+
+test("SS01 — correctif financier : correction comptable déclarée mais non confirmée → aucun effet prématuré sur la dette reconnue", async (t) => {
+  if (!dbAvailable) return t.skip(skipReason())
+  const fx = await seedRealisticFixture()
+
+  const settlementId = await declareSupplierSettlement(
+    fx.superAdminId,
+    fx.supplierNodeId,
+    [{ entitlementId: fx.entitlementId, amount: 1000.0 }],
+    "virement-fix-4",
+    null,
+  )
+  await confirmSupplierSettlement(fx.superAdminId, settlementId)
+
+  // Correction déclarée, JAMAIS confirmée.
+  const corrId = await requestSupplierSettlementCorrection(
+    fx.superAdminId,
+    fx.entitlementId,
+    null,
+    "calculation_error",
+    -200.0,
+    null,
+    null,
+  )
+
+  const rowsUnconfirmed = await listUnsettledSupplierDebts(fx.supplierNodeId)
+  assert.ok(
+    !rowsUnconfirmed.some((d) => d.entitlementId === fx.entitlementId),
+    "recognized_debt doit rester 1000 (non ajustée) tant que la correction n'est pas confirmée — réglée exactement, pas de trop-payé prématuré",
+  )
+
+  // Puis annulée : toujours aucun effet.
+  await cancelSupplierSettlementDeclaration(fx.superAdminId, corrId)
+  const rowsCancelled = await listUnsettledSupplierDebts(fx.supplierNodeId)
+  assert.ok(!rowsCancelled.some((d) => d.entitlementId === fx.entitlementId))
+})
+
+test("SS01 — correctif financier : plafond de remboursement sur le net réellement déboursé, sans compter les corrections comptables comme un flux de trésorerie", async (t) => {
+  if (!dbAvailable) return t.skip(skipReason())
+  const fx = await seedRealisticFixture()
+
+  const settlementId = await declareSupplierSettlement(
+    fx.superAdminId,
+    fx.supplierNodeId,
+    [{ entitlementId: fx.entitlementId, amount: 1000.0 }],
+    "virement-fix-5",
+    null,
+  )
+  await confirmSupplierSettlement(fx.superAdminId, settlementId)
+
+  // Erreur de calcul confirmée : dette reconnue = 800, mais le CASH réel reste 1000.
+  const calcCorrId = await requestSupplierSettlementCorrection(
+    fx.superAdminId,
+    fx.entitlementId,
+    null,
+    "calculation_error",
+    -200.0,
+    null,
+    null,
+  )
+  await confirmSupplierSettlement(fx.superAdminId, calcCorrId)
+
+  // Un remboursement de -850 doit être ACCEPTÉ : le plafond est le cash réel (1000),
+  // jamais la dette reconnue (800) — sinon 800-850 serait négatif et rejetterait
+  // à tort un remboursement pourtant couvert par l'argent réellement transféré.
+  const refund1Id = await requestSupplierSettlementCorrection(
+    fx.superAdminId,
+    fx.entitlementId,
+    settlementId,
+    "supplier_refund",
+    -850.0,
+    "bank-ref-fix-5a",
+    null,
+  )
+  await confirmSupplierSettlement(fx.superAdminId, refund1Id)
+
+  // Un second remboursement de -200 doit maintenant être REJETÉ : le cash réel
+  // restant est 1000 - 850 = 150, insuffisant pour -200 — toujours sans tenir
+  // compte de la correction comptable de -200 (qui n'a jamais été un flux réel).
+  await assertRejectsWithPgError(
+    withSystemContext((tx) =>
+      tx.execute(sql`
+        SELECT request_supplier_settlement_correction(${fx.superAdminId}::uuid, ${fx.entitlementId}::uuid,
+          ${settlementId}::uuid, 'supplier_refund', -200.00, 'bank-ref-fix-5b', NULL)
+      `),
+    ),
+    "SUPPLIER_SETTLEMENT_REFUND_EXCEEDS_NET",
+  )
+})
+
+test("SS01 — correctif financier : deux remboursements déclarés avant confirmation, le second dépasse le net réel au moment de sa confirmation → rejeté", async (t) => {
+  if (!dbAvailable) return t.skip(skipReason())
+  const fx = await seedRealisticFixture()
+
+  const settlementId = await declareSupplierSettlement(
+    fx.superAdminId,
+    fx.supplierNodeId,
+    [{ entitlementId: fx.entitlementId, amount: 1000.0 }],
+    "virement-fix-6",
+    null,
+  )
+  await confirmSupplierSettlement(fx.superAdminId, settlementId)
+
+  // Les deux remboursements sont déclarés AVANT que l'un ou l'autre ne soit
+  // confirmé — chacun passe la vérification de prévisualisation individuellement
+  // (net réel = 1000 pour les deux, aucun ne voit l'autre tant que non payé).
+  const refundAId = await requestSupplierSettlementCorrection(
+    fx.superAdminId,
+    fx.entitlementId,
+    settlementId,
+    "supplier_refund",
+    -600.0,
+    "bank-ref-fix-6a",
+    null,
+  )
+  const refundBId = await requestSupplierSettlementCorrection(
+    fx.superAdminId,
+    fx.entitlementId,
+    settlementId,
+    "supplier_refund",
+    -600.0,
+    "bank-ref-fix-6b",
+    null,
+  )
+
+  await confirmSupplierSettlement(fx.superAdminId, refundAId)
+
+  // Sans la revérification ajoutée à confirm_supplier_settlement, ceci
+  // confirmerait à tort et ferait passer le net réel à 1000-600-600=-200.
+  await assertRejectsWithPgError(
+    withSystemContext((tx) =>
+      tx.execute(
+        sql`SELECT confirm_supplier_settlement(${fx.superAdminId}::uuid, ${refundBId}::uuid)`,
+      ),
+    ),
+    "SUPPLIER_SETTLEMENT_REFUND_EXCEEDS_NET_AT_CONFIRM",
+  )
+
+  const rows = await listUnsettledSupplierDebts(fx.supplierNodeId)
+  const row = rows.find((d) => d.entitlementId === fx.entitlementId)
+  assert.ok(row)
+  assert.equal(
+    row!.netDecaisse,
+    "400.00",
+    "seul le remboursement A confirmé compte : 1000-600=400",
+  )
 })

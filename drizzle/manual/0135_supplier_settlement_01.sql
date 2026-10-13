@@ -346,9 +346,20 @@ BEGIN
         p_target_settlement_id, p_entitlement_id;
     END IF;
 
-    SELECT COALESCE(SUM(se.amount), 0) INTO v_net_decaisse
+    -- CORRIGÉ (audit complémentaire) : net_decaisse = paiements réellement
+    -- CONFIRMÉS (status='paid') moins remboursements réellement CONFIRMÉS —
+    -- jamais une jonction d'un règlement encore 'declared'/'pending'/'cancelled'
+    -- (pas un flux de trésorerie réel), et jamais les corrections
+    -- calculation_error/duplicate_entry (elles ajustent la dette reconnue, pas
+    -- la caisse). Verrou sur les entrées via le verrou déjà pris plus haut sur
+    -- la ligne supplier_settlements cible (et l'entitlement) — suffisant car
+    -- toute écriture passe exclusivement par ces fonctions.
+    SELECT COALESCE(SUM(se.amount) FILTER (WHERE se.entry_kind = 'normal'), 0)
+         + COALESCE(SUM(se.amount) FILTER (WHERE se.entry_kind = 'amount_correction' AND s.correction_cause = 'supplier_refund'), 0)
+      INTO v_net_decaisse
     FROM supplier_settlement_entries se
-    WHERE se.entitlement_id = p_entitlement_id AND se.unlinked_at IS NULL;
+    JOIN supplier_settlements s ON s.id = se.settlement_id
+    WHERE se.entitlement_id = p_entitlement_id AND se.unlinked_at IS NULL AND s.status = 'paid';
 
     IF v_net_decaisse + p_amount < 0 THEN
       RAISE EXCEPTION 'SUPPLIER_SETTLEMENT_REFUND_EXCEEDS_NET: net_decaisse=%, refund=%', v_net_decaisse, p_amount;
@@ -451,6 +462,9 @@ DECLARE
   v_entry record;
   v_target_amount numeric;
   v_cascade record;
+  v_refund_entitlement_id uuid;
+  v_refund_amount numeric;
+  v_net_decaisse_at_confirm numeric;
 BEGIN
   PERFORM assert_supplier_settlement_actor(p_actor_user_id);
 
@@ -477,6 +491,35 @@ BEGIN
           v_entry.entitlement_id, v_entry.reservation_status;
       END IF;
     END LOOP;
+
+    -- REVÉRIFICATION ANTI-NET-NÉGATIF À LA CONFIRMATION (gap de concurrence
+    -- trouvé lors de l'audit complémentaire) : la vérification faite à la
+    -- déclaration (request_supplier_settlement_correction) ne compte que les
+    -- entrées déjà 'paid' — deux remboursements déclarés avant que l'un ou
+    -- l'autre ne soit confirmé passent chacun la vérification individuellement.
+    -- Sans cette revérification, confirmer le second APRÈS le premier pourrait
+    -- faire passer le net réellement décaissé sous zéro. Verrou sur
+    -- l'entitlement : sérialise deux confirmations concurrentes visant la
+    -- même créance.
+    IF v_row.correction_type = 'amount_correction' AND v_row.correction_cause = 'supplier_refund' THEN
+      SELECT se.entitlement_id, se.amount INTO v_refund_entitlement_id, v_refund_amount
+      FROM supplier_settlement_entries se WHERE se.settlement_id = p_settlement_id LIMIT 1;
+
+      PERFORM 1 FROM economic_entitlements WHERE id = v_refund_entitlement_id FOR UPDATE;
+
+      SELECT COALESCE(SUM(se.amount) FILTER (WHERE se.entry_kind = 'normal'), 0)
+           + COALESCE(SUM(se.amount) FILTER (WHERE se.entry_kind = 'amount_correction' AND s2.correction_cause = 'supplier_refund'), 0)
+        INTO v_net_decaisse_at_confirm
+      FROM supplier_settlement_entries se
+      JOIN supplier_settlements s2 ON s2.id = se.settlement_id
+      WHERE se.entitlement_id = v_refund_entitlement_id AND se.unlinked_at IS NULL
+        AND s2.status = 'paid' AND s2.id != p_settlement_id;
+
+      IF v_net_decaisse_at_confirm + v_refund_amount < 0 THEN
+        RAISE EXCEPTION 'SUPPLIER_SETTLEMENT_REFUND_EXCEEDS_NET_AT_CONFIRM: net_decaisse=%, refund=%',
+          v_net_decaisse_at_confirm, v_refund_amount;
+      END IF;
+    END IF;
 
     UPDATE supplier_settlements
     SET status = 'paid', confirmed_by = p_actor_user_id, confirmed_at = now()
@@ -543,6 +586,19 @@ BEGIN
   IF v_status NOT IN ('pending','declared') THEN
     RAISE EXCEPTION 'SUPPLIER_SETTLEMENT_CANNOT_CANCEL: status=%', v_status;
   END IF;
+
+  -- CORRIGÉ (audit complémentaire, point 4) : sans ceci, les jonctions créées
+  -- à la déclaration restaient actives (unlinked_at IS NULL) après annulation
+  -- — bloquant toute réaffectation future de la créance (index unique partiel
+  -- "une seule jonction normale active") ET risquant d'être comptées comme un
+  -- paiement réel si le filtre status='paid' de la lecture financière venait
+  -- à être retiré par erreur un jour. Annuler une déclaration doit désactiver
+  -- ses propres jonctions, exactement comme une réversion le fait pour un
+  -- règlement payé.
+  UPDATE supplier_settlement_entries
+  SET unlinked_at = now(), unlinked_by_settlement_id = p_settlement_id
+  WHERE settlement_id = p_settlement_id AND unlinked_at IS NULL;
+
   UPDATE supplier_settlements SET status = 'cancelled' WHERE id = p_settlement_id;
 END;
 $$;

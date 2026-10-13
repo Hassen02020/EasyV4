@@ -128,7 +128,8 @@ export interface SupplierDueEntitlement {
   recognizedDebt: string
   /** Σ jonctions actives `entry_kind='normal'` — argent réellement transféré au fournisseur. */
   paidReal: string
-  /** `paidReal − remboursé(O)` — position de caisse réelle nette. */
+  /** `paidReal + refunded(O)` — `refunded` est déjà stocké négatif, donc une
+   * addition (jamais une soustraction) ; position de caisse réelle nette. */
   netDecaisse: string
   /** `max(0, netDecaisse − recognizedDebt)` — jamais masqué derrière "réglée". */
   overpaid: string
@@ -151,6 +152,22 @@ export interface SupplierDueEntitlement {
  * des fonctions SQL (0135) : un remboursement réel (`supplier_refund`) ne
  * rouvre jamais `remaining`, il ne fait baisser que `netDecaisse` — exposé
  * séparément, jamais confondu avec `remaining`/`overpaid`.
+ *
+ * CORRIGÉ ENCORE (audit complémentaire) — deux bugs réels trouvés :
+ * 1. Signe de `net_decaisse` : un remboursement (`supplier_refund`) est
+ *    TOUJOURS stocké négatif (contrainte SQL `REFUND_MUST_BE_NEGATIVE`,
+ *    0135). `paid_real − refunded` SOUSTRAYAIT donc un nombre négatif, ce qui
+ *    AJOUTAIT au lieu de déduire (1000 − (−150) = 1150, au lieu de 850).
+ *    Corrigé en `paid_real + refunded` (addition, puisque le signe est déjà
+ *    porté par la valeur stockée).
+ * 2. Aucun filtre `s.status = 'paid'` : une jonction d'un règlement encore
+ *    `declared`/`pending` (jamais confirmé) ou `cancelled` était comptée
+ *    comme un paiement/remboursement/correction réel — un paiement fantôme.
+ *    Une réservation annulée avant confirmation, ou une déclaration annulée,
+ *    ne doit jamais apparaître comme un flux de trésorerie réel. Seules les
+ *    lignes `unlinked_at IS NULL` ET dont le règlement parent est
+ *    effectivement `status='paid'` comptent désormais, pour les 3 agrégats
+ *    (paid_real, recognized_adjustment, refunded).
  */
 export async function listUnsettledSupplierDebts(
   supplierNodeId: string,
@@ -171,14 +188,14 @@ export async function listUnsettledSupplierDebts(
         SELECT
           se.entitlement_id,
           COALESCE(SUM(se.amount) FILTER (
-            WHERE se.entry_kind = 'normal' AND se.unlinked_at IS NULL
+            WHERE se.entry_kind = 'normal' AND se.unlinked_at IS NULL AND s.status = 'paid'
           ), 0) AS paid_real,
           COALESCE(SUM(se.amount) FILTER (
-            WHERE se.entry_kind = 'amount_correction' AND se.unlinked_at IS NULL
+            WHERE se.entry_kind = 'amount_correction' AND se.unlinked_at IS NULL AND s.status = 'paid'
               AND s.correction_cause IN ('calculation_error', 'duplicate_entry')
           ), 0) AS recognized_adjustment,
           COALESCE(SUM(se.amount) FILTER (
-            WHERE se.entry_kind = 'amount_correction' AND se.unlinked_at IS NULL
+            WHERE se.entry_kind = 'amount_correction' AND se.unlinked_at IS NULL AND s.status = 'paid'
               AND s.correction_cause = 'supplier_refund'
           ), 0) AS refunded
         FROM supplier_settlement_entries se
@@ -188,10 +205,10 @@ export async function listUnsettledSupplierDebts(
       SELECT
         ee.id AS entitlement_id, ee.reservation_id, ee.amount, r.status AS reservation_status,
         (ee.amount + COALESCE(agg.recognized_adjustment, 0)) AS recognized_debt,
-        COALESCE(agg.paid_real, 0) AS paid_real,
-        (COALESCE(agg.paid_real, 0) - COALESCE(agg.refunded, 0)) AS net_decaisse,
-        GREATEST(0, (COALESCE(agg.paid_real, 0) - COALESCE(agg.refunded, 0)) - (ee.amount + COALESCE(agg.recognized_adjustment, 0)))::numeric(14,2) AS overpaid,
-        GREATEST(0, (ee.amount + COALESCE(agg.recognized_adjustment, 0)) - (COALESCE(agg.paid_real, 0) - COALESCE(agg.refunded, 0)))::numeric(14,2) AS remaining
+        COALESCE(agg.paid_real, 0)::numeric(14,2) AS paid_real,
+        (COALESCE(agg.paid_real, 0) + COALESCE(agg.refunded, 0))::numeric(14,2) AS net_decaisse,
+        GREATEST(0, (COALESCE(agg.paid_real, 0) + COALESCE(agg.refunded, 0)) - (ee.amount + COALESCE(agg.recognized_adjustment, 0)))::numeric(14,2) AS overpaid,
+        GREATEST(0, (ee.amount + COALESCE(agg.recognized_adjustment, 0)) - (COALESCE(agg.paid_real, 0) + COALESCE(agg.refunded, 0)))::numeric(14,2) AS remaining
       FROM economic_entitlements ee
       JOIN reservations r ON r.id = ee.reservation_id
       LEFT JOIN agg ON agg.entitlement_id = ee.id
@@ -199,8 +216,8 @@ export async function listUnsettledSupplierDebts(
         AND ee.party_type = 'supplier_node'
         AND ee.party_id = ${supplierNodeId}::uuid
         AND (
-          GREATEST(0, (COALESCE(agg.paid_real, 0) - COALESCE(agg.refunded, 0)) - (ee.amount + COALESCE(agg.recognized_adjustment, 0))) > 0
-          OR GREATEST(0, (ee.amount + COALESCE(agg.recognized_adjustment, 0)) - (COALESCE(agg.paid_real, 0) - COALESCE(agg.refunded, 0))) > 0
+          GREATEST(0, (COALESCE(agg.paid_real, 0) + COALESCE(agg.refunded, 0)) - (ee.amount + COALESCE(agg.recognized_adjustment, 0))) > 0
+          OR GREATEST(0, (ee.amount + COALESCE(agg.recognized_adjustment, 0)) - (COALESCE(agg.paid_real, 0) + COALESCE(agg.refunded, 0))) > 0
         )
     `)
     return rows.map((r) => ({

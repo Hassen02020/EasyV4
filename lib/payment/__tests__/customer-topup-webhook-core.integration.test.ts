@@ -400,10 +400,10 @@ test("PSP mismatch (déclaré ≠ webhook reçu) : no_match, tracé dans psp_web
 })
 
 /* -------------------------------------------------------------------------- */
-/* 7. Concurrence RÉELLE — 2 appels simultanés pour la MÊME demande           */
+/* 7. Concurrence RÉELLE — MÊME eventId, 2 appels simultanés                  */
 /* -------------------------------------------------------------------------- */
 
-test("2 webhooks RÉELLEMENT concurrents (Promise.all) pour la même demande : exactement 1 crédit", async (t) => {
+test("2 webhooks RÉELLEMENT concurrents, MÊME eventId (Promise.all) : exactement 1 crédit", async (t) => {
   if (!dbAvailable) return void t.skip(skip())
 
   const f = await createFixture({ amount: "60.00", psp: "paymee" })
@@ -451,6 +451,81 @@ test("2 webhooks RÉELLEMENT concurrents (Promise.all) pour la même demande : e
         .from(walletAccounts)
         .where(eq(walletAccounts.customerId, f.customerId))
       assert.equal(wallet?.currentBalance, "60.00")
+    })
+  } finally {
+    await cleanupFixture(f)
+  }
+})
+
+/* -------------------------------------------------------------------------- */
+/* 8. Concurrence RÉELLE — eventId DIFFÉRENTS, 2 appels simultanés            */
+/* -------------------------------------------------------------------------- */
+
+test("2 webhooks RÉELLEMENT concurrents, eventId DIFFÉRENTS (Promise.all) pour la même demande : exactement 1 crédit", async (t) => {
+  if (!dbAvailable) return void t.skip(skip())
+
+  const f = await createFixture({ amount: "75.00", psp: "paymee" })
+  try {
+    // eventId DIFFÉRENTS cette fois : simule deux livraisons webhook
+    // distinctes référant au MÊME paiement (deux notifications PSP
+    // indépendantes, pas un simple replay du même événement) — ce scénario
+    // n'est PAS protégé par la garde payment_events (eventId différents, donc
+    // aucun conflit possible à ce niveau). La seule protection possible est
+    // le verrou `SELECT ... FOR UPDATE` sur customerTopupRequests : ce test
+    // isole et prouve SA suffisance seule, indépendamment du dédoublonnage
+    // par eventId déjà couvert par le test précédent.
+    const charge1 = chargeFor(f, 75)
+    const charge2: NormalizedChargeEvent = {
+      ...charge1,
+      eventId: `b2c-topup-itg-${randomUUID()}`,
+    }
+
+    const [r1, r2] = await Promise.all([
+      withSystemContext((tx) =>
+        processCustomerTopupWebhookCore(tx, {
+          provider: "paymee",
+          eventId: charge1.eventId,
+          eventType: charge1.eventType,
+          charge: charge1,
+          signatureOk: true,
+          auditPayload: { test: true },
+        }),
+      ),
+      withSystemContext((tx) =>
+        processCustomerTopupWebhookCore(tx, {
+          provider: "paymee",
+          eventId: charge2.eventId,
+          eventType: charge2.eventType,
+          charge: charge2,
+          signatureOk: true,
+          auditPayload: { test: true },
+        }),
+      ),
+    ])
+
+    const statuses = [r1.status, r2.status].sort()
+    assert.deepEqual(
+      statuses,
+      ["already_processed", "credited"],
+      "exactement un des deux appels concurrents doit créditer, l'autre doit voir already_processed (via le verrou FOR UPDATE, pas via payment_events)",
+    )
+
+    await withSystemContext(async (tx) => {
+      const ledgerRows = await tx
+        .select()
+        .from(walletLedger)
+        .where(eq(walletLedger.idempotencyKey, f.topupId))
+      assert.equal(
+        ledgerRows.length,
+        1,
+        "un seul crédit réel malgré 2 eventId différents concurrents pour la même demande",
+      )
+
+      const [wallet] = await tx
+        .select()
+        .from(walletAccounts)
+        .where(eq(walletAccounts.customerId, f.customerId))
+      assert.equal(wallet?.currentBalance, "75.00")
     })
   } finally {
     await cleanupFixture(f)

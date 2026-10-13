@@ -1220,4 +1220,3 @@ test("SS01 — remboursement : une correction comptable payée ne peut pas servi
     "SUPPLIER_SETTLEMENT_TARGET_DOES_NOT_CONTAIN_ENTITLEMENT",
   )
 })
-

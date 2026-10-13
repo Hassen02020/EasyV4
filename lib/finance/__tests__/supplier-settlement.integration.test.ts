@@ -43,7 +43,14 @@ import {
   users,
   supplierNodes,
   suppliers,
+  products,
+  reservationNetworkProduct,
 } from "@/lib/db/schema"
+import {
+  declareSupplierSettlement,
+  confirmSupplierSettlement,
+  listUnsettledSupplierDebts,
+} from "../supplier-settlement"
 
 async function isDbAvailable(): Promise<boolean> {
   try {
@@ -474,3 +481,166 @@ test("SS01 — concurrence réelle : 2 déclarations simultanées sur la même c
 // supplier_settlement_entries") — voir rapport du chantier, non reproductible ici
 // sans élargir le harnais de test à une connexion superuser dédiée (hors périmètre
 // de cette étape).
+
+test("SS01 — raccordement réel Network : products -> reservation_network_product -> economic_entitlements -> supplier_settlements, via le wrapper TypeScript applicatif (pas du SQL brut)", async (t) => {
+  if (!dbAvailable) return t.skip(skipReason())
+  const suffix = randomUUID().slice(0, 8)
+
+  const fx = await withSystemContext(async (tx) => {
+    const [agency] = await tx
+      .insert(agencies)
+      .values({
+        name: `SS01 Link Agency ${suffix}`,
+        agencyType: "ota",
+        slug: `ss01-link-${suffix}`,
+      })
+      .returning({ id: agencies.id })
+    const [customer] = await tx
+      .insert(customers)
+      .values({
+        agencyId: agency!.id,
+        firstName: "SS01",
+        lastName: `Link ${suffix}`,
+      })
+      .returning({ id: customers.id })
+    const [superAdmin] = await tx
+      .insert(users)
+      .values({
+        id: randomUUID(),
+        agencyId: agency!.id,
+        email: `ss01-link-admin-${suffix}@test.local`,
+        role: "super_admin",
+        status: "active",
+      })
+      .returning({ id: users.id })
+    const [supplier] = await tx
+      .insert(suppliers)
+      .values({
+        name: `SS01 Link Supplier ${suffix}`,
+        type: "custom",
+        status: "active",
+      })
+      .returning({ id: suppliers.id })
+    const [node] = await tx
+      .insert(supplierNodes)
+      .values({
+        supplierId: supplier!.id,
+        slug: `ss01-link-node-${suffix}`,
+        displayName: `SS01 Link Node ${suffix}`,
+        onboardingStatus: "active",
+      })
+      .returning({ id: supplierNodes.id })
+    const [product] = await tx
+      .insert(products)
+      .values({
+        agencyId: agency!.id,
+        supplierNodeId: node!.id,
+        sku: `ss01-link-${suffix}`,
+        type: "activity",
+        name: `SS01 Link Activity ${suffix}`,
+        basePrice: "600.000",
+      })
+      .returning({ id: products.id })
+    const [reservation] = await tx
+      .insert(reservations)
+      .values({
+        agencyId: agency!.id,
+        publicRef: `SS01LINK-${suffix}`,
+        customerId: customer!.id,
+        module: "network",
+        source: "manual",
+        status: "confirmed",
+        originalCurrency: "TND",
+        originalAmount: "600.00",
+        tndAmount: "600.00",
+      })
+      .returning({ id: reservations.id })
+    await tx.insert(reservationNetworkProduct).values({
+      reservationId: reservation!.id,
+      productId: product!.id,
+      supplierNodeId: node!.id,
+    })
+    const [entitlement] = await tx
+      .insert(economicEntitlements)
+      .values({
+        reservationId: reservation!.id,
+        partyType: "supplier_node",
+        partyId: node!.id,
+        role: "supplier",
+        qualification: "supplier_cost",
+        amount: "600.00",
+        currency: "TND",
+        status: "earned",
+        effectiveAt: new Date(),
+      })
+      .returning({ id: economicEntitlements.id })
+    return {
+      superAdminId: superAdmin!.id,
+      supplierNodeId: node!.id,
+      reservationId: reservation!.id,
+      entitlementId: entitlement!.id,
+    }
+  })
+
+  // Correspondance exacte réservation <-> fournisseur <-> créance, lue via
+  // les 3 tables réelles (pas un UUID coïncident entre fixtures).
+  const linkage = await withSystemContext(async (tx) => {
+    const [row] = await tx.execute<{
+      reservation_supplier: string
+      entitlement_supplier: string
+      currency: string
+      amount: string
+    }>(sql`
+      SELECT rnp.supplier_node_id AS reservation_supplier,
+             ee.party_id AS entitlement_supplier,
+             ee.currency, ee.amount
+      FROM reservation_network_product rnp
+      JOIN economic_entitlements ee ON ee.reservation_id = rnp.reservation_id
+      WHERE rnp.reservation_id = ${fx.reservationId}::uuid
+    `)
+    return row!
+  })
+  assert.equal(linkage.reservation_supplier, fx.supplierNodeId)
+  assert.equal(linkage.entitlement_supplier, fx.supplierNodeId)
+  assert.equal(linkage.currency, "TND")
+  assert.equal(linkage.amount, "600.00")
+
+  // Avant règlement : la créance apparaît dans la liste des dettes non réglées.
+  const before = await listUnsettledSupplierDebts(fx.supplierNodeId)
+  assert.ok(before.some((d) => d.entitlementId === fx.entitlementId))
+  assert.equal(
+    before.find((d) => d.entitlementId === fx.entitlementId)
+      ?.disputedCancellation,
+    false,
+  )
+
+  // Raccordement via le wrapper applicatif (lib/finance/supplier-settlement.ts),
+  // pas un appel SQL brut — preuve que la couche TypeScript fonctionne de bout en bout.
+  const settlementId = await declareSupplierSettlement(
+    fx.superAdminId,
+    fx.supplierNodeId,
+    [{ entitlementId: fx.entitlementId, amount: 600.0 }],
+    "virement-test-link",
+    null,
+  )
+  await confirmSupplierSettlement(fx.superAdminId, settlementId)
+
+  // Après règlement : la créance disparaît de la liste des dettes non réglées
+  // (aucun doublon de règlement possible sur cette même créance désormais).
+  const after = await listUnsettledSupplierDebts(fx.supplierNodeId)
+  assert.ok(!after.some((d) => d.entitlementId === fx.entitlementId))
+
+  // Absence d'effet secondaire sur les commissions/wallet (table vide ou
+  // inchangée — ce chantier ne les référence jamais, voir 0135 en-tête).
+  const sideEffects = await withSystemContext(async (tx) => {
+    const [row] = await tx.execute<{ n: string }>(sql`
+      SELECT count(*)::text AS n FROM wallet_ledger WHERE reservation_id = ${fx.reservationId}::uuid
+    `)
+    return Number(row!.n)
+  })
+  assert.equal(
+    sideEffects,
+    0,
+    "aucune ligne wallet_ledger créée par ce règlement fournisseur",
+  )
+})

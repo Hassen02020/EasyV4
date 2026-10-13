@@ -33,7 +33,9 @@ describe("R9-03 — Garde-fou remboursement vol CANCELLED (FLIGHT-CANCELLED-REFU
 
   it("importe autoRefundOnFlightFailure", () => {
     assert.ok(
-      src.includes("import { autoRefundOnFlightFailure } from \"./flight-refund-on-failure\""),
+      src.includes(
+        'import { autoRefundOnFlightFailure } from "./flight-refund-on-failure"',
+      ),
       "flight-status-sync.ts doit importer autoRefundOnFlightFailure depuis ./flight-refund-on-failure",
     )
   })
@@ -45,18 +47,24 @@ describe("R9-03 — Garde-fou remboursement vol CANCELLED (FLIGHT-CANCELLED-REFU
     )
   })
 
-  it("conditionne le remboursement sur newStatus === \"CANCELLED\"", () => {
+  it('conditionne le remboursement sur newStatus === "CANCELLED"', () => {
     assert.ok(
       src.includes('newStatus === "CANCELLED" && current?.agencyId'),
-      "le déclenchement doit être conditionné sur newStatus === \"CANCELLED\" et la présence d'agencyId",
+      'le déclenchement doit être conditionné sur newStatus === "CANCELLED" et la présence d\'agencyId',
     )
   })
 
   it("appelle autoRefundOnFlightFailure après withSystemContext(run), jamais dans run()", () => {
     const withSystemContextIdx = src.indexOf("await withSystemContext(run)")
     const refundCallIdx = src.indexOf("await autoRefundOnFlightFailure(")
-    assert.ok(withSystemContextIdx !== -1, "withSystemContext(run) doit être présent")
-    assert.ok(refundCallIdx !== -1, "autoRefundOnFlightFailure doit être appelé")
+    assert.ok(
+      withSystemContextIdx !== -1,
+      "withSystemContext(run) doit être présent",
+    )
+    assert.ok(
+      refundCallIdx !== -1,
+      "autoRefundOnFlightFailure doit être appelé",
+    )
     assert.ok(
       refundCallIdx > withSystemContextIdx,
       "autoRefundOnFlightFailure doit être appelé APRÈS withSystemContext(run) (transaction déjà committée), jamais imbriqué dans run()",
@@ -65,7 +73,7 @@ describe("R9-03 — Garde-fou remboursement vol CANCELLED (FLIGHT-CANCELLED-REFU
 
   it("run() retourne la donnée de remboursement au lieu de muter une variable fermée (pas de closure partagée entre run et l'appelant)", () => {
     assert.ok(
-      /return \{ reservationId: row\.reservationId, agencyId: current\.agencyId \}/.test(
+      /return\s*\{\s*reservationId:\s*row\.reservationId,\s*agencyId:\s*current\.agencyId,?\s*\}/.test(
         src,
       ),
       "run() doit retourner { reservationId, agencyId } plutôt que d'assigner une variable externe",
@@ -76,7 +84,10 @@ describe("R9-03 — Garde-fou remboursement vol CANCELLED (FLIGHT-CANCELLED-REFU
     const ifTxIdx = src.indexOf("if (tx) {")
     const elseIdx = src.indexOf("} else {")
     const refundCallIdx = src.indexOf("await autoRefundOnFlightFailure(")
-    assert.ok(ifTxIdx !== -1 && elseIdx !== -1, "structure if (tx) {...} else {...} doit être présente")
+    assert.ok(
+      ifTxIdx !== -1 && elseIdx !== -1,
+      "structure if (tx) {...} else {...} doit être présente",
+    )
     assert.ok(
       refundCallIdx > elseIdx,
       "autoRefundOnFlightFailure doit être dans la branche else (tx géré en interne), jamais dans la branche if (tx) externe",

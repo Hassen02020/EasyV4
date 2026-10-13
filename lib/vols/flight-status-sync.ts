@@ -72,7 +72,10 @@ export async function updateFlightStatus(
       // transition n'est pas légale — le cas `from === to` (statut déjà à
       // jour, le plus fréquent) est aussi un no-op silencieux.
       const [current] = await db
-        .select({ status: reservations.status, agencyId: reservations.agencyId })
+        .select({
+          status: reservations.status,
+          agencyId: reservations.agencyId,
+        })
         .from(reservations)
         .where(eq(reservations.id, row.reservationId))
         .limit(1)
@@ -101,7 +104,10 @@ export async function updateFlightStatus(
         })
 
         if (newStatus === "CANCELLED" && current?.agencyId) {
-          return { reservationId: row.reservationId, agencyId: current.agencyId }
+          return {
+            reservationId: row.reservationId,
+            agencyId: current.agencyId,
+          }
         }
       }
     }

@@ -20,8 +20,10 @@ import {
   requestSupplierSettlementCorrection,
   requestSupplierSettlementReversal,
   listUnsettledSupplierDebts,
+  listSupplierSettlements,
   type SupplierSettlementEntryInput,
   type SupplierDueEntitlement,
+  type SupplierSettlementRow,
 } from "./supplier-settlement"
 
 export type SupplierSettlementActionResult =
@@ -169,4 +171,12 @@ export async function loadUnsettledSupplierDebts(
   const { user } = await requireSuperAdmin()
   if (!user) return []
   return listUnsettledSupplierDebts(supplierNodeId)
+}
+
+export async function loadSupplierSettlements(
+  supplierNodeId: string,
+): Promise<SupplierSettlementRow[]> {
+  const { user } = await requireSuperAdmin()
+  if (!user) return []
+  return listSupplierSettlements(supplierNodeId)
 }

@@ -118,6 +118,117 @@ export async function requestSupplierSettlementReversal(
   })
 }
 
+export interface SupplierSettlementEntryRow {
+  id: string
+  entitlementId: string
+  entryKind: "normal" | "amount_correction" | "reversal"
+  amount: string
+  unlinkedAt: string | null
+  cancellationReviewNote: string | null
+}
+
+export interface SupplierSettlementRow {
+  id: string
+  status: string
+  correctionType: "amount_correction" | "reversal" | null
+  correctionCause:
+    | "calculation_error"
+    | "duplicate_entry"
+    | "supplier_refund"
+    | null
+  reversalCause: string | null
+  correctsSettlementId: string | null
+  reversedBySettlementId: string | null
+  totalAmount: string
+  proofReference: string | null
+  externalReference: string | null
+  notes: string | null
+  declaredAt: string | null
+  confirmedAt: string | null
+  createdAt: string
+  entries: SupplierSettlementEntryRow[]
+}
+
+/**
+ * Historique des règlements (normaux + corrections + réversions) d'un
+ * fournisseur Network, entrées incluses (`json_agg` — même lecture
+ * cohérente qu'une jointure, sans N+1 par ligne de la page admin).
+ */
+export async function listSupplierSettlements(
+  supplierNodeId: string,
+): Promise<SupplierSettlementRow[]> {
+  return withSystemContext(async (tx) => {
+    const rows = await tx.execute<{
+      id: string
+      status: string
+      correction_type: "amount_correction" | "reversal" | null
+      correction_cause:
+        | "calculation_error"
+        | "duplicate_entry"
+        | "supplier_refund"
+        | null
+      reversal_cause: string | null
+      corrects_settlement_id: string | null
+      reversed_by_settlement_id: string | null
+      total_amount: string
+      proof_reference: string | null
+      external_reference: string | null
+      notes: string | null
+      declared_at: string | null
+      confirmed_at: string | null
+      created_at: string
+      entries: {
+        id: string
+        entitlementId: string
+        entryKind: "normal" | "amount_correction" | "reversal"
+        amount: string
+        unlinkedAt: string | null
+        cancellationReviewNote: string | null
+      }[]
+    }>(sql`
+      SELECT
+        s.id, s.status, s.correction_type, s.correction_cause, s.reversal_cause,
+        s.corrects_settlement_id, s.reversed_by_settlement_id, s.total_amount,
+        s.proof_reference, s.external_reference, s.notes,
+        s.declared_at, s.confirmed_at, s.created_at,
+        COALESCE(
+          (SELECT json_agg(json_build_object(
+             'id', se.id,
+             'entitlementId', se.entitlement_id,
+             'entryKind', se.entry_kind,
+             'amount', se.amount,
+             'unlinkedAt', se.unlinked_at,
+             'cancellationReviewNote', se.cancellation_review_note
+           ) ORDER BY se.created_at)
+           FROM supplier_settlement_entries se
+           WHERE se.settlement_id = s.id),
+          '[]'::json
+        ) AS entries
+      FROM supplier_settlements s
+      WHERE s.supplier_id = ${supplierNodeId}::uuid
+      ORDER BY s.created_at DESC
+      LIMIT 200
+    `)
+    return rows.map((r) => ({
+      id: r.id,
+      status: r.status,
+      correctionType: r.correction_type,
+      correctionCause: r.correction_cause,
+      reversalCause: r.reversal_cause,
+      correctsSettlementId: r.corrects_settlement_id,
+      reversedBySettlementId: r.reversed_by_settlement_id,
+      totalAmount: r.total_amount,
+      proofReference: r.proof_reference,
+      externalReference: r.external_reference,
+      notes: r.notes,
+      declaredAt: r.declared_at,
+      confirmedAt: r.confirmed_at,
+      createdAt: r.created_at,
+      entries: r.entries,
+    }))
+  })
+}
+
 export interface SupplierDueEntitlement {
   entitlementId: string
   reservationId: string

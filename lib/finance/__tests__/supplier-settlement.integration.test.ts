@@ -52,6 +52,7 @@ import {
   cancelSupplierSettlementDeclaration,
   requestSupplierSettlementCorrection,
   listUnsettledSupplierDebts,
+  listSupplierSettlements,
 } from "../supplier-settlement"
 
 async function isDbAvailable(): Promise<boolean> {
@@ -1309,5 +1310,70 @@ test("SS01 — concurrence réelle : 2 CONFIRMATIONS de remboursement simultané
     net,
     "400.00",
     "un seul remboursement de -600 appliqué sur 1000 payé : net = 400, jamais négatif",
+  )
+})
+
+test("SS01 — listSupplierSettlements (SUPPLIER-SETTLEMENT-ADMIN-UI-01) : historique complet avec entrées, type et statut corrects pour un règlement normal puis son remboursement réel", async (t) => {
+  if (!dbAvailable) return t.skip(skipReason())
+  const fx = await seedRealisticFixture()
+
+  const settlementId = await declareSupplierSettlement(
+    fx.superAdminId,
+    fx.supplierNodeId,
+    [{ entitlementId: fx.entitlementId, amount: 1000.0 }],
+    "virement-ref",
+    "note interne",
+  )
+  await confirmSupplierSettlement(fx.superAdminId, settlementId)
+
+  const refundId = await requestSupplierSettlementCorrection(
+    fx.superAdminId,
+    fx.entitlementId,
+    settlementId,
+    "supplier_refund",
+    -150.0,
+    "bank-ref-list-test",
+    null,
+  )
+  await confirmSupplierSettlement(fx.superAdminId, refundId)
+
+  const rows = await listSupplierSettlements(fx.supplierNodeId)
+  assert.equal(
+    rows.length,
+    2,
+    "le règlement normal ET le remboursement doivent apparaître",
+  )
+
+  const normalRow = rows.find((r) => r.id === settlementId)
+  assert.ok(normalRow, "le règlement normal doit être présent")
+  assert.equal(normalRow!.status, "paid")
+  assert.equal(normalRow!.correctionType, null)
+  assert.equal(normalRow!.totalAmount, "1000.00")
+  assert.equal(normalRow!.proofReference, "virement-ref")
+  assert.equal(normalRow!.notes, "note interne")
+  assert.equal(normalRow!.entries.length, 1)
+  assert.equal(normalRow!.entries[0]!.entitlementId, fx.entitlementId)
+  assert.equal(normalRow!.entries[0]!.entryKind, "normal")
+  assert.equal(normalRow!.entries[0]!.unlinkedAt, null)
+
+  const refundRow = rows.find((r) => r.id === refundId)
+  assert.ok(refundRow, "le remboursement doit être présent")
+  assert.equal(refundRow!.status, "paid")
+  assert.equal(refundRow!.correctionType, "amount_correction")
+  assert.equal(refundRow!.correctionCause, "supplier_refund")
+  assert.equal(refundRow!.correctsSettlementId, settlementId)
+  assert.equal(refundRow!.totalAmount, "-150.00")
+  assert.equal(refundRow!.externalReference, "bank-ref-list-test")
+  assert.equal(refundRow!.entries.length, 1)
+  assert.equal(refundRow!.entries[0]!.entryKind, "amount_correction")
+
+  // Isolation par fournisseur : un fournisseur B sans règlement ne doit
+  // jamais voir les règlements du fournisseur A (même base, même requête).
+  const otherNodeId = await seedAnotherSupplierNode()
+  const rowsForOther = await listSupplierSettlements(otherNodeId)
+  assert.equal(
+    rowsForOther.length,
+    0,
+    "un autre fournisseur sans règlement déclaré doit voir une liste vide",
   )
 })

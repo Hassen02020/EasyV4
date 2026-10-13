@@ -36,11 +36,36 @@ Un seul chantier actif à la fois ; il est indiqué dans ROADMAP.md (section "Ch
 
 ## Chantier actif
 
+**Aucun** — SUPPLIER-SETTLEMENT-ADMIN-UI-01 — TESTED LOCALLY / NOT YET PUSHED (2026-10-13). GO explicite reçu sur la fiche OBSERVE→AUDIT→PROPOSE présentée immédiatement après la clôture de APPLY-SUPPLIER-SETTLEMENT-0135-PRODUCTION : ferme le trou "backend en production sans aucun appelant" — ajoute la UI Super Admin pour déclarer/confirmer/annuler/corriger/réverser un règlement fournisseur Network.
+
+**Audit initial corrigé en cours d'exécution** : la fiche d'origine listait `lib/finance/supplier-settlement.ts` comme seule couche existante — un second grep (camelCase, pas seulement les noms SQL snake_case) a trouvé que `lib/finance/supplier-settlement-actions.ts` (wrappers `"use server"` avec `requireSuperAdmin`) existait DÉJÀ, mergé avec PR #203, lui aussi sans aucun appelant `app/`. Ce chantier n'a donc eu besoin de construire QUE la UI (page + composants), pas la couche serveur — moins de travail que prévu, pas plus.
+
+**Construit** (EXTEND, patron repris de `/admin/accounting/settlements` — commission settlements) :
+
+- `lib/finance/supplier-settlement.ts` : nouvelle fonction `listSupplierSettlements(supplierNodeId)` — historique des règlements (normaux/corrections/réversions) avec leurs entrées (`json_agg`, pas de N+1).
+- `lib/finance/supplier-settlement-actions.ts` : wrapper `loadSupplierSettlements` (même garde `requireSuperAdmin` que les 5 wrappers existants).
+- `app/(internal)/admin/suppliers/nodes/[id]/settlements/page.tsx` (nouveau) : page listant dettes non réglées + historique des règlements, guard `super_admin` (comme la page nœud fournisseur existante).
+- `components/admin/supplier-settlement-buttons.tsx` (nouveau) : `DeclareSettlementDialog`, `ConfirmSettlementButton`, `CancelSettlementButton`, `ReverseSettlementDialog`, `RefundEntryDialog`, `CorrectDebtDialog` — même patron `useState`/`useTransition`/`Dialog` que `components/admin/settlement-buttons.tsx`.
+- Lien "Règlements" ajouté sur `app/(internal)/admin/suppliers/nodes/[id]/page.tsx` (page nœud fournisseur existante).
+- `lib/finance/__tests__/supplier-settlement.integration.test.ts` : nouveau test `listSupplierSettlements` (règlement normal + remboursement réel, entrées/types/montants corrects, isolation entre fournisseurs).
+
+**Vérification locale (base Postgres jetable `ss_admin_ui_verify`, recréée propre avant la run finale — leçon déjà documentée sur ce dépôt : une première tentative polluée par un échec de nettoyage antérieur a été jetée plutôt que d'en tirer une fausse conclusion)** :
+
+- Suite `financial-e2e` complète (18 fichiers + `app-runtime-grants.test.ts`, ordre de grants corrigé par #204, `DATABASE_URL`=app_runtime non-bypass-RLS) : **139/139 verts**, 0 échec — aucune régression.
+- `lib/finance/__tests__/supplier-settlement.integration.test.ts` seul : **23/23 verts** (22 préexistants + le nouveau test `listSupplierSettlements`).
+- `pnpm typecheck` / `pnpm lint` / `pnpm format:check` : propres sur le diff.
+- `pnpm build` (production) : réussi, nouvelle route `/admin/suppliers/nodes/[id]/settlements` bien enregistrée.
+
+**NOT VERIFIED** : rendu visuel authentifié (pas de session super_admin disponible dans cet environnement cloud) — à valider en Preview Vercel avant toute mise en Production. CI GitHub Actions réelle non lancée (aucune PR créée — nécessite une demande explicite). Branche locale `supplier-settlement-admin-ui-01`, non encore poussée au moment de la rédaction de cette entrée.
+
+**Hors périmètre, explicitement non engagé** : création de PR, merge vers `main` (donc aucun déploiement production déclenché), toute transaction financière réelle.
+
 **Aucun** — APPLY-SUPPLIER-SETTLEMENT-0135-PRODUCTION — CLÔTURÉ (2026-10-13). GO explicite reçu sur la fiche OBSERVE→AUDIT→PROPOSE présentée immédiatement après la clôture de SUPPLIER-SETTLEMENT-01 et APP-RUNTIME-GRANTS-CI-01 (voir leurs entrées ci-dessous) : application de `drizzle/manual/0135_supplier_settlement_01.sql` (685 lignes) au projet Supabase de production (`crygnaichvlxavvbifqi`), jusque-là confirmée non appliquée (voir note "Vérification production en lecture seule" dans l'entrée SUPPLIER-SETTLEMENT-01).
 
 **Exécution** : `mcp__Supabase__apply_migration`/`execute_sql` ont expiré à répétition (timeout client 60s) sur le fichier complet et sur certains chunks combinant `DROP TRIGGER IF EXISTS` + `CREATE TRIGGER`. Chaque timeout vérifié en lecture seule (`pg_stat_activity`) : aucune session idle-in-transaction ni active après coup — jamais un blocage Postgres, un problème outil/transport déjà documenté sur ce dépôt pour un cas similaire. Contournement : découpage en chunks mono-objet (une table, un trigger, une fonction, un bloc de grants à la fois), bascule vers `execute_sql` pour le reste, vérification en lecture seule après chaque chunk avant de poursuivre. Aucun rollback exécuté, aucune transaction financière réelle, aucune autre migration touchée.
 
 **Preuve finale (vérification complète en lecture seule après le dernier chunk)** :
+
 - Tables `supplier_settlements`/`supplier_settlement_entries` présentes avec tous leurs index, dont les 2 index uniques partiels critiques (`supplier_settlements_anti_double_reversal`, `supplier_settlements_anti_double_external_ref`) et `supplier_settlement_entries_one_active_normal`.
 - 2 triggers présents : `supplier_settlements_force_pending_trg` (INSERT), `supplier_settlements_transition_guard` (UPDATE).
 - 6 fonctions présentes (`assert_supplier_settlement_actor` + les 5 fonctions publiques `SECURITY DEFINER`) ; `EXECUTE` confirmé restreint à `app_runtime`/`service_role` (+ `postgres`, propriétaire) sur chacune — jamais `anon`/`authenticated`/`PUBLIC`.

@@ -61,6 +61,7 @@ test("notification_idempotency : app_runtime n'a QUE SELECT/INSERT — jamais UP
   assert.equal(grants.has("INSERT"), true)
   assert.equal(grants.has("UPDATE"), false)
   assert.equal(grants.has("DELETE"), false)
+  assert.equal(grants.has("TRUNCATE"), false)
 })
 
 test("audit_events : app_runtime a SELECT/INSERT/DELETE (purge réelle à 30j) mais JAMAIS UPDATE", async (t) => {
@@ -78,6 +79,7 @@ test("audit_events : app_runtime a SELECT/INSERT/DELETE (purge réelle à 30j) m
     "DELETE doit rester accordé — app/api/cron/purge-audit/route.ts en dépend réellement",
   )
   assert.equal(grants.has("UPDATE"), false)
+  assert.equal(grants.has("TRUNCATE"), false)
 })
 
 test("lead_origin_events : app_runtime n'a QUE SELECT/INSERT — append-only réel (NETWORK-DEMAND-CAPTURE-01)", async (t) => {
@@ -91,6 +93,7 @@ test("lead_origin_events : app_runtime n'a QUE SELECT/INSERT — append-only ré
   assert.equal(grants.has("INSERT"), true)
   assert.equal(grants.has("UPDATE"), false)
   assert.equal(grants.has("DELETE"), false)
+  assert.equal(grants.has("TRUNCATE"), false)
 })
 
 test("wallet_ledger : app_runtime n'a QUE SELECT/INSERT — append-only réel (référence, non affecté par le gap)", async (t) => {
@@ -104,6 +107,7 @@ test("wallet_ledger : app_runtime n'a QUE SELECT/INSERT — append-only réel (r
   assert.equal(grants.has("INSERT"), true)
   assert.equal(grants.has("UPDATE"), false)
   assert.equal(grants.has("DELETE"), false)
+  assert.equal(grants.has("TRUNCATE"), false)
 })
 
 /**
@@ -128,6 +132,7 @@ test("LEDGER-INTEGRITY-01 (0084) : app_runtime n'a QUE SELECT/INSERT sur wallet_
     assert.equal(grants.has("INSERT"), true, `${table} : INSERT attendu`)
     assert.equal(grants.has("UPDATE"), false, `${table} : UPDATE interdit`)
     assert.equal(grants.has("DELETE"), false, `${table} : DELETE interdit`)
+    assert.equal(grants.has("TRUNCATE"), false, `${table} : TRUNCATE interdit`)
   }
 })
 
@@ -142,6 +147,7 @@ test("ECON-ENTITLEMENTS-INTEGRITY-01 (0092) : app_runtime n'a QUE SELECT/INSERT 
   assert.equal(grants.has("INSERT"), true)
   assert.equal(grants.has("UPDATE"), false)
   assert.equal(grants.has("DELETE"), false)
+  assert.equal(grants.has("TRUNCATE"), false)
 })
 
 test("CANONICAL-HOTELS-01 (0109) : canonical_hotels garde UPDATE mais jamais DELETE ; canonical_hotel_supplier_mappings n'a que SELECT/INSERT", async (t) => {
@@ -159,12 +165,18 @@ test("CANONICAL-HOTELS-01 (0109) : canonical_hotels garde UPDATE mais jamais DEL
     false,
     "canonical_hotels : DELETE interdit",
   )
+  assert.equal(
+    hotels.has("TRUNCATE"),
+    false,
+    "canonical_hotels : TRUNCATE interdit",
+  )
 
   const mappings = await grantsFor("canonical_hotel_supplier_mappings")
   assert.equal(mappings.has("SELECT"), true)
   assert.equal(mappings.has("INSERT"), true)
   assert.equal(mappings.has("UPDATE"), false, "mappings : UPDATE interdit")
   assert.equal(mappings.has("DELETE"), false, "mappings : DELETE interdit")
+  assert.equal(mappings.has("TRUNCATE"), false, "mappings : TRUNCATE interdit")
 })
 
 test("CONSENT-01 (0112) : lead_consent_events n'a QUE SELECT/INSERT", async (t) => {
@@ -178,6 +190,7 @@ test("CONSENT-01 (0112) : lead_consent_events n'a QUE SELECT/INSERT", async (t) 
   assert.equal(grants.has("INSERT"), true)
   assert.equal(grants.has("UPDATE"), false)
   assert.equal(grants.has("DELETE"), false)
+  assert.equal(grants.has("TRUNCATE"), false)
 })
 
 test("CONTACT-01 (0113) : contacts garde UPDATE mais jamais DELETE", async (t) => {
@@ -191,6 +204,7 @@ test("CONTACT-01 (0113) : contacts garde UPDATE mais jamais DELETE", async (t) =
   assert.equal(grants.has("INSERT"), true)
   assert.equal(grants.has("UPDATE"), true)
   assert.equal(grants.has("DELETE"), false)
+  assert.equal(grants.has("TRUNCATE"), false)
 })
 
 test("CAMPAIGN-PERSISTENCE-01 (0114) : campaigns garde UPDATE mais jamais DELETE ; campaign_targets n'a que SELECT/INSERT", async (t) => {
@@ -204,12 +218,14 @@ test("CAMPAIGN-PERSISTENCE-01 (0114) : campaigns garde UPDATE mais jamais DELETE
   assert.equal(campaigns.has("INSERT"), true)
   assert.equal(campaigns.has("UPDATE"), true)
   assert.equal(campaigns.has("DELETE"), false)
+  assert.equal(campaigns.has("TRUNCATE"), false)
 
   const targets = await grantsFor("campaign_targets")
   assert.equal(targets.has("SELECT"), true)
   assert.equal(targets.has("INSERT"), true)
   assert.equal(targets.has("UPDATE"), false)
   assert.equal(targets.has("DELETE"), false)
+  assert.equal(targets.has("TRUNCATE"), false)
 })
 
 test("CAMPAIGN-ATTRIBUTION-01 (0116) : campaign_attributions n'a QUE SELECT/INSERT", async (t) => {
@@ -223,6 +239,7 @@ test("CAMPAIGN-ATTRIBUTION-01 (0116) : campaign_attributions n'a QUE SELECT/INSE
   assert.equal(grants.has("INSERT"), true)
   assert.equal(grants.has("UPDATE"), false)
   assert.equal(grants.has("DELETE"), false)
+  assert.equal(grants.has("TRUNCATE"), false)
 })
 
 test("PROMO-01 (0117) : promos garde UPDATE mais jamais DELETE", async (t) => {
@@ -236,6 +253,7 @@ test("PROMO-01 (0117) : promos garde UPDATE mais jamais DELETE", async (t) => {
   assert.equal(grants.has("INSERT"), true)
   assert.equal(grants.has("UPDATE"), true)
   assert.equal(grants.has("DELETE"), false)
+  assert.equal(grants.has("TRUNCATE"), false)
 })
 
 test("BEHAVIORAL-SIGNAL-01 (0122) : search_demand_signals garde UPDATE mais jamais DELETE", async (t) => {
@@ -249,4 +267,5 @@ test("BEHAVIORAL-SIGNAL-01 (0122) : search_demand_signals garde UPDATE mais jama
   assert.equal(grants.has("INSERT"), true)
   assert.equal(grants.has("UPDATE"), true)
   assert.equal(grants.has("DELETE"), false)
+  assert.equal(grants.has("TRUNCATE"), false)
 })

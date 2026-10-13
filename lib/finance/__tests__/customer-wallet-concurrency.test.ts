@@ -28,6 +28,7 @@ import assert from "node:assert/strict"
 import { randomUUID } from "node:crypto"
 import { eq, and, sql } from "drizzle-orm"
 import { withSystemContext } from "@/lib/db/tenant-context"
+import { cleanupAsSuperuser } from "@/lib/db/test-helpers/superuser-cleanup"
 import {
   agencies,
   customers,
@@ -104,9 +105,12 @@ async function cleanupCustomer(
         ),
       )
     if (wallet) {
-      await tx
-        .delete(walletLedger)
-        .where(eq(walletLedger.walletAccountId, wallet.id))
+      // wallet_ledger (0084) est append-only — app_runtime n'a pas DELETE —
+      // nettoyage via le superuser.
+      await cleanupAsSuperuser(
+        (sql) =>
+          sql`delete from wallet_ledger where wallet_account_id = ${wallet.id}`,
+      )
       await tx.delete(walletAccounts).where(eq(walletAccounts.id, wallet.id))
     }
     await tx.delete(customers).where(eq(customers.id, customerId))

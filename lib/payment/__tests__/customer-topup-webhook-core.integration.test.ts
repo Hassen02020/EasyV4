@@ -22,6 +22,7 @@ import { randomUUID } from "node:crypto"
 import { eq, sql } from "drizzle-orm"
 
 import { withSystemContext } from "@/lib/db/tenant-context"
+import { cleanupAsSuperuser } from "@/lib/db/test-helpers/superuser-cleanup"
 import {
   agencies,
   customers,
@@ -105,12 +106,16 @@ async function createFixture(opts: {
 }
 
 async function cleanupFixture(f: Fixture): Promise<void> {
+  // wallet_ledger (0084) est append-only — app_runtime n'a pas DELETE —
+  // nettoyage via le superuser, avant wallet_accounts (pas de FK stricte
+  // mais même ordre logique que les autres fichiers de ce job).
+  await cleanupAsSuperuser(
+    (sql) =>
+      sql`delete from wallet_ledger where idempotency_key = ${f.topupId}`,
+  )
   await withSystemContext(async (tx) => {
     await tx.execute(
       sql`DELETE FROM payment_events WHERE event_id LIKE 'b2c-topup-itg-%'`,
-    )
-    await tx.execute(
-      sql`DELETE FROM wallet_ledger WHERE idempotency_key = ${f.topupId}`,
     )
     await tx
       .delete(walletAccounts)

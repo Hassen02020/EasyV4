@@ -23,6 +23,12 @@ export default defineConfig({
   use: {
     baseURL: process.env.PLAYWRIGHT_BASE_URL ?? "http://localhost:3000",
     trace: "on-first-retry",
+    // Locale par défaut du navigateur de test — plusieurs specs n'épinglent
+    // pas explicitement `/fr` et attendent le texte FR par défaut (marché
+    // tunisien). Sans ceci, le Accept-Language système du conteneur
+    // d'exécution peut négocier vers /en et faire échouer ces specs pour une
+    // raison non liée à l'application (VISUAL-AUDIT-01, 2026-10-14).
+    locale: "fr-FR",
     // Le client Supabase tourne côté navigateur et appelle directement le
     // mock GoTrue local (NEXT_PUBLIC_SUPABASE_URL=https://localhost:54331,
     // certificat auto-signé, voir .tmp-mock-gotrue/) — jamais un souci en

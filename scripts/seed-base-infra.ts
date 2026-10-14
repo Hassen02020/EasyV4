@@ -94,10 +94,13 @@ const CATALOG_PACKAGE_DEPARTURE_ID = "20000000-0000-0000-0000-000000000002"
 const CATALOG_ACTIVITY_ID = "30000000-0000-0000-0000-000000000001"
 const CATALOG_ACTIVITY_SESSION_ID = "30000000-0000-0000-0000-000000000002"
 
-/** Aujourd'hui = 2026-09-11 (contexte mission). Départs dans le futur proche
- * pour ne jamais être rejetés par une validation de fenêtre de résa. */
+/** Départs dans le futur proche à partir d'aujourd'hui (date réelle
+ * d'exécution du script), pour ne jamais être rejetés par une validation de
+ * fenêtre de résa ni expirer avec le temps qui passe (VISUAL-AUDIT-01,
+ * 2026-10-14 : un ancrage figé au 2026-09-11 avait fini par placer ces
+ * sessions dans le passé, les rendant silencieusement non réservables). */
 function futureDate(daysFromNow: number): string {
-  const d = new Date("2026-09-11T00:00:00Z")
+  const d = new Date()
   d.setUTCDate(d.getUTCDate() + daysFromNow)
   return d.toISOString().slice(0, 10)
 }
@@ -122,6 +125,7 @@ async function main() {
           name: "Easy2Book",
           brandName: "Easy2Book",
           contactEmail: "contact@easy2book.local",
+          contactPhone: "+21671000000",
           agencyType: "ota",
           defaultLanguage: "fr",
           defaultCurrency: "TND",
@@ -142,6 +146,19 @@ async function main() {
         },
       ])
       .onConflictDoNothing({ target: agencies.id })
+
+    // EXISTING_PARTNER_AGENCY_ID n'est créée par aucun insert de ce script —
+    // elle ne peut exister que si un seed antérieur l'a déjà posée. Sur une
+    // base fraîche, elle est absente : l'inclure dans les boucles ci-dessous
+    // violerait la FK agency_id. On ne l'ajoute donc que si elle est trouvée.
+    const existingPartnerRow = await tx
+      .select({ id: agencies.id })
+      .from(agencies)
+      .where(sql`${agencies.id} = ${EXISTING_PARTNER_AGENCY_ID}`)
+      .limit(1)
+    const partnerAgencyIds = existingPartnerRow.length
+      ? [PARTNER_AGENCY_ID, EXISTING_PARTNER_AGENCY_ID]
+      : [PARTNER_AGENCY_ID]
 
     console.log("[seed-base] 2/6 users (staff/role mapping)...")
     await tx
@@ -167,7 +184,7 @@ async function main() {
       .onConflictDoNothing({ target: users.id })
 
     console.log("[seed-base] 3/6 pricing_margins (agences partenaires)...")
-    for (const partnerId of [PARTNER_AGENCY_ID, EXISTING_PARTNER_AGENCY_ID]) {
+    for (const partnerId of partnerAgencyIds) {
       await tx
         .insert(pricingMargins)
         .values([
@@ -197,7 +214,11 @@ async function main() {
           },
         ])
         .onConflictDoNothing({
-          target: [pricingMargins.agencyId, pricingMargins.module],
+          target: [
+            pricingMargins.agencyId,
+            pricingMargins.module,
+            pricingMargins.channel,
+          ],
         })
     }
 
@@ -336,7 +357,7 @@ async function main() {
     // l'agence PARTENAIRE) renverrait *_NOT_FOUND malgré status=published +
     // channels b2b. Accordée aux DEUX agences partenaires (voir commentaire
     // sur EXISTING_PARTNER_AGENCY_ID ci-dessus).
-    for (const partnerId of [PARTNER_AGENCY_ID, EXISTING_PARTNER_AGENCY_ID]) {
+    for (const partnerId of partnerAgencyIds) {
       await tx
         .insert(productAuthorizations)
         .values([

@@ -37,12 +37,15 @@ import { isAllowedIntoAdmin } from "@/lib/auth/admin-gate"
 import { recordReservationTransition } from "@/lib/admin/reservation-status-history"
 import { finalizeFlightBookingFinancials } from "./flight-financials"
 import { autoRefundOnFlightFailure } from "./flight-refund-on-failure"
+import { FULFILL_ROLES } from "./fulfillment-roles"
 
 // ─── roles allowed to trigger fulfillment ────────────────────────────────────
-// PROVIDER-CONNECTIVITY-BRIDGE (P3) : exportée pour être réutilisée telle
-// quelle par confirmManualFlightBooking (manual-confirmation-action.ts) —
-// même garde d'autorisation pour les deux canaux, jamais dupliquée.
-export const FULFILL_ROLES = ["super_admin", "manager", "agent_resa"] as const
+// PROVIDER-CONNECTIVITY-BRIDGE (P3) : réutilisée telle quelle par
+// confirmManualFlightBooking (manual-confirmation-action.ts), qui l'importe
+// directement depuis `./fulfillment-roles` — même garde d'autorisation pour
+// les deux canaux, jamais dupliquée. Ce fichier ne la RÉ-exporte pas : un
+// fichier "use server" ne peut exporter que des fonctions async (voir
+// `./fulfillment-roles.ts` pour le détail de ce qui plantait avant ça).
 
 export type FulfillResult =
   | { ok: true; pnr: string; publicRef: string; bookingId: string }

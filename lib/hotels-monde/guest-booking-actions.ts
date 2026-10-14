@@ -475,6 +475,11 @@ async function runCreateGuestWorldHotelBooking(
               basis: `commission Easy2Book sur marge (${commissionRateForEntitlements}% × marge)`,
               ruleId: margins.hotel.ruleId ?? null,
               agreementId: margins.hotel.ruleId ?? null,
+              // CANCEL-COMMISSION-POLICY-01 : module hôtel monde non couvert
+              // par `cancellation_policies` (productType n'admet que
+              // omra/package/activity) — règle fixe du modèle Direction
+              // (2026-10-12).
+              cancellationTreatment: "non_refundable",
             },
           ],
         })

@@ -752,6 +752,11 @@ async function runCreateGuestReservation(
                 basis: `commission Easy2Book sur marge (${commissionRateForEntitlements}% × marge)`,
                 ruleId: hotelMarginRule.ruleId ?? null,
                 agreementId: hotelMarginRule.ruleId ?? null,
+                // CANCEL-COMMISSION-POLICY-01 : module hôtel non couvert par
+                // `cancellation_policies` (productType n'admet que
+                // omra/package/activity) — règle fixe du modèle Direction
+                // (2026-10-12).
+                cancellationTreatment: "non_refundable",
               },
             ],
           })

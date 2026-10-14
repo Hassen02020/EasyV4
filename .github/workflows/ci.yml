@@ -173,6 +173,36 @@ jobs:
             GRANT USAGE ON SCHEMA public TO app_runtime;
           SQL
 
+      # APP-RUNTIME-GRANTS-CI-01 (2026-10-13) : déplacé AVANT le replay des
+      # migrations (était après, dans l'ancien step "Grants finaux", voir
+      # git log). Audit : au moins 11 migrations (0084, 0092, 0109-0122)
+      # font un REVOKE table-level explicite sur app_runtime pour des tables
+      # censées être append-only ou restreintes (wallet_ledger,
+      # partner_credit_movements, commission_settlement_entries,
+      # economic_entitlements, canonical_hotels, etc.) — en reproduisant ici
+      # le même GRANT large qu'accorde la ALTER DEFAULT PRIVILEGES historique
+      # de production (0069) mais APRÈS le replay, l'ancien ordre annulait
+      # systématiquement ces 11 REVOKE pour la seule durée de la CI, sans
+      # jamais le détecter (aucun test n'assertait l'ABSENCE du privilège).
+      # Prouvé empiriquement (bac à sable local, avant ce commit) :
+      # has_table_privilege('app_runtime','wallet_ledger','DELETE') valait
+      # `true` sous l'ancien ordre, `false` sous celui-ci — identique à la
+      # production, où la ALTER DEFAULT PRIVILEGES de 0069 a eu lieu une
+      # fois, avant ces 11 migrations, jamais après.
+      # Ce step ne couvre QUE le niveau table (GRANT large + default
+      # privileges) : les 3 GRANT EXECUTE sur fonctions restent dans le step
+      # suivant, après le replay, puisque resolve_session_context/
+      # current_agency_id/is_super_admin sont créées PAR les migrations
+      # rejouées ensuite (0001/0012) — les déplacer ici échouerait
+      # ("function does not exist").
+      - name: Grants par défaut app_runtime (table-level, AVANT le replay — laisse les REVOKE des migrations tenir)
+        run: |
+          psql "$DATABASE_DIRECT_URL" -v ON_ERROR_STOP=1 <<'SQL'
+            GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO app_runtime;
+            ALTER DEFAULT PRIVILEGES IN SCHEMA public
+              GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO app_runtime;
+          SQL
+
       - name: Rejouer drizzle/manual/*.sql en ordre numérique ascendant
         run: |
           set -euo pipefail
@@ -236,12 +266,13 @@ jobs:
             fi
           done
 
-      - name: Grants finaux app_runtime (table-level + fonctions RLS — voir drizzle/manual/0061 §5 et 0068)
+      # APP-RUNTIME-GRANTS-CI-01 : ne reste ici que le niveau fonction (ne
+      # peut pas être déplacé avant le replay, voir commentaire ci-dessus) —
+      # le GRANT large table-level qui vivait dans cet ancien step unique
+      # ("Grants finaux") est désormais posé AVANT le replay.
+      - name: Grants finaux app_runtime (fonctions RLS — voir drizzle/manual/0061 §5 et 0068)
         run: |
           psql "$DATABASE_DIRECT_URL" -v ON_ERROR_STOP=1 <<'SQL'
-            GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO app_runtime;
-            ALTER DEFAULT PRIVILEGES IN SCHEMA public
-              GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO app_runtime;
             GRANT EXECUTE ON FUNCTION resolve_session_context(uuid) TO app_runtime;
             GRANT EXECUTE ON FUNCTION current_agency_id() TO app_runtime;
             GRANT EXECUTE ON FUNCTION is_super_admin() TO app_runtime;
@@ -252,6 +283,7 @@ jobs:
           DATABASE_URL: postgresql://app_runtime:${{ env.APP_RUNTIME_PASSWORD }}@localhost:5432/postgres
         run: |
           node --import tsx --test \
+            lib/db/__tests__/app-runtime-grants.test.ts \
             lib/journeys/__tests__/journeys-core.test.ts \
             lib/pro/__tests__/booking-actions-concurrency.test.ts \
             lib/finance/__tests__/customer-wallet-concurrency.test.ts \
@@ -266,7 +298,10 @@ jobs:
             lib/market/__tests__/market-content-rls-role-gap-live.test.ts \
             lib/payment/__tests__/reservation-webhook-core.test.ts \
             lib/payment/__tests__/paymee-reservation-webhook.test.ts \
-            lib/payment/__tests__/wallet-webhook-core.test.ts
+            lib/payment/__tests__/wallet-webhook-core.test.ts \
+            lib/payment/__tests__/customer-topup-webhook-core.integration.test.ts \
+            lib/finance/__tests__/commission-reversal-integration.test.ts \
+            lib/finance/__tests__/supplier-settlement.integration.test.ts
 
   build:
     runs-on: ubuntu-latest

@@ -20,11 +20,22 @@
 
 "use server"
 
-import { and, eq, gte, lte, notExists, sql } from "drizzle-orm"
+import {
+  and,
+  eq,
+  gte,
+  isNull,
+  lte,
+  notExists,
+  notInArray,
+  or,
+  sql,
+} from "drizzle-orm"
 import { withSystemContext } from "@/lib/db/tenant-context"
 import {
   commissionSettlementEntries,
   commissionSettlements,
+  reservations,
   walletLedger,
 } from "@/lib/db/schema"
 import { PLATFORM_COMMISSION_WALLET_ID } from "./platform-commission"
@@ -36,6 +47,21 @@ function notSettledFilter(tx: any) {
       .select({ one: sql`1` })
       .from(commissionSettlementEntries)
       .where(eq(commissionSettlementEntries.walletLedgerId, walletLedger.id)),
+  )
+}
+
+// SETTLE-CANCEL-GUARD-01 : exclut les entrées commission dont la réservation
+// associée est annulée ou remboursée — une commission sur réservation annulée
+// ne doit jamais être settlée (le reversement a déjà débité le wallet via
+// debit_platform_commission). Entrées sans reservationId (cas rare) : incluses.
+//
+// LIMITATION CONNUE : ce filtre protège les prochains settlements mais ne
+// récupère pas une commission déjà settlée avant l'annulation (race settlement
+// → annulation). Ce cas exige un chantier de recovery séparé sur GO Direction.
+function notCancelledFilter() {
+  return or(
+    isNull(walletLedger.reservationId),
+    notInArray(reservations.status, ["cancelled", "refunded"]),
   )
 }
 
@@ -63,15 +89,17 @@ export async function settleCommissions(
     // 1. Agréger les entrées commission non settlées sur la période
     const [summary] = await tx
       .select({
-        totalAmount: sql<number>`COALESCE(SUM(amount), 0)`,
+        totalAmount: sql<number>`COALESCE(SUM(${walletLedger.amount}), 0)`,
         entryCount: sql<number>`COUNT(*)`,
       })
       .from(walletLedger)
+      .leftJoin(reservations, eq(walletLedger.reservationId, reservations.id))
       .where(
         and(
           eq(walletLedger.walletAccountId, PLATFORM_COMMISSION_WALLET_ID),
           eq(walletLedger.category, "commission"),
           notSettledFilter(tx),
+          notCancelledFilter(),
           gte(walletLedger.createdAt, periodStart),
           lte(walletLedger.createdAt, periodEnd),
         ),
@@ -102,11 +130,13 @@ export async function settleCommissions(
           reservationId: walletLedger.reservationId,
         })
         .from(walletLedger)
+        .leftJoin(reservations, eq(walletLedger.reservationId, reservations.id))
         .where(
           and(
             eq(walletLedger.walletAccountId, PLATFORM_COMMISSION_WALLET_ID),
             eq(walletLedger.category, "commission"),
             notSettledFilter(tx),
+            notCancelledFilter(),
             gte(walletLedger.createdAt, periodStart),
             lte(walletLedger.createdAt, periodEnd),
           ),
@@ -173,13 +203,15 @@ export async function markSettlementPaid(
 export async function getUnsettledCommissionBalance(): Promise<number> {
   return withSystemContext(async (tx) => {
     const [row] = await tx
-      .select({ total: sql<number>`COALESCE(SUM(amount), 0)` })
+      .select({ total: sql<number>`COALESCE(SUM(${walletLedger.amount}), 0)` })
       .from(walletLedger)
+      .leftJoin(reservations, eq(walletLedger.reservationId, reservations.id))
       .where(
         and(
           eq(walletLedger.walletAccountId, PLATFORM_COMMISSION_WALLET_ID),
           eq(walletLedger.category, "commission"),
           notSettledFilter(tx),
+          notCancelledFilter(),
         ),
       )
     return Number(row?.total) || 0

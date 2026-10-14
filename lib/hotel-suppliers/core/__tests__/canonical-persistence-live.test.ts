@@ -25,10 +25,8 @@ import assert from "node:assert/strict"
 import { randomUUID } from "node:crypto"
 import { and, eq, sql } from "drizzle-orm"
 import { withSystemContext } from "@/lib/db/tenant-context"
-import {
-  canonicalHotels,
-  canonicalHotelSupplierMappings,
-} from "@/lib/db/schema"
+import { cleanupAsSuperuser } from "@/lib/db/test-helpers/superuser-cleanup"
+import { canonicalHotelSupplierMappings } from "@/lib/db/schema"
 import { deduplicateHotels } from "../deduplication"
 import { persistCanonicalHotelMappings } from "../canonical-persistence"
 import type { NormalizedHotel } from "../types"
@@ -73,9 +71,9 @@ const createdSuppliersAndCodes: { supplier: string; code: string }[] = []
 
 after(async () => {
   if (!dbAvailable) return
-  await withSystemContext(async (tx) => {
-    for (const { supplier, code } of createdSuppliersAndCodes) {
-      const [mapping] = await tx
+  for (const { supplier, code } of createdSuppliersAndCodes) {
+    const [mapping] = await withSystemContext((tx) =>
+      tx
         .select({
           canonicalHotelId: canonicalHotelSupplierMappings.canonicalHotelId,
         })
@@ -85,22 +83,22 @@ after(async () => {
             eq(canonicalHotelSupplierMappings.supplier, supplier),
             eq(canonicalHotelSupplierMappings.supplierHotelCode, code),
           ),
-        )
-      if (mapping) {
-        await tx
-          .delete(canonicalHotelSupplierMappings)
-          .where(
-            eq(
-              canonicalHotelSupplierMappings.canonicalHotelId,
-              mapping.canonicalHotelId,
-            ),
-          )
-        await tx
-          .delete(canonicalHotels)
-          .where(eq(canonicalHotels.id, mapping.canonicalHotelId))
-      }
+        ),
+    )
+    if (mapping) {
+      // canonical_hotels/canonical_hotel_supplier_mappings (0109) : jamais
+      // de DELETE pour app_runtime (append-only) — nettoyage via le
+      // superuser, mappings avant l'hôtel canonique (FK).
+      await cleanupAsSuperuser(
+        (sql) =>
+          sql`delete from canonical_hotel_supplier_mappings where canonical_hotel_id = ${mapping.canonicalHotelId}`,
+      )
+      await cleanupAsSuperuser(
+        (sql) =>
+          sql`delete from canonical_hotels where id = ${mapping.canonicalHotelId}`,
+      )
     }
-  })
+  }
 })
 
 before(async () => {

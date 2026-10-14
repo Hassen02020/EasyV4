@@ -53,8 +53,6 @@ async function assertSupportStaff(): Promise<SupportStaffContext> {
 /* Types                                                                       */
 /* -------------------------------------------------------------------------- */
 
-export type { CampaignTargetRow }
-
 export type CancelCampaignActionResult =
   | { ok: true }
   | { ok: false; error: string }

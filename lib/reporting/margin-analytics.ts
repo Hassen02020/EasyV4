@@ -42,13 +42,6 @@ import {
   type TopMarginReservation,
 } from "./margin-analytics-core"
 
-export type {
-  MarginKPIs,
-  MarginBySupplier,
-  MarginByProductType,
-  TopMarginReservation,
-} from "./margin-analytics-core"
-
 /**
  * Résout l'agencyId de l'admin OTA staff actuellement connecté — jamais un
  * agencyId fourni par le client. Lève une erreur explicite sinon (les

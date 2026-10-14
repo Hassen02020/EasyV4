@@ -21,7 +21,7 @@ import {
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { getRadarMetier } from "@/lib/admin/radar-metier-actions"
-import type { RadarSignal, SignalTrend } from "@/lib/admin/radar-metier-actions"
+import type { RadarSignal, SignalTrend } from "@/lib/crm/radar-metier-core"
 
 const DIMENSION_TYPE_LABEL: Record<string, string> = {
   module: "Module",

@@ -42,10 +42,12 @@ import {
   getMarginByProductType,
   getTopMarginReservations,
   getMarginEvolution,
-  type MarginBySupplier,
-  type MarginByProductType,
-  type TopMarginReservation,
 } from "@/lib/reporting/margin-analytics"
+import type {
+  MarginBySupplier,
+  MarginByProductType,
+  TopMarginReservation,
+} from "@/lib/reporting/margin-analytics-core"
 
 type MarginKPIs = {
   period: { start: Date; end: Date }

@@ -50,8 +50,6 @@ async function assertSupportStaff(): Promise<SupportStaffContext> {
 /* Types                                                                       */
 /* -------------------------------------------------------------------------- */
 
-export type { TimeSeriesRow }
-
 export type GetTimeSeriesResult =
   | { ok: true; rows: TimeSeriesRow[]; windowWeeks: number }
   | { ok: false; error: string }

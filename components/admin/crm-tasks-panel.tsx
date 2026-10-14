@@ -32,7 +32,7 @@ import {
   completeTask,
   cancelTask,
 } from "@/lib/admin/task-actions"
-import type { TaskRow } from "@/lib/admin/task-actions"
+import type { TaskRow } from "@/lib/crm/task-core"
 import { CRM_TASK_TYPES, type CrmTaskType } from "@/lib/crm/task-core"
 
 const TYPE_LABEL: Record<CrmTaskType, string> = {

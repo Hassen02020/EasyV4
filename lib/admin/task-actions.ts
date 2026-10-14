@@ -21,8 +21,6 @@ import {
   type CreateTaskInput,
 } from "@/lib/crm/task-core"
 
-export type { TaskRow }
-
 const SUPPORT_STAFF_ROLES = ["super_admin", "manager", "agent_resa"] as const
 
 interface StaffCtx {

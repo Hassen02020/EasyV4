@@ -77,6 +77,34 @@
  *   rayon d'impact, mais soumis au même risque architectural si un futur
  *   writer l'active sans revoir ce point.
  *
+ *   [HISTORIQUE — état constaté au moment de l'audit PR #200, 2026-10-12 :
+ *   "100% des entitlements ont cancellationTreatment NULL" était alors exact.
+ *   Voir MISE À JOUR PR #207 plus bas pour l'état courant — ce paragraphe
+ *   reste comme trace de l'analyse qui a motivé le retrait du défaut silencieux,
+ *   pas comme description de l'état actuel du dépôt.]
+ *
+ * MISE À JOUR (PR #207, 2026-10-13/14) — IMPLÉMENTATION PARTIELLE :
+ *   Les 4 points d'écriture réels qui créent une ligne `economic_entitlements`
+ *   qualifiée `commission` écrivent désormais `cancellationTreatment` à la
+ *   création : `lib/booking/actions.ts`, `lib/booking/guest-actions.ts`,
+ *   `lib/hotels-monde/guest-booking-actions.ts`,
+ *   `lib/network/product-booking-actions.ts` — tous avec la valeur fixe
+ *   `"non_refundable"` (voir le modèle Direction détaillé plus bas : les 3
+ *   premiers par la règle fixe hôtel/hôtel_monde, le 4e par repli explicite du
+ *   modèle lui-même, faute de `cancellation_policies` applicable au module
+ *   Network). Cette fonction n'a donc plus jamais à sauter le reversement
+ *   POUR CES 4 WRITERS : la branche `non_refundable` (étape 3 ci-dessous) agit
+ *   réellement. Point important, INCHANGÉ par ce correctif : les entitlements
+ *   créés AVANT PR #207 — et tout entitlement d'un module non encore câblé —
+ *   restent `cancellationTreatment IS NULL`, et cette fonction continue de
+ *   sauter leur reversement sans défaut inventé (comportement conservateur
+ *   délibéré, aucun backfill rétroactif). `pro_rata_fee` reste NON VALIDÉ par
+ *   la Direction (le `throw` de l'étape 3 ci-dessous est inchangé). Aucun de
+ *   ces 4 writers n'a encore été exercé avec une annulation réelle en
+ *   production à ce jour (`economic_entitlements` = 0 ligne, vérifié en
+ *   lecture seule) — CI verte sur ce correctif ne doit jamais être lue comme
+ *   une preuve de transaction financière réelle validée en production.
+ *
  * MONTANT — ARITHMÉTIQUE DÉCIMALE EXACTE (Bloquant C, item 6) :
  *   `negateDecimalString()` inverse le signe d'une chaîne decimal(14,2) par
  *   manipulation de chaîne pure, sans jamais passer par un `number`
@@ -106,12 +134,14 @@
  * courant — RÈGLE FINANCIÈRE respectée.
  *
  * DÉCISION COMMERCIALE CAPTURÉE (TODO CANCEL-COMMISSION-POLICY-01,
- * 2026-10-12) — MODÈLE VALIDÉ, IMPLÉMENTATION PAS ENCORE FAITE :
+ * 2026-10-12) — MODÈLE VALIDÉ :
  *   Direction a validé le modèle suivant pour déterminer
- *   `cancellationTreatment` à la création d'un entitlement de commission
- *   (aucun writer ne le fait aujourd'hui — ce fichier continue donc de voir
- *   100% des entitlements à `cancellationTreatment = NULL` et de sauter le
- *   reversement jusqu'à ce qu'un chantier séparé implémente ce qui suit) :
+ *   `cancellationTreatment` à la création d'un entitlement de commission.
+ *   [HISTORIQUE — au moment de cette validation (2026-10-12), aucun writer ne
+ *   le faisait encore ; voir MISE À JOUR PR #207 plus haut : les 4 writers
+ *   réels existants l'implémentent désormais, tous via le point 2 ou le repli
+ *   du point 3 ci-dessous — jamais via une dérivation `cancellation_policies`
+ *   réellement codée, voir note après le point 3.]
  *
  *   ⚠️ PRÉCAUTION EXPLICITE (2026-10-12, suite audit) : `cancellationTreatment`
  *   (ce fichier, commission EASY2BOOK) et `cancellation_policies`
@@ -152,15 +182,33 @@
  *   3. Défaut si la dérivation du point 1 est ambiguë/indéterminée :
  *      `non_refundable` (même valeur que le point 2, par cohérence).
  *
- *   Ce modèle N'EST PAS IMPLÉMENTÉ par ce fichier ni par aucun writer du
- *   dépôt. L'implémenter (ajouter l'écriture de `cancellationTreatment` aux
- *   points de création d'entitlement de commission des ~15 modules
- *   concernés, dérivée de `cancellation_policies` où applicable) est un
- *   chantier séparé, avec son propre audit/proposition/GO — jamais enchaîné
- *   automatiquement à la suite de ce correctif (RÈGLE OPÉRATIONNELLE
- *   ABSOLUE, CLAUDE.md). Jusqu'à ce chantier, ce fichier continue de sauter
- *   le reversement (comportement actuel, sûr) plutôt que d'improviser une
- *   politique non encore câblée.
+ *   ÉCART FACTUEL TROUVÉ EN AUDIT (PR #207, avant d'écrire le moindre code) :
+ *   le point 1 ci-dessus cite "network/car/transfer" parmi les modules
+ *   couverts par `cancellation_policies` — mais
+ *   `cancellationPolicies.productType` (`lib/booking/policy-engine.ts`)
+ *   n'admet que `"omra" | "package" | "activity"`, jamais `network`/`car`/
+ *   `transfer`. Le seul de ces trois modules ayant aujourd'hui un writer réel
+ *   (`lib/network/product-booking-actions.ts`) n'a par ailleurs aucune
+ *   logique d'annulation câblée. Sa dérivation retombe donc systématiquement
+ *   sur le repli explicite du point 3 — jamais une vraie dérivation
+ *   `cancellation_policies` codée pour ce module, puisqu'aucune ligne
+ *   `cancellation_policies` ne peut exister pour lui.
+ *
+ *   IMPLÉMENTATION — ÉTAT RÉEL (PR #207, 2026-10-13/14) : partielle. Les 4
+ *   writers réels existants (voir MISE À JOUR PR #207 plus haut) écrivent
+ *   `cancellationTreatment: "non_refundable"` — 3 via la règle fixe du point
+ *   2 (hôtel/hôtel_monde), 1 via le repli du point 3 (network, pour la raison
+ *   ci-dessus). Aucune dérivation `cancellation_policies` (point 1) n'est
+ *   codée : aucun module réel n'y a aujourd'hui droit (omra/package/activity
+ *   ne créent actuellement aucune ligne `qualification="commission"`). Cette
+ *   dérivation, et le câblage des ~15 modules visés à l'origine par ce
+ *   modèle, restent un chantier séparé si/quand ces modules créent une telle
+ *   ligne — avec son propre audit/proposition/GO, jamais enchaîné
+ *   automatiquement (RÈGLE OPÉRATIONNELLE ABSOLUE, CLAUDE.md). Pour tout
+ *   entitlement sans writer câblé (modules non listés ci-dessus, ou créé
+ *   avant PR #207), ce fichier continue de sauter le reversement sans défaut
+ *   inventé (comportement conservateur inchangé) — jamais un backfill
+ *   rétroactif des lignes `NULL` existantes.
  */
 
 import { and, eq, sql } from "drizzle-orm"

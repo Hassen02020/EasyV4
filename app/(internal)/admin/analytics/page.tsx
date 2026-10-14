@@ -18,6 +18,7 @@ import {
   BookCheck,
   Send,
   BarChart2,
+  XCircle,
 } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 
@@ -94,6 +95,13 @@ const SECTIONS = [
     icon: Send,
     title: "Campagnes VIP",
     description: "Moteur CRM — création et lancement de campagnes ciblées.",
+  },
+  {
+    href: "/admin/analytics/finances",
+    icon: XCircle,
+    title: "Finances Annulations",
+    description:
+      "Frais retenus, remboursements wallet et tendances — 90 jours glissants.",
   },
 ]
 

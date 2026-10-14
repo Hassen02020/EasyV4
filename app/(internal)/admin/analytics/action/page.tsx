@@ -23,7 +23,7 @@ import {
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { getActionEngine } from "@/lib/admin/action-engine-actions"
-import type { ActionRow } from "@/lib/admin/action-engine-actions"
+import type { ActionRow } from "@/lib/crm/action-engine-core"
 
 const PRIORITY_CONFIG: Record<
   string,

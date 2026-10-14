@@ -14,7 +14,6 @@ import { getTimeSeriesCore } from "@/lib/crm/time-series-core"
 import {
   buildRadarMetierCore,
   type RadarSignal,
-  type SignalTrend,
 } from "@/lib/crm/radar-metier-core"
 
 /* -------------------------------------------------------------------------- */
@@ -50,8 +49,6 @@ async function assertSupportStaff(): Promise<SupportStaffContext> {
 /* -------------------------------------------------------------------------- */
 /* Types                                                                       */
 /* -------------------------------------------------------------------------- */
-
-export type { RadarSignal, SignalTrend }
 
 export type GetRadarMetierResult =
   | { ok: true; signals: RadarSignal[]; windowWeeks: number }

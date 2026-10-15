@@ -259,6 +259,8 @@ export async function createActivityBooking(
         // (pas de coût net séparé pour activités, supplierPriceTnd=salePriceTnd).
         // ECON-WIRING-01 : une seule ligne product_owner=agence, pas de
         // lignes seller_margin/commission fabriquées à 0.
+        // CANCEL-COMMISSION-WRITER-01 : cancellationTreatment="non_refundable"
+        // sur owner_share — documente la politique d'annulation du module.
         const { commissionAmount } = await recordReservationFinancials({
           tx,
           reservationId,
@@ -273,6 +275,7 @@ export async function createActivityBooking(
               amount: totalTnd,
               basis:
                 "catalogue propre à l'agence, aucune marge distincte calculée par ce module aujourd'hui",
+              cancellationTreatment: "non_refundable",
             },
           ],
         })

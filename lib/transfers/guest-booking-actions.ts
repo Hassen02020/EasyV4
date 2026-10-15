@@ -326,13 +326,21 @@ async function runCreateGuestTransferBooking(
         // B2B (lib/transfers/actions.ts) : catalogue propre à l'agence OTA,
         // pas de fournisseur externe modélisé. Coût = base + majoration nuit
         // (avant marge), marge = totalTnd - coût.
+        // CANCEL-COMMISSION-WRITER-01 : même pattern que Transfers B2B.
         const transferSupplierCostTnd =
           pricing.basePriceTnd + pricing.nightSurchargeAmount
+        const transferMarginTnd = totalTnd - transferSupplierCostTnd
+        const commissionRateForEntitlements = pricing.commissionPercent ?? 0
+        const commissionAmountForEntitlements =
+          Math.round(
+            transferMarginTnd * (commissionRateForEntitlements / 100) * 100,
+          ) / 100
         const { commissionAmount } = await recordReservationFinancials({
           tx,
           reservationId,
           supplierPriceTnd: transferSupplierCostTnd,
           salePriceTnd: totalTnd,
+          commissionPercent: pricing.commissionPercent,
           economicEntitlements: [
             {
               partyType: "agency",
@@ -347,10 +355,23 @@ async function runCreateGuestTransferBooking(
               partyId: agencyId,
               role: "seller",
               qualification: "seller_margin",
-              amount: totalTnd - transferSupplierCostTnd,
+              amount: transferMarginTnd - commissionAmountForEntitlements,
               basis:
-                "marge vendeur (agence product_owner ET seller sur son propre tarif)",
+                "marge vendeur nette de commission (agence product_owner ET seller sur son propre tarif)",
             },
+            ...(commissionAmountForEntitlements > 0
+              ? [
+                  {
+                    partyType: "easy2book",
+                    partyId: null as null,
+                    role: "easy2book" as const,
+                    qualification: "commission" as const,
+                    amount: commissionAmountForEntitlements,
+                    basis: `commission Easy2Book sur marge (${commissionRateForEntitlements}% × marge)`,
+                    cancellationTreatment: "non_refundable" as const,
+                  },
+                ]
+              : []),
           ],
         })
         await creditPlatformCommission(tx, {

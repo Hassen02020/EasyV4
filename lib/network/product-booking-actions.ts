@@ -320,6 +320,7 @@ export async function createNetworkProductBooking(
               basis: `commission Easy2Book sur marge (${commissionRateForEntitlements}% × marge)`,
               ruleId: networkMarginRule.ruleId ?? null,
               agreementId: networkMarginRule.ruleId ?? null,
+              cancellationTreatment: "non_refundable",
             },
           ],
         })

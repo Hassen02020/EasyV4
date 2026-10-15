@@ -428,6 +428,8 @@ async function runCreateGuestPackageBooking(
         // (pas de coût net séparé pour packages, supplierPriceTnd=salePriceTnd).
         // ECON-WIRING-01 : une seule ligne product_owner=agence, pas de
         // lignes seller_margin/commission fabriquées à 0.
+        // CANCEL-COMMISSION-WRITER-01 : cancellationTreatment="non_refundable"
+        // sur owner_share — documente la politique d'annulation du module.
         const { commissionAmount } = await recordReservationFinancials({
           tx,
           reservationId,
@@ -442,6 +444,7 @@ async function runCreateGuestPackageBooking(
               amount: totalTnd,
               basis:
                 "catalogue propre à l'agence, aucune marge distincte calculée par ce module aujourd'hui",
+              cancellationTreatment: "non_refundable",
             },
           ],
         })
@@ -773,6 +776,8 @@ export async function createPackageBooking(
         // (pas de coût net séparé pour packages, supplierPriceTnd=salePriceTnd).
         // ECON-WIRING-01 : une seule ligne product_owner=agence, pas de
         // lignes seller_margin/commission fabriquées à 0.
+        // CANCEL-COMMISSION-WRITER-01 : cancellationTreatment="non_refundable"
+        // sur owner_share — documente la politique d'annulation du module.
         const { commissionAmount: commissionAmountB2b } =
           await recordReservationFinancials({
             tx,
@@ -788,6 +793,7 @@ export async function createPackageBooking(
                 amount: totalTnd,
                 basis:
                   "catalogue propre à l'agence, aucune marge distincte calculée par ce module aujourd'hui",
+                cancellationTreatment: "non_refundable",
               },
             ],
           })

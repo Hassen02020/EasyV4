@@ -348,16 +348,25 @@ export async function createCarBooking(
       // attribué à l'agence elle-même en tant que "product_owner", jamais
       // "external_supplier" (règle Direction, 2026-10 : product_owner ≠
       // external_supplier — déterminer QUI porte réellement le produit).
-      // Aucune commission Easy2Book n'existe aujourd'hui sur ce module
-      // (pas de `commissionPercent` passé ci-dessus) : pas de ligne
-      // "commission" fabriquée à 0, seulement les 2 lignes réelles.
+      // CANCEL-COMMISSION-WRITER-01 : commissionPercent propagé depuis
+      // calculateCarPrice() (lib/cars/pricing.ts) — 0/absent si aucune règle
+      // de marge n'est active ou si la règle ne configure pas de commission.
+      // Ligne "commission" ajoutée UNIQUEMENT quand le montant est > 0 (jamais
+      // de ligne fabriquée à 0 — règle Direction, 2026-10). seller_margin =
+      // marge brute − commission (invariant Σ entitlements = salePriceTnd).
       const carSupplierCostTnd =
         pricing.baseTotalTnd + pricing.insuranceTotalTnd
+      const carMarginTnd = pricing.totalTnd - carSupplierCostTnd
+      const commissionRateForEntitlements = pricing.commissionPercent ?? 0
+      const commissionAmountForEntitlements =
+        Math.round(carMarginTnd * (commissionRateForEntitlements / 100) * 100) /
+        100
       const { commissionAmount } = await recordReservationFinancials({
         tx,
         reservationId,
         supplierPriceTnd: carSupplierCostTnd,
         salePriceTnd: pricing.totalTnd,
+        commissionPercent: pricing.commissionPercent,
         economicEntitlements: [
           {
             partyType: "agency",
@@ -373,10 +382,23 @@ export async function createCarBooking(
             partyId: agencyId,
             role: "seller",
             qualification: "seller_margin",
-            amount: pricing.totalTnd - carSupplierCostTnd,
+            amount: carMarginTnd - commissionAmountForEntitlements,
             basis:
-              "marge vendeur (agence product_owner ET seller sur son propre tarif)",
+              "marge vendeur nette de commission (agence product_owner ET seller sur son propre tarif)",
           },
+          ...(commissionAmountForEntitlements > 0
+            ? [
+                {
+                  partyType: "easy2book",
+                  partyId: null as null,
+                  role: "easy2book" as const,
+                  qualification: "commission" as const,
+                  amount: commissionAmountForEntitlements,
+                  basis: `commission Easy2Book sur marge (${commissionRateForEntitlements}% × marge)`,
+                  cancellationTreatment: "non_refundable" as const,
+                },
+              ]
+            : []),
         ],
       })
       await creditPlatformCommission(tx, {

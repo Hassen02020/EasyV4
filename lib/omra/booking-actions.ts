@@ -352,6 +352,8 @@ export async function createOmraBooking(
         // ci-dessus) : une SEULE ligne product_owner=agence, pas de lignes
         // seller_margin/commission fabriquées à 0 (règle Direction, 2026-10 —
         // ne jamais fabriquer une ligne sans valeur économique réelle).
+        // CANCEL-COMMISSION-WRITER-01 : cancellationTreatment="non_refundable"
+        // sur owner_share — documente la politique d'annulation du module.
         const { commissionAmount } = await recordReservationFinancials({
           tx,
           reservationId,
@@ -366,6 +368,7 @@ export async function createOmraBooking(
               amount: totalTnd,
               basis:
                 "catalogue propre à l'agence, aucune marge distincte calculée par ce module aujourd'hui",
+              cancellationTreatment: "non_refundable",
             },
           ],
         })

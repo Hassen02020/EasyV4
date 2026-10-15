@@ -78,7 +78,10 @@ test("COMMISSION-WIRING-B2B-01/transfers : entitlement seller avec qualification
 test("COMMISSION-WIRING-B2B-01/transfers : seller_margin = transferMarginTnd - commissionAmountForEntitlements, net de commission (B2B)", () => {
   // CANCEL-COMMISSION-WRITER-01 : seller_margin est net de commission.
   // transferMarginTnd = pricing.totalTnd - transferSupplierCostTnd
-  assert.match(src, /amount:\s*transferMarginTnd\s*-\s*commissionAmountForEntitlements/)
+  assert.match(
+    src,
+    /amount:\s*transferMarginTnd\s*-\s*commissionAmountForEntitlements/,
+  )
 })
 
 // ─── Invariant 4 : imports corrects ───────────────────────────────────────

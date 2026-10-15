@@ -22,7 +22,7 @@ import {
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { getCampaignEngine } from "@/lib/admin/campaign-engine-actions"
-import type { CampaignProposal } from "@/lib/admin/campaign-engine-actions"
+import type { CampaignProposal } from "@/lib/crm/campaign-engine-core"
 import { createAndLaunchCampaign } from "@/lib/admin/campaign-lifecycle-actions"
 
 const WINDOW_OPTIONS: { label: string; value: 4 | 8 | 12 }[] = [

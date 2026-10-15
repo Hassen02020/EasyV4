@@ -320,6 +320,11 @@ export async function createNetworkProductBooking(
               basis: `commission Easy2Book sur marge (${commissionRateForEntitlements}% × marge)`,
               ruleId: networkMarginRule.ruleId ?? null,
               agreementId: networkMarginRule.ruleId ?? null,
+              // CANCEL-COMMISSION-POLICY-01 : module Network non couvert par
+              // `cancellation_policies` (productType n'admet que
+              // omra/package/activity) et sans politique d'annulation propre
+              // — pas de dérivation réelle possible, repli explicite sur la
+              // règle (3) du modèle Direction (2026-10-12).
               cancellationTreatment: "non_refundable",
             },
           ],

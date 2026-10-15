@@ -22,7 +22,7 @@ import {
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { getTimeSeries } from "@/lib/admin/time-series-actions"
-import type { TimeSeriesRow } from "@/lib/admin/time-series-actions"
+import type { TimeSeriesRow } from "@/lib/crm/time-series-core"
 
 const MODULE_LABEL: Record<string, string> = {
   hotel: "Hôtel",

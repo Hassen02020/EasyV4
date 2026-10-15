@@ -35,8 +35,6 @@ import {
   type CampaignProposal,
 } from "@/lib/crm/campaign-engine-core"
 
-export type { CampaignProposal }
-
 /* -------------------------------------------------------------------------- */
 /* Auth guard                                                                  */
 /* -------------------------------------------------------------------------- */

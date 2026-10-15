@@ -33,7 +33,7 @@ import {
   cancelCampaign,
   getCampaignTargets,
 } from "@/lib/admin/campaign-mgmt-actions"
-import type { CampaignTargetRow } from "@/lib/admin/campaign-mgmt-actions"
+import type { CampaignTargetRow } from "@/lib/crm/campaign-persistence-core"
 
 const CHANNEL_LABEL: Record<string, string> = {
   email: "E-mail",

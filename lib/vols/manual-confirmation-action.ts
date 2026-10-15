@@ -42,7 +42,7 @@ import { createServerSupabase } from "@/lib/supabase/server"
 import { getCurrentAdminProfile } from "@/lib/auth/profile"
 import { isAllowedIntoAdmin } from "@/lib/auth/admin-gate"
 import { recordReservationTransition } from "@/lib/admin/reservation-status-history"
-import { FULFILL_ROLES } from "./fulfillment-action"
+import { FULFILL_ROLES } from "./fulfillment-roles"
 
 const manualConfirmationSchema = z.object({
   supplierBookingRef: z.string().trim().min(1).max(64),

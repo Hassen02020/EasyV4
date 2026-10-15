@@ -23,7 +23,7 @@ import {
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { getLearning } from "@/lib/admin/learning-actions"
-import type { LearningStats } from "@/lib/admin/learning-actions"
+import type { LearningStats } from "@/lib/crm/learning-core"
 
 const WINDOW_OPTIONS: { label: string; value: 4 | 8 | 12 }[] = [
   { label: "4 semaines", value: 4 },

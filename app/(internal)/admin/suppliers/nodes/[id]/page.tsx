@@ -4,8 +4,10 @@
  */
 import { Metadata } from "next"
 import { notFound, redirect } from "next/navigation"
-import { Mail, Globe2, Phone, ShieldCheck } from "lucide-react"
+import Link from "next/link"
+import { Mail, Globe2, Phone, ShieldCheck, Receipt } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import {
   Table,
@@ -61,11 +63,19 @@ export default async function SupplierNodeDetailPage({
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-1">
-        <h1 className="text-foreground text-3xl font-bold tracking-tight">
-          {node.displayName}
-        </h1>
-        <p className="text-muted-foreground font-mono text-sm">{node.slug}</p>
+      <div className="flex items-start justify-between gap-4">
+        <div className="flex flex-col gap-1">
+          <h1 className="text-foreground text-3xl font-bold tracking-tight">
+            {node.displayName}
+          </h1>
+          <p className="text-muted-foreground font-mono text-sm">{node.slug}</p>
+        </div>
+        <Button asChild variant="outline" className="gap-2">
+          <Link href={`/admin/suppliers/nodes/${node.id}/settlements`}>
+            <Receipt className="h-4 w-4" />
+            Règlements
+          </Link>
+        </Button>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-3">

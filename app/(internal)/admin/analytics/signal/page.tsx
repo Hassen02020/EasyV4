@@ -21,7 +21,7 @@ import {
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { getSignalEngine } from "@/lib/admin/signal-engine-actions"
-import type { SignalRow } from "@/lib/admin/signal-engine-actions"
+import type { SignalRow } from "@/lib/crm/signal-engine-core"
 
 const PRODUCT_LABEL: Record<string, string> = {
   hotel: "Hôtel",

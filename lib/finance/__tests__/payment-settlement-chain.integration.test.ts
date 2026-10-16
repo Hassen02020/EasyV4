@@ -195,37 +195,43 @@ after(async () => {
   if (!dbAvailable) return
 
   // commission_settlement_entries has RESTRICT FKs to both commission_settlements
-  // and wallet_ledger — must delete entries before either parent table
+  // and wallet_ledger — must delete entries before either parent table.
+  // Use period_start range (far-future, test-only) instead of settled_by:
+  // markSettlementPaid overwrites settled_by → agencyId lookup would miss rows.
   await cleanupAsSuperuser(
     (sql) => sql`
       DELETE FROM commission_settlement_entries
       WHERE settlement_id IN (
         SELECT id FROM commission_settlements
-        WHERE settled_by = ${agencyId}::uuid
+        WHERE period_start >= '2097-12-01'::date
       )
     `,
   )
 
-  // commission_settlements — settled_by is UUID
+  // economic_entitlements.settlement_ref FK → commission_settlements.id ON DELETE RESTRICT
+  // (migration 0105) — must delete entitlements BEFORE commission_settlements.
+  // wallet_ledger is append-only — superuser required.
   await cleanupAsSuperuser(
     (sql) => sql`
-      DELETE FROM commission_settlements
-      WHERE settled_by = ${agencyId}::uuid
+      DELETE FROM economic_entitlements
+      WHERE reservation_id = ${reservationId}::uuid
     `,
   )
 
-  // wallet_ledger and economic_entitlements are append-only — superuser required
+  // commission_settlements — period_start range covers PERIOD_START (2098) and
+  // PERIOD_START_OVERLAP (2097-12) created by the overlapping-period test.
+  await cleanupAsSuperuser(
+    (sql) => sql`
+      DELETE FROM commission_settlements
+      WHERE period_start >= '2097-12-01'::date
+    `,
+  )
+
   await cleanupAsSuperuser(
     (sql) => sql`
       DELETE FROM wallet_ledger
       WHERE reservation_id = ${reservationId}::uuid
          OR wallet_account_id = ${walletAccountId}::uuid
-    `,
-  )
-  await cleanupAsSuperuser(
-    (sql) => sql`
-      DELETE FROM economic_entitlements
-      WHERE reservation_id = ${reservationId}::uuid
     `,
   )
 
@@ -414,35 +420,12 @@ let settlementId = ""
 test("settleCommissions : agrège les commissions non settlées et crée commission_settlements (status=pending)", async (t) => {
   if (!dbAvailable) return void t.skip(skip())
 
-  let result: Awaited<ReturnType<typeof settleCommissions>> | undefined
-  try {
-    result = await settleCommissions(
-      PERIOD_START,
-      PERIOD_END,
-      agencyId,
-      "Certification Chantier 64 — test settlement",
-    )
-  } catch (err) {
-    const msg = (err as { message?: string }).message ?? ""
-    const cause = (err as { cause?: { message?: string; code?: string } }).cause
-    const causeMsg = cause?.message ?? ""
-    const causeCode = cause?.code ?? ""
-    const isRlsError =
-      msg.includes("row-level security") ||
-      causeMsg.includes("row-level security") ||
-      msg.includes("new row violates") ||
-      causeMsg.includes("new row violates") ||
-      causeCode === "42501" ||
-      (msg.includes("Failed query") && msg.includes("commission_settlements"))
-    if (isRlsError) {
-      return void t.skip(
-        "commission_settlements RLS bloque l'INSERT via withSystemContext — skip CI minimal",
-      )
-    }
-    throw err
-  }
-  if (!result)
-    return void t.skip("settleCommissions n'a pas retourné de résultat")
+  const result = await settleCommissions(
+    PERIOD_START,
+    PERIOD_END,
+    agencyId,
+    "Certification Chantier 64 — test settlement",
+  )
 
   assert.ok(result.settlementId, "settlementId retourné")
   assert.equal(result.status, "pending", "status=pending à la création")
@@ -581,7 +564,7 @@ test("settleCommissions : une période chevauchante ne ré-inclut pas les entré
   const result = await settleCommissions(
     PERIOD_START_OVERLAP,
     PERIOD_END_OVERLAP,
-    "cert64-overlap-admin",
+    agencyId,
     "IDEMPOTENCE-01 — test période chevauchante",
   )
 

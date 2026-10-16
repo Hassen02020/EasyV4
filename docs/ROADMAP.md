@@ -36,9 +36,46 @@ Un seul chantier actif à la fois ; il est indiqué dans ROADMAP.md (section "Ch
 
 ## Chantier actif
 
-**CANCEL-COMMISSION-WRITER-01** — EN COURS, PR #212 ouverte, attente merge Direction (2026-10-15, branche `claude/cancel-commission-01-7gyb5v`). Extension de CANCEL-COMMISSION-POLICY-01 (PR #207) : écriture de `cancellationTreatment: "non_refundable"` à la création d'entitlements de commission pour les modules non couverts par PR #207 — Cars B2B (`lib/cars/actions.ts`) + Cars B2C (`lib/cars/guest-booking-actions.ts`), Transfers B2B (`lib/transfers/actions.ts`) + Transfers B2C (`lib/transfers/guest-booking-actions.ts`), Vols (`lib/vols/flight-financials.ts`), Activities (`lib/activities/booking-actions.ts`, `guest-booking-actions.ts`), Omra (`lib/omra/booking-actions.ts`, `guest-booking-actions.ts`), Packages (`lib/packages/booking-actions.ts`). Inclut migrations 0133 (`debit_platform_commission()`, SECURITY DEFINER) et 0134 (`economic_entitlements_compensates_uniq`, index UNIQUE partiel), toutes deux déjà appliquées en production (`crygnaichvlxavvbifqi`) dans le chantier WALLET-TOPUP-MIGRATION-GAP-01. Tests de câblage commission Cars/Transfers/Vols (`commission-wiring.test.ts`, `transfer-b2b-commission-wiring.test.ts`, `econ-wiring-01-invariants.test.ts`) et tests d'invariants financiers vols (`flight-cancel-fin-01-invariants.test.ts`, 80 cas). CI 8/8 verts confirmés sur SHA `8d1d19a` (run GitHub Actions #556, `38796913435`, conclusion `success`, 2026-10-15T19:55:56Z). Annulation client : mécanisme distinct, `recordCancellationFinancials`/`applyReservationRefund`/`creditCustomerWallet` non touchés.
+**WALLET-E2E-CI-INTEGRATION-01** — PR #213 (`claude/wallet-e2e-ci-01`) — **CLÔTURÉ, squash merge sur main, SHA `ea2ad7b4` (2026-10-16)**.
 
-**NOT VERIFIED** : aucune réservation Cars/Transfers/Vols/Activities/Omra/Packages réelle en production avec commission enregistrée depuis ce merge — `economic_entitlements` reste à 0 ligne au moment de l'ouverture de la PR.
+**Objectif** : rendre les tests de settlement (settleCommissions, markSettlementPaid, idempotence UNIQUE, période chevauchante, violation UNIQUE DB) réellement exécutés en CI — ils étaient skippés silencieusement via un try/catch masquant une erreur RLS réelle.
+
+**Deux bugs corrigés :**
+
+1. **RLS DENY pour `app_runtime` sur `commission_settlements`** (commit `5c7ecf0`) — bug de production : `withSystemContext` tourne sous le rôle `app_runtime` (non-BYPASSRLS) ; la policy migration 0066 était `TO authenticated` uniquement → DEFAULT DENY → `settleCommissions` et `markSettlementPaid` échouaient silencieusement depuis leur création (jamais déclenchés en production à ce jour). Correction : `drizzle/manual/0136_commission_settlements_app_runtime_rls.sql` — `CREATE POLICY commission_settlements_app_runtime ON commission_settlements FOR ALL TO app_runtime USING (is_super_admin()) WITH CHECK (is_super_admin())`.
+
+2. **`malformed array literal` sur `mark_econ_commission_settled`** (commit `13683e4`) — Drizzle `sql` template passe un tableau JS comme scalaire plain à postgres.js → le cast `::uuid[]` échoue. Correction : `const reservationIdsLiteral = \`{${reservationIds.join(",")}}\`` préformaté en littéral PG avant le binding.
+
+**Tests corrigés** (commit `5c7ecf0`) : suppression du try/catch masquant, ordre FK cleanup corrigé (economic_entitlements avant commission_settlements), condition cleanup corrigée (period_start >= '2097-12-01'), UUID invalide dans test chevauchant corrigé.
+
+**CI final sur SHA `1783565d` — 8/8 green** (re-run confirmé, format ✅ lint ✅ typecheck ✅ test ✅ build ✅ financial-e2e ✅ lighthouse ✅ playwright-a11y ✅).
+
+**Fichiers** : `lib/finance/commission-settlement.ts`, `drizzle/manual/0136_commission_settlements_app_runtime_rls.sql`, `lib/finance/__tests__/payment-settlement-chain.integration.test.ts`, `docs/ROADMAP.md`
+
+→ **CLÔTURÉ** — PR #213 mergée sur main, SHA `ea2ad7b4`, 2026-10-16.
+
+**NOT VERIFIED** : migration 0136 (`commission_settlements_app_runtime` RLS policy) non encore appliquée en production (`crygnaichvlxavvbifqi`) — nécessite un `supabase db push` ou migration manuelle lors du prochain déploiement.
+
+---
+
+**CANCEL-COMMISSION-WRITER-01** — PR #212 (`claude/cancel-commission-01-7gyb5v`) — EN ATTENTE DE GO MERGE (2026-10-15, revue complète effectuée le 2026-10-16).
+
+**Objectif** : câbler `cancellationTreatment` sur les 7 modules manquants pour que `reverseCommissionOnCancellation()` puisse reverser correctement les commissions lors d'une annulation. Sans `cancellationTreatment`, toute annulation skip le reversement (logique défensive correcte, mais incomplète).
+
+**Implémentation** :
+
+- Cars/Transfers B2B+B2C : commission entitlement ajoutée conditionnellement (`commissionAmountForEntitlements > 0`), `seller_margin` = marge brute − commission (invariant Σ entitlements = salePriceTnd préservé exactement — le rounding est absorbé par `seller_margin`), `cancellationTreatment: "non_refundable"`.
+- Vols : commission lue depuis `getMarginsForAgency` au moment de la confirmation (non snapshotée — acceptable, commission = 0 pré-lancement, à snapshotter lors du premier chantier vols réel).
+- Network : `cancellationTreatment: "non_refundable"` ajouté sur l'entitlement commission existant (gap CANCEL-COMMISSION-POLICY-01 confirmé comblé).
+- Packages/Omra/Activités : `cancellationTreatment: "non_refundable"` ajouté sur `owner_share` existant — documentation de politique, commission = 0 par design (aucune ligne à 0 fabriquée, règle ECON-WIRING-01 respectée).
+
+**CI run 38812785520 sur SHA `f32c5598` — 8/8 green** (format ✅ lint ✅ typecheck ✅ test ✅ build ✅ financial-e2e ✅ lighthouse ✅ playwright-a11y ✅). 2880 tests, 0 échec.
+
+**Chevauchement avec PR #213** : aucun (fichiers distincts, logiques complémentaires — #212 active la politique d'annulation, #213 corrige le settlement).
+
+**NOT VERIFIED** : exécution réelle SQL avec DB pour Cars/Transfers/Vols commission wiring (CI financier vert mais sans test d'intégration ciblé spécifique à ces modules pour cette PR — les tests CI existants exercent `financial-e2e`, pas de test ciblé Cars/Transfers/Vols commission dans cette PR au-delà des invariants statiques).
+
+→ **EN ATTENTE DE GO MERGE Direction**
 
 ---
 

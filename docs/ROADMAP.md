@@ -41,10 +41,12 @@ Un seul chantier actif à la fois ; il est indiqué dans ROADMAP.md (section "Ch
 **Objectif** : supprimer la table sonde temporaire `_rls_fix_probe_drop_me` de la production (`crygnaichvlxavvbifqi`) — table vide, créée manuellement hors migrations lors du débogage RLS (chantier CRM-C), aucune référence code, aucune dépendance FK.
 
 **Étape 1 — REVOKE** (2026-10-16) **✅ EN PRODUCTION** :
+
 - `REVOKE ALL PRIVILEGES ON TABLE public._rls_fix_probe_drop_me FROM anon, authenticated, service_role, app_runtime;` — exécuté via `execute_sql`.
 - Vérification : `information_schema.role_table_grants WHERE grantee != 'postgres'` → **0 lignes**. Aucun rôle applicatif n'a accès à la table.
 
 **Étape 2 — DROP TABLE** (2026-10-16) **✅ EN PRODUCTION (suppression manuelle — Direction)** :
+
 - `apply_migration` (`0137_drop_rls_probe_table`) — **timeout ×3** consécutifs (60 s chacun) ; cause technique exacte non confirmée. DDL triviale, aucun lock DB.
 - **Suppression manuelle** exécutée par la Direction via SQL Editor Supabase Dashboard (2026-10-16) :
   - `DROP TABLE IF EXISTS public._rls_fix_probe_drop_me;` → **Success.**

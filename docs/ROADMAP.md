@@ -49,6 +49,7 @@ Un seul chantier actif à la fois ; il est indiqué dans ROADMAP.md (section "Ch
 **Tests corrigés** (commit `5c7ecf0`) : suppression du try/catch masquant, ordre FK cleanup corrigé (economic_entitlements avant commission_settlements), condition cleanup corrigée (period_start >= '2097-12-01'), UUID invalide dans test chevauchant corrigé.
 
 **CI run 38889976786 sur SHA `13683e4f` — 7/8 green** :
+
 - format ✅ lint ✅ typecheck ✅ test ✅ build ✅ `financial-e2e` ✅ lighthouse ✅
 - `playwright-a11y` ❌ infra flake Docker ("Initialize containers" échoue, même cause que le run précédent `38888831593`, passe sur `main` run `38634614189` — non lié au code de cette PR)
 
@@ -63,6 +64,7 @@ Un seul chantier actif à la fois ; il est indiqué dans ROADMAP.md (section "Ch
 **Objectif** : câbler `cancellationTreatment` sur les 7 modules manquants pour que `reverseCommissionOnCancellation()` puisse reverser correctement les commissions lors d'une annulation. Sans `cancellationTreatment`, toute annulation skip le reversement (logique défensive correcte, mais incomplète).
 
 **Implémentation** :
+
 - Cars/Transfers B2B+B2C : commission entitlement ajoutée conditionnellement (`commissionAmountForEntitlements > 0`), `seller_margin` = marge brute − commission (invariant Σ entitlements = salePriceTnd préservé exactement — le rounding est absorbé par `seller_margin`), `cancellationTreatment: "non_refundable"`.
 - Vols : commission lue depuis `getMarginsForAgency` au moment de la confirmation (non snapshotée — acceptable, commission = 0 pré-lancement, à snapshotter lors du premier chantier vols réel).
 - Network : `cancellationTreatment: "non_refundable"` ajouté sur l'entitlement commission existant (gap CANCEL-COMMISSION-POLICY-01 confirmé comblé).

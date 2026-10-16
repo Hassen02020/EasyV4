@@ -36,49 +36,21 @@ Un seul chantier actif à la fois ; il est indiqué dans ROADMAP.md (section "Ch
 
 ## Chantier actif
 
-**CI-FIX-ECR-RATELIMIT-01** — PR #216 (`ci/fix-ecr-ratelimit-01`) — **CLÔTURÉ, en attente de merge Direction**.
+**CRM-LEAD-TASK-01** — branche `claude/crm-lead-task-01` — PR #221 — **EN COURS 2026-10-16**.
 
-**Objectif** : éliminer l'erreur `toomanyrequests: Data limit exceeded` sur ECR Public Gallery qui bloquait les 3 jobs CI (`financial-e2e`, `lighthouse`, `playwright-a11y`) lors de pulls simultanés de `public.ecr.aws/docker/library/postgres:16`.
+**Objectif** : exposer la liaison `crm_tasks.leadId` dans l'UI. DB + core + server actions déjà présents (EXTEND). Crée `LeadTasksPanel` (composant client compact) intégré dans `Customer360Button` dialog (pipeline + table leads).
 
-**Correction (CI-FIX-07)** : remplacement des 3 blocs `services.postgres:` (pull image ECR) par PostgreSQL 16 pré-installé sur les runners `ubuntu-24.04`. Chaque job :
+**Fichiers** : `components/admin/lead-tasks-panel.tsx` (nouveau), `components/admin/customer-360-panel.tsx` (étendu), `lib/crm/__tests__/crm-lead-task-panel-invariants.test.ts` (8 tests, 8/8 pass).
 
-- `runs-on: ubuntu-latest` → `ubuntu-24.04` (épinglage garantissant PG16 même après le futur switch Ubuntu 26.04 LTS)
-- Ajout d'un step `Start PostgreSQL` (systemctl start → pg_isready → ALTER USER postgres PASSWORD) — 5s, zéro trafic réseau
-- Suppression du bloc `services: postgres:` (17 lignes, ×3 jobs) — bilan net : −33 lignes
-
-**CI run 38898793457 sur SHA `01533fc` — 8/8 green** :
-
-- `financial-e2e` : PostgreSQL ✅, db:push ✅, 161 tests / 0 fail / 0 skipped ✅
-- `lighthouse` : PostgreSQL ✅, db:push ✅, Lighthouse CI ✅
-- `playwright-a11y` : PostgreSQL ✅, db:push ✅, Accessibility tests ✅
-- Aucune ligne `toomanyrequests` ni `public.ecr.aws` dans aucun log ✅
-
-**Fichier** : `.github/workflows/ci.yml`
-
-→ **CLÔTURÉ** — CI 8/8 green, PR #216 prête pour merge Direction.
+**Critère de sortie** : PR #221 mergée sur main → déploiement Vercel `easy2book-new` `state=READY`.
 
 ---
 
-**RLS-PROBE-DROP-01** — PR #219 (`claude/rls-probe-drop-01`) — **CLÔTURÉ, merge sur main, SHA `1d5d771` (2026-10-16)**.
+**CI-FIX-ECR-RATELIMIT-01** — PR #216 (`ci/fix-ecr-ratelimit-01`) — **CLÔTURÉ, merge sur main, SHA `e1116c2` (2026-10-16)**.
 
-**Objectif** : supprimer la table sonde temporaire `_rls_fix_probe_drop_me` de la production (`crygnaichvlxavvbifqi`) — table vide, créée manuellement hors migrations lors du débogage RLS (chantier CRM-C), aucune référence code, aucune dépendance FK.
+**Objectif** : éliminer `toomanyrequests: Data limit exceeded` sur ECR Public Gallery bloquant les 3 jobs CI. Remplacement PostgreSQL ECR → PostgreSQL pré-installé ubuntu-24.04. CI 8/8 green sur SHA `01533fc`.
 
-**Étape 1 — REVOKE** (2026-10-16) **✅ EN PRODUCTION** :
-
-- `REVOKE ALL PRIVILEGES ON TABLE public._rls_fix_probe_drop_me FROM anon, authenticated, service_role, app_runtime;` — exécuté via `execute_sql`.
-- Vérification : `information_schema.role_table_grants WHERE grantee != 'postgres'` → **0 lignes**. Aucun rôle applicatif n'a accès à la table.
-
-**Étape 2 — DROP TABLE** (2026-10-16) **✅ EN PRODUCTION (suppression manuelle — Direction)** :
-
-- `apply_migration` (`0137_drop_rls_probe_table`) — **timeout ×3** consécutifs (60 s chacun) ; cause technique exacte non confirmée. DDL triviale, aucun lock DB.
-- **Suppression manuelle** exécutée par la Direction via SQL Editor Supabase Dashboard (2026-10-16) :
-  - `DROP TABLE IF EXISTS public._rls_fix_probe_drop_me;` → **Success.**
-  - `DROP SEQUENCE IF EXISTS public._rls_fix_probe_id_seq;` → **Success.**
-- **Vérification** (preuve Direction) : `to_regclass('public._rls_fix_probe_drop_me')` → `NULL` ✅ — `to_regclass('public._rls_fix_probe_id_seq')` → `NULL` ✅.
-- **Fichier migration** : `drizzle/manual/0137_drop_rls_probe_table.sql` — commité sur `claude/rls-probe-drop-01` (commit `0d03f7b`).
-- **Tracking `supabase_migrations.schema_migrations`** : `0137` **absent** ⚠️ — suppression effectuée hors `apply_migration` ; registre non modifié manuellement (condition Direction). Anomalie de tracking similaire à `0128`.
-
-→ **CLÔTURÉ** — PR #219 mergée sur main, SHA `1d5d771`, 2026-10-16.
+→ **CLÔTURÉ** — PR #216 mergée sur main, SHA `e1116c2`, 2026-10-16.
 
 ---
 

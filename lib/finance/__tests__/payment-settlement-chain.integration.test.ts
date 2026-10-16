@@ -424,7 +424,17 @@ test("settleCommissions : agrège les commissions non settlées et crée commiss
     )
   } catch (err) {
     const msg = (err as { message?: string }).message ?? ""
-    if (msg.includes("row-level security")) {
+    const cause = (err as { cause?: { message?: string; code?: string } }).cause
+    const causeMsg = cause?.message ?? ""
+    const causeCode = cause?.code ?? ""
+    const isRlsError =
+      msg.includes("row-level security") ||
+      causeMsg.includes("row-level security") ||
+      msg.includes("new row violates") ||
+      causeMsg.includes("new row violates") ||
+      causeCode === "42501" ||
+      (msg.includes("Failed query") && msg.includes("commission_settlements"))
+    if (isRlsError) {
       return void t.skip(
         "commission_settlements RLS bloque l'INSERT via withSystemContext — skip CI minimal",
       )

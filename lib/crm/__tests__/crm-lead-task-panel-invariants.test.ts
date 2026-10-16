@@ -4,14 +4,12 @@
  */
 
 import { readFileSync } from "node:fs"
-import { resolve } from "node:path"
+import { join } from "node:path"
 import { describe, it } from "node:test"
 import assert from "node:assert/strict"
 
-const root = resolve(import.meta.dirname, "../../..")
-
 function readSrc(rel: string): string {
-  return readFileSync(resolve(root, rel), "utf-8")
+  return readFileSync(join(process.cwd(), rel), "utf-8")
 }
 
 const panel = readSrc("components/admin/lead-tasks-panel.tsx")

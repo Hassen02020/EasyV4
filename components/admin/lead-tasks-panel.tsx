@@ -77,16 +77,17 @@ export function LeadTasksPanel({ leadId }: { leadId: string }) {
   const [dueAt, setDueAt] = useState("")
 
   useEffect(() => {
-    load()
+    let active = true
+    listLeadTasks(leadId).then((result) => {
+      if (!active) return
+      if (result.ok) setTasks(result.tasks)
+      else toast.error("Erreur chargement tâches : " + result.error)
+      setLoading(false)
+    })
+    return () => {
+      active = false
+    }
   }, [leadId])
-
-  async function load() {
-    setLoading(true)
-    const result = await listLeadTasks(leadId)
-    if (result.ok) setTasks(result.tasks)
-    else toast.error("Erreur chargement tâches : " + result.error)
-    setLoading(false)
-  }
 
   function handleCreate() {
     if (!title.trim()) {

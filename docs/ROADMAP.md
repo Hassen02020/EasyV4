@@ -53,29 +53,6 @@ Un seul chantier actif à la fois ; il est indiqué dans ROADMAP.md (section "Ch
 
 ---
 
-**INCIDENT POOL-SAT-01 — Saturation connexions Supavisor** (2026-10-16, production `crygnaichvlxavvbifqi`) — **OUVERT, non résolu**.
-
-**Contexte** : découvert pendant RLS-PROBE-DROP-01 lors de l'analyse des timeouts `apply_migration` (×2, ~16:15 UTC). Les logs ont été consultés en lecture seule sur GO B explicite.
-
-**Observations (lecture seule, `supavisor_logs`, 2026-10-16T16:16:38–16:16:43 UTC)** :
-- Cluster d'erreurs `terminate_with_error/3` ERROR pour `app_runtime`, `state: connecting` et `state: handshake`
-- `handle_event/4` proxy errors — `lib/supavisor/db_handler.ex:364`
-- `error_code` vide dans tous les attributs d'erreur — texte `EMAXCONNSESSION` **absent des logs**
-- `postgres_logs` même fenêtre : **0 résultats** — aucune activité DDL visible côté PG
-
-**Limites et non-établi** :
-- Cause exacte : non prouvée (pool plein, resource contention ou autre hypothèse)
-- Corrélation avec `apply_migration` : plausible (timing cohérent — timeout 60 s se termine ~16:16:38), non prouvée — `apply_migration` utilise probablement une connexion directe (bypass Supavisor)
-- Timestamp précis des appels `apply_migration` : indisponible — l'outil MCP ne retourne pas l'horodatage dans la réponse timeout
-- Second cluster (second `apply_migration`) : non localisé — l'API logs retournait des erreurs backend lors de la tentative en fin de session
-- État actuel du pool : inconnu — les erreurs observées sont dans une fenêtre passée de ~5 min ; aucune vérification de l'état présent effectuée
-
-**Risque opérationnel** : si le pool est encore saturé, des requêtes applicatives `app_runtime` peuvent être rejetées en production silencieusement.
-
-**Prochaine étape** : lecture seule des logs actuels pour établir l'état présent du pool — à autoriser séparément (GO requis, hors scope RLS-PROBE-DROP-01).
-
----
-
 **MIGRATIONS-TRACKING-RECONCILE-01** — branche `claude/migrations-tracking-reconcile-01` — **CLÔTURÉ 2026-10-16**.
 
 **Objectif** : réconcilier le registre `supabase_migrations.schema_migrations` pour la migration `0128` (`crm_tasks_01`) appliquée directement hors `apply_migration` — table `crm_tasks` existait et fonctionnait, tracking absent depuis REBASE-PR217-01 (2026-10-16).
@@ -97,6 +74,8 @@ ON CONFLICT (version) DO NOTHING;
 - `SELECT policyname FROM pg_policies WHERE tablename = 'crm_tasks'` → 3 policies `current_agency_id() OR is_super_admin()` — version `0129` préservée ✅
 
 **NOT VERIFIED** : `0137` (`0137_drop_rls_probe_table`) — tracking toujours absent (DROP exécuté par Direction, Option A acceptée dans RLS-PROBE-DROP-01). Même INSERT applicable sur GO Direction après merge PR #219.
+
+---
 
 **REBASE-PR217-01** — PR #217 (`claude/easy2book-v6-modernization-7gyb5v`) — **CLÔTURÉ, squash merge sur main, SHA `1f7f5c7c` (2026-10-16)**.
 

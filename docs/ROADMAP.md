@@ -36,6 +36,30 @@ Un seul chantier actif à la fois ; il est indiqué dans ROADMAP.md (section "Ch
 
 ## Chantier actif
 
+**REBASE-PR217-01** — PR #217 (`claude/easy2book-v6-modernization-7gyb5v`) — **CLÔTURÉ, squash merge sur main, SHA `1f7f5c7c` (2026-10-16)**.
+
+**Objectif** : rebase de la branche de développement sur `origin/main` et merge des 4 chantiers accumulés.
+
+**Chantiers inclus :**
+
+1. **B2C-CANCEL-MONDE-01** — Annulation self-service hôtel monde B2C (`lib/booking/customer-cancel-actions.ts`, 286L). Guard `module === "hotel_monde"`, sécurité auth `ownedByCurrentCustomer` + `NOT_FOUND`, `FOR UPDATE` lock, race `ALREADY_CANCELLED_CONCURRENTLY`, `recordCancellationFinancials(cancellationFeeTnd: 0)`, loyalty reversal, UI `BookingSummaryCard` + `CompteReservationList`. 16/16 invariants statiques (`b2c-cancel-monde-invariants.test.ts`).
+
+2. **WALLET-CANCEL-FINANCIALS-01** (extension Omra/Package/Activity) — `cancelPolicyReservationCore` manquait `recordCancellationFinancials`. Formula A : `cancellationFeeTnd = tndAmount − (outcome.creditableTnd ?? 0)`, `refundAmountTnd = creditedTnd`. 6 invariants statiques `/policy` dans `cancel-wiring-invariants.test.ts`. **Déjà présent dans `origin/main` via PR #195 avant le rebase** — commit `4214f7b` réduit à +1 ligne vide après résolution conflit.
+
+3. **ADMIN-CANCEL-FINANCIALS-01** — `updateReservationStatus` (admin) manquait `recordCancellationFinancials`. Ajout dans bloc `nextStatus === "cancelled"` : `cancellationFeeTnd: providerCancellationFee ?? 0`, `refundAmountTnd: refundedTnd ?? 0`. Commit `09c7fff` (Hassen02020, 2026-10-12).
+
+4. **ROADMAP-SYNC-01** — Réconciliation ROADMAP.md (CRM-C CLÔTURÉ, migrations 0128/0129 vérifiées). Entrée CRM-C backlog mise à jour de TODO → ~~CLÔTURÉ/DEPLOYED~~.
+
+**CI PR #217 — 8/8 green** (format ✅ lint ✅ typecheck ✅ test ✅ build ✅ financial-e2e ✅ lighthouse ✅ playwright-a11y ✅). 2948 tests, 0 fail.
+
+**Rebase** : 16 étapes, 3 commits auto-skippés (déjà upstream), 5 conflits ROADMAP.md résolus (HEAD conservé), fichiers financiers `policy-cancel-core.ts` / `cancel-actions.ts` / `customer-cancel-actions.ts` — HEAD conservé dans tous les cas.
+
+→ **CLÔTURÉ** — PR #217 mergée sur main, SHA `1f7f5c7c`, 2026-10-16.
+
+**NOT VERIFIED** : migration 0136 (`commission_settlements_app_runtime` RLS), migrations CRM-C `0128`/`0129` — non encore appliquées en production (`crygnaichvlxavvbifqi`). Nécessite `supabase db push` ou migration manuelle lors du prochain déploiement.
+
+---
+
 **WALLET-E2E-CI-INTEGRATION-01** — PR #213 (`claude/wallet-e2e-ci-01`) — **CLÔTURÉ, squash merge sur main, SHA `ea2ad7b4` (2026-10-16)**.
 
 **Objectif** : rendre les tests de settlement (settleCommissions, markSettlementPaid, idempotence UNIQUE, période chevauchante, violation UNIQUE DB) réellement exécutés en CI — ils étaient skippés silencieusement via un try/catch masquant une erreur RLS réelle.

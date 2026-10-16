@@ -3279,7 +3279,7 @@ complet, fire-and-forget, résolution serveur de `packageName` et `contactEmail`
 - **VIP-THRESHOLD** (attente volume leads production ≥ ~50) → débloque décision seuil VIP
 - **WHITE-LABEL-SUPPLIERS** (per-tenant supplier credentials) → sur besoin client réel
 - **INTELLIGENCE-01** (recommandation, ranking) → sur données fiables + budget ML
-- **CRM-C — Task Management** (effort M, impact H) — nouvelle table `crm_tasks` (agencyId, leadId FK, assigneeId FK, dueAt, type, status, notes). Migration requise. Server Actions createTask/completeTask/listMyTasks. UI /admin/support. Sur GO.
+- ~~**CRM-C — Task Management**~~ — **CLÔTURÉ/DEPLOYED** (2026-10-10, PR #172+#173, commit `2ae44425`) — entrée obsolète. Migrations 0128+0129 appliquées en production, `CrmTasksPanel` intégré dans `/admin/support`. Voir ligne ~62.
 - **CRM-E — Canaux supplémentaires** (effort M, impact M) — BLOQUÉ sur confirmation canaux actifs (Instagram/Messenger page Meta Business, email inbound Resend webhook, call = saisie manuelle). Sur GO + confirmation.
 - **CRM-F — Paid Media Measurement** (effort L, impact H) — BLOQUÉ sur budget paid media existant. Table `ad_spend` + import dépenses + extension campaign-performance ROAS/CAC. Règle taux de change applicable. Sur GO + décision architecture.
 

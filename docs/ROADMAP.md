@@ -36,7 +36,7 @@ Un seul chantier actif à la fois ; il est indiqué dans ROADMAP.md (section "Ch
 
 ## Chantier actif
 
-**RLS-PROBE-DROP-01** — branche `claude/rls-probe-drop-01` — **EN COURS (DROP bloqué infra MCP, REVOKE ✅ en production)**.
+**RLS-PROBE-DROP-01** — branche `claude/rls-probe-drop-01` — **Suppression physique confirmée en production — clôture globale en attente de validation du suivi documentaire et du statut de migration**.
 
 **Objectif** : supprimer la table sonde temporaire `_rls_fix_probe_drop_me` de la production (`crygnaichvlxavvbifqi`) — table vide, créée manuellement hors migrations lors du débogage RLS (chantier CRM-C), aucune référence code, aucune dépendance FK.
 
@@ -44,12 +44,16 @@ Un seul chantier actif à la fois ; il est indiqué dans ROADMAP.md (section "Ch
 - `REVOKE ALL PRIVILEGES ON TABLE public._rls_fix_probe_drop_me FROM anon, authenticated, service_role, app_runtime;` — exécuté via `execute_sql`.
 - Vérification : `information_schema.role_table_grants WHERE grantee != 'postgres'` → **0 lignes**. Aucun rôle applicatif n'a accès à la table.
 
-**Étape 2 — DROP TABLE** (2026-10-16) **❌ BLOQUÉ infra MCP** :
-- `apply_migration` (`0137_drop_rls_probe_table`) — **timeout ×2** consécutifs (60 s chacun). DDL triviale sur table vide, pas de lock DB. Problème propre à l'endpoint `apply_migration` MCP pour ce projet ; `execute_sql` fonctionne normalement.
-- État post-timeout (vérifié) : table et séquence **encore présentes** en production, migration **non trackée** dans `supabase_migrations.schema_migrations`.
+**Étape 2 — DROP TABLE** (2026-10-16) **✅ EN PRODUCTION (suppression manuelle — Direction)** :
+- `apply_migration` (`0137_drop_rls_probe_table`) — **timeout ×3** consécutifs (60 s chacun) ; cause technique exacte non confirmée. DDL triviale, aucun lock DB.
+- **Suppression manuelle** exécutée par la Direction via SQL Editor Supabase Dashboard (2026-10-16) :
+  - `DROP TABLE IF EXISTS public._rls_fix_probe_drop_me;` → **Success.**
+  - `DROP SEQUENCE IF EXISTS public._rls_fix_probe_id_seq;` → **Success.**
+- **Vérification** (preuve Direction) : `to_regclass('public._rls_fix_probe_drop_me')` → `NULL` ✅ — `to_regclass('public._rls_fix_probe_id_seq')` → `NULL` ✅.
 - **Fichier migration** : `drizzle/manual/0137_drop_rls_probe_table.sql` — commité sur `claude/rls-probe-drop-01` (commit `0d03f7b`).
+- **Tracking `supabase_migrations.schema_migrations`** : `0137` **absent** ⚠️ — suppression effectuée hors `apply_migration` ; registre non modifié manuellement (condition Direction). Anomalie de tracking similaire à `0128`.
 
-**État actuel** : table présente mais inaccessible (grants révoqués). DROP en attente de GO Direction sur option de contournement (ex. `execute_sql` + insertion manuelle `schema_migrations`, ou résolution côté Supabase MCP).
+**PR #219** : draft ouverte sur `claude/rls-probe-drop-01`. Contient `0137_drop_rls_probe_table.sql` et mise à jour ROADMAP.md. Merge sur GO Direction uniquement.
 
 ---
 

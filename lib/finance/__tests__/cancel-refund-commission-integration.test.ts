@@ -490,7 +490,9 @@ test("reverseCommissionOnCancellation : insère 1 entitlement compensated et 1 d
         ),
       ),
   )
-  const commissionCredits = commissionRows.filter((r) => r.type === "commission")
+  const commissionCredits = commissionRows.filter(
+    (r) => r.type === "commission",
+  )
   const commissionDebits = commissionRows.filter((r) => r.type === "adjustment")
   assert.equal(commissionCredits.length, 1, "1 crédit commission (seed)")
   assert.equal(commissionDebits.length, 1, "1 débit commission (reversal)")
@@ -647,7 +649,8 @@ test("chaîne complète cancel → applyReservationRefund + reverseCommissionOnC
   )
   const commissionDebits = ledgerAfter.filter(
     (r) =>
-      r.walletAccountId === PLATFORM_COMMISSION_WALLET_ID && r.type === "adjustment",
+      r.walletAccountId === PLATFORM_COMMISSION_WALLET_ID &&
+      r.type === "adjustment",
   )
   assert.equal(clientCredits.length, 1, "1 crédit client (remboursement B2C)")
   assert.equal(

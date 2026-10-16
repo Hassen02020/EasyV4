@@ -58,7 +58,7 @@ Un seul chantier actif à la fois ; il est indiqué dans ROADMAP.md (section "Ch
 
 ---
 
-**CANCEL-COMMISSION-WRITER-01** — PR #212 (`claude/cancel-commission-01-7gyb5v`) — EN ATTENTE DE GO MERGE (2026-10-15, revue complète effectuée le 2026-10-16).
+**CANCEL-COMMISSION-WRITER-01** — PR #212 (`claude/cancel-commission-01-7gyb5v`) — **CLÔTURÉ, squash merge sur main, SHA `b2366faf` (2026-10-16)**.
 
 **Objectif** : câbler `cancellationTreatment` sur les 7 modules manquants pour que `reverseCommissionOnCancellation()` puisse reverser correctement les commissions lors d'une annulation. Sans `cancellationTreatment`, toute annulation skip le reversement (logique défensive correcte, mais incomplète).
 
@@ -75,7 +75,7 @@ Un seul chantier actif à la fois ; il est indiqué dans ROADMAP.md (section "Ch
 
 **NOT VERIFIED** : exécution réelle SQL avec DB pour Cars/Transfers/Vols commission wiring (CI financier vert mais sans test d'intégration ciblé spécifique à ces modules pour cette PR — les tests CI existants exercent `financial-e2e`, pas de test ciblé Cars/Transfers/Vols commission dans cette PR au-delà des invariants statiques).
 
-→ **EN ATTENTE DE GO MERGE Direction**
+→ **CLÔTURÉ** — PR #212 mergée sur main, SHA `b2366faf`, 2026-10-16. CI 8/8 green sur commit `16e2d219` (lint ✅ format ✅ typecheck ✅ test ✅ build ✅ financial-e2e ✅ lighthouse ✅ playwright-a11y ✅).
 
 ---
 

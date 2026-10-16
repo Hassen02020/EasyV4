@@ -126,7 +126,62 @@ ON CONFLICT (version) DO NOTHING;
 
 → **CLÔTURÉ** — PR #217 mergée sur main, SHA `1f7f5c7c`, 2026-10-16.
 
-**VÉRIFIÉ 2026-10-16** : Vercel `dpl_5bHT8byENfjUCD7bkVr4Uc8qvC1p` — `state=READY`, `target=production`, SHA `1f7f5c7cca9a973ba822eb77e5a549781c008b63` ✅. Migration `0136` (`commission_settlements_app_runtime_rls`) appliquée ✅ (version `20261016113205`). Migration `0129` (`crm_tasks_rls_fix`) appliquée ✅ (version `0129`). Migration `0128` (`crm_tasks_01`) : **absente du registre** ⚠️ — table `crm_tasks` EXISTS en production (`rls_enabled=true`) mais création non tracée dans `supabase_migrations` (exécution directe probable hors `supabase db push`). Anomalie de tracking, fonctionnellement opérationnel.
+## **VÉRIFIÉ 2026-10-16** : Vercel `dpl_5bHT8byENfjUCD7bkVr4Uc8qvC1p` — `state=READY`, `target=production`, SHA `1f7f5c7cca9a973ba822eb77e5a549781c008b63` ✅. Migration `0136` (`commission_settlements_app_runtime_rls`) appliquée ✅ (version `20261016113205`). Migration `0129` (`crm_tasks_rls_fix`) appliquée ✅ (version `0129`). Migration `0128` (`crm_tasks_01`) : **absente du registre** ⚠️ — table `crm_tasks` EXISTS en production (`rls_enabled=true`) mais création non tracée dans `supabase_migrations` (exécution directe probable hors `supabase db push`). Anomalie de tracking, fonctionnellement opérationnel.
+
+**CARTO-TECH-01** — CARTOGRAPHIE TECHNIQUE EXHAUSTIVE — **CLÔTURÉ, 2026-10-16**
+
+**Objectif** : Dresser une cartographie complète de l'état réel du système EasyV4 — un module par ligne, fichiers clés, tables DB, tests, dépendances externes, preuves production, blockers.
+
+**Périmètre** : 10 modules métier + couches transversales (Wallet, Commissions, CRM, White Label, Auth/RLS) + CI/CD + variables d'env production.
+
+**Résultats — État par module (2026-10-16) :**
+
+| Module        | Statut                  | B2C | Tests | Dépendance          | Blocker                                                                                     |
+| ------------- | ----------------------- | --- | ----- | ------------------- | ------------------------------------------------------------------------------------------- |
+| Hôtels Locaux | ACTIF                   | ✅  | 29    | myGo (live+virtual) | —                                                                                           |
+| Hôtels Monde  | ACTIF                   | ✅  | 8     | RateHawk            | —                                                                                           |
+| Vols          | ACTIF                   | ✅  | 24    | Duffel+virtual      | —                                                                                           |
+| Transferts    | ACTIF B2B / PARTIEL B2C | ⚠️  | —     | —                   | sendEvent `booking/transfer.confirmed` absent dans `lib/transfers/guest-booking-actions.ts` |
+| Voitures      | ACTIF B2B / PARTIEL B2C | ⚠️  | —     | —                   | sendEvent `booking/car.confirmed` absent dans `lib/cars/guest-booking-actions.ts`           |
+| Omra          | COMPLET B2B+B2C         | ✅  | 5     | —                   | —                                                                                           |
+| Packages      | PARTIEL                 | ❌  | —     | —                   | `guest-booking-actions.ts` absent (B2B only)                                                |
+| Activités     | COMPLET B2B+B2C         | ✅  | —     | —                   | Pas de page publique front                                                                  |
+| Network       | PARTIEL                 | ❌  | —     | —                   | B2B only, pas de `guest-booking-actions.ts`                                                 |
+| Mutuelle      | PARTIEL                 | ❌  | —     | —                   | Pas de `booking-actions.ts`, demandes/approbation seulement                                 |
+
+**Couches transversales :**
+
+| Couche                  | Statut            | Note                                                         |
+| ----------------------- | ----------------- | ------------------------------------------------------------ |
+| Wallet B2B              | VALIDÉ production | TG-2026-000001 : deposit_balance 6000→1988.57 TND réel       |
+| Wallet B2C              | CODE OK           | 0 topup réel en production à ce jour                         |
+| Commissions/Settlements | CODE OK           | 0 ligne `economic_entitlements` en production à ce jour      |
+| CRM                     | OPÉRATIONNEL      | Leads/contacts actifs en production                          |
+| White Label             | CODE OK           | 0 tenant actif en production à ce jour                       |
+| Auth/RLS                | SOLIDE            | Migrations 0129 + 0136 appliquées en production (2026-10-16) |
+
+**CI/CD (2026-10-16) :**
+
+- 8 jobs bloquants : format, lint, typecheck, test, build, financial-e2e, lighthouse, playwright-a11y
+- 22 fichiers financial-e2e · 294 fichiers test · 18 specs E2E Playwright · 140 migrations manuelles (dernière = 0136)
+- **playwright-a11y** : en échec persistant — non bloquant pour ce chantier
+
+**Variables d'env critiques absentes en production (`crygnaichvlxavvbifqi`) :**
+
+- `PAYMEE_API_KEY` — PSP B2C (topups Wallet B2C)
+- `EXCHANGE_RATE_API_KEY` — conversions de devises réelles
+- `INNGEST_SIGNING_KEY` + `INNGEST_EVENT_KEY` — orchestration événements asynchrones
+- `RESEND_API_KEY` — emails transactionnels
+
+**Prochains chantiers candidats (STOP — aucun démarré) :**
+
+1. **SENDVENT-B2C-01** : câbler `sendEvent` dans `lib/transfers/guest-booking-actions.ts` et `lib/cars/guest-booking-actions.ts` (TODO commentés dans le code)
+2. **PACKAGES-B2C-01** : créer `lib/packages/guest-booking-actions.ts` (B2C complet pour le module Packages)
+3. **ENV-PRODUCTION-01** : activer les variables PSP/Inngest/email en production (décision Direction requise)
+
+→ **CLÔTURÉ** — Cartographie complète, audit 10 modules + transversal, 2026-10-16.
+
+→ **STOP — ATTENTE DU GO pour le prochain chantier.**
 
 ---
 
@@ -148,9 +203,7 @@ ON CONFLICT (version) DO NOTHING;
 
 → **CLÔTURÉ** — PR #213 mergée sur main, SHA `ea2ad7b4`, 2026-10-16.
 
-**VÉRIFIÉ 2026-10-16** : migration `0136` (`commission_settlements_app_runtime_rls`) appliquée en production (`crygnaichvlxavvbifqi`), version `20261016113205` ✅. Le blocage RLS `app_runtime` sur `commission_settlements` est levé. **NOT VERIFIED** : exécution réelle de `settleCommissions` / `markSettlementPaid` en production non testée directement — les tests CI (financial-e2e ✅ sur PR #213) tournaient contre un postgres local, pas contre la DB production.
-
----
+## **VÉRIFIÉ 2026-10-16** : migration `0136` (`commission_settlements_app_runtime_rls`) appliquée en production (`crygnaichvlxavvbifqi`), version `20261016113205` ✅. Le blocage RLS `app_runtime` sur `commission_settlements` est levé. **NOT VERIFIED** : exécution réelle de `settleCommissions` / `markSettlementPaid` en production non testée directement — les tests CI (financial-e2e ✅ sur PR #213) tournaient contre un postgres local, pas contre la DB production.
 
 **CANCEL-COMMISSION-WRITER-01** — PR #212 (`claude/cancel-commission-01-7gyb5v`) — **CLÔTURÉ, squash merge sur main, SHA `b2366faf` (2026-10-16)**.
 

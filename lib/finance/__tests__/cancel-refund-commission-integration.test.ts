@@ -320,7 +320,12 @@ async function cleanupChain(
       sql`DELETE FROM economic_entitlements WHERE reservation_id = ${reservationId}`,
   )
 
-  // 4. Supprimer le reste via app_runtime (RLS actif, pas de DELETE sensible)
+  // 4. Supprimer audit_events (FK audit_events.agency_id → agencies.id bloque le DELETE agency)
+  await cleanupAsSuperuser(
+    (sql) => sql`DELETE FROM audit_events WHERE agency_id = ${agencyId}::uuid`,
+  )
+
+  // 5. Supprimer le reste via app_runtime (RLS actif, pas de DELETE sensible)
   await withSystemContext(async (tx) => {
     await tx.delete(payments).where(eq(payments.reservationId, reservationId))
     await tx

@@ -36,6 +36,23 @@ Un seul chantier actif à la fois ; il est indiqué dans ROADMAP.md (section "Ch
 
 ## Chantier actif
 
+**RLS-PROBE-DROP-01** — branche `claude/rls-probe-drop-01` — **EN COURS (DROP bloqué infra MCP, REVOKE ✅ en production)**.
+
+**Objectif** : supprimer la table sonde temporaire `_rls_fix_probe_drop_me` de la production (`crygnaichvlxavvbifqi`) — table vide, créée manuellement hors migrations lors du débogage RLS (chantier CRM-C), aucune référence code, aucune dépendance FK.
+
+**Étape 1 — REVOKE** (2026-10-16) **✅ EN PRODUCTION** :
+- `REVOKE ALL PRIVILEGES ON TABLE public._rls_fix_probe_drop_me FROM anon, authenticated, service_role, app_runtime;` — exécuté via `execute_sql`.
+- Vérification : `information_schema.role_table_grants WHERE grantee != 'postgres'` → **0 lignes**. Aucun rôle applicatif n'a accès à la table.
+
+**Étape 2 — DROP TABLE** (2026-10-16) **❌ BLOQUÉ infra MCP** :
+- `apply_migration` (`0137_drop_rls_probe_table`) — **timeout ×2** consécutifs (60 s chacun). DDL triviale sur table vide, pas de lock DB. Problème propre à l'endpoint `apply_migration` MCP pour ce projet ; `execute_sql` fonctionne normalement.
+- État post-timeout (vérifié) : table et séquence **encore présentes** en production, migration **non trackée** dans `supabase_migrations.schema_migrations`.
+- **Fichier migration** : `drizzle/manual/0137_drop_rls_probe_table.sql` — commité sur `claude/rls-probe-drop-01` (commit `0d03f7b`).
+
+**État actuel** : table présente mais inaccessible (grants révoqués). DROP en attente de GO Direction sur option de contournement (ex. `execute_sql` + insertion manuelle `schema_migrations`, ou résolution côté Supabase MCP).
+
+---
+
 **MIGRATIONS-TRACKING-RECONCILE-01** — branche `claude/migrations-tracking-reconcile-01` — **CLÔTURÉ 2026-10-16**.
 
 **Objectif** : réconcilier le registre `supabase_migrations.schema_migrations` pour la migration `0128` (`crm_tasks_01`) appliquée directement hors `apply_migration` — table `crm_tasks` existait et fonctionnait, tracking absent depuis REBASE-PR217-01 (2026-10-16).
@@ -57,8 +74,6 @@ ON CONFLICT (version) DO NOTHING;
 - `SELECT policyname FROM pg_policies WHERE tablename = 'crm_tasks'` → 3 policies `current_agency_id() OR is_super_admin()` — version `0129` préservée ✅
 
 **NOT VERIFIED** : `0137` (`0137_drop_rls_probe_table`) — tracking toujours absent (DROP exécuté par Direction, Option A acceptée dans RLS-PROBE-DROP-01). Même INSERT applicable sur GO Direction après merge PR #219.
-
----
 
 **REBASE-PR217-01** — PR #217 (`claude/easy2book-v6-modernization-7gyb5v`) — **CLÔTURÉ, squash merge sur main, SHA `1f7f5c7c` (2026-10-16)**.
 

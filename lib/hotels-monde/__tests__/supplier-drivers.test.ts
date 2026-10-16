@@ -26,6 +26,32 @@ import type {
   WorldHotelSearchInput,
 } from "@/lib/hotels-monde/client"
 
+test("CURRENCY-DIM-01a-FIX : convertRateHawkAmountToTnd utilise fetchExchangeRateForBooking — taux frais entre deux appels successifs (jamais mis en cache)", async () => {
+  // Premier taux : USD/TND = 3.1052
+  setExchangeRateProvider(createMockProvider({ "USD/TND": 3.1052 }))
+  const first = await convertRateHawkAmountToTnd(100, "USD")
+  assert.strictEqual(first, 310.52)
+
+  // Taux mis à jour immédiatement (simule un changement entre deux requêtes) :
+  // fetchExchangeRateForBooking → jamais de cache → reflète le nouveau taux
+  setExchangeRateProvider(createMockProvider({ "USD/TND": 3.2 }))
+  const second = await convertRateHawkAmountToTnd(100, "USD")
+  assert.strictEqual(second, 320)
+
+  setExchangeRateProvider(null)
+})
+
+test("CURRENCY-DIM-01a-FIX : précision taux 4 décimales → montant TND 2 décimales", async () => {
+  setExchangeRateProvider(createMockProvider({ "USD/TND": 3.1052 }))
+  try {
+    // 32 USD × 3.1052 = 99.3664 → arrondi 2 décimales → 99.37
+    const result = await convertRateHawkAmountToTnd(32, "USD")
+    assert.strictEqual(result, 99.37)
+  } finally {
+    setExchangeRateProvider(null)
+  }
+})
+
 test("CURRENCY-DIM-01a : convertRateHawkAmountToTnd lève ExchangeRateUnavailableError si provider échoue — jamais un taux inventé", async () => {
   setExchangeRateProvider(createMockProvider({}))
   try {

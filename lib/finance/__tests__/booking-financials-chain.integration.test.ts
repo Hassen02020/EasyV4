@@ -23,6 +23,7 @@ import { randomUUID } from "node:crypto"
 import { eq, sql } from "drizzle-orm"
 
 import { withSystemContext, withTenantContext } from "@/lib/db/tenant-context"
+import { cleanupAsSuperuser } from "@/lib/db/test-helpers/superuser-cleanup"
 import type { DrizzleLikeTx } from "@/lib/pro/booking-actions"
 import {
   agencies,
@@ -122,6 +123,11 @@ before(async () => {
 
 after(async () => {
   if (!dbAvailable) return
+  // partner_credit_movements is append-only — app_runtime has no DELETE permission
+  await cleanupAsSuperuser(
+    (sql) =>
+      sql`DELETE FROM partner_credit_movements WHERE agency_id = ${agencyId}::uuid`,
+  )
   await withSystemContext(async (tx) => {
     await tx
       .delete(reservationFinancials)
@@ -129,10 +135,6 @@ after(async () => {
     await tx
       .delete(reservationFinancials)
       .where(eq(reservationFinancials.reservationId, reservationId2))
-    // partner_credit_movements has FK to agencies; delete via cascade or explicit delete
-    await tx.execute(sql`
-      DELETE FROM partner_credit_movements WHERE agency_id = ${agencyId}::uuid
-    `)
     await tx.delete(reservations).where(eq(reservations.agencyId, agencyId))
     await tx.delete(customers).where(eq(customers.agencyId, agencyId))
     await tx.delete(agencies).where(eq(agencies.id, agencyId))

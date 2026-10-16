@@ -306,7 +306,7 @@ async function cleanupChain(
             WHERE reservation_id = ${reservationId}
               AND wallet_account_id = ${PLATFORM_COMMISSION_WALLET_ID}
           ), 0)
-      )::numeric::text
+      )
       WHERE id = ${PLATFORM_COMMISSION_WALLET_ID}
     `,
   )

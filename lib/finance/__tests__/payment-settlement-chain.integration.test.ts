@@ -32,6 +32,7 @@ import { randomUUID } from "node:crypto"
 import { eq, sql } from "drizzle-orm"
 
 import { withSystemContext } from "@/lib/db/tenant-context"
+import { cleanupAsSuperuser } from "@/lib/db/test-helpers/superuser-cleanup"
 import {
   agencies,
   customers,
@@ -177,40 +178,62 @@ before(async () => {
       })
       .returning({ id: walletLedger.id })
     walletLedgerIdComm = (ledgerInserted as Array<{ id: string }>)[0]!.id
+  })
 
-    // Backdate the entry into our far-future test period so it qualifies for settlement
-    await tx.execute(sql`
+  // Backdate the entry into our far-future test period — wallet_ledger is append-only,
+  // UPDATE requires superuser (app_runtime has no UPDATE on this table)
+  await cleanupAsSuperuser(
+    (sql) => sql`
       UPDATE wallet_ledger
       SET created_at = ${PERIOD_START.toISOString()}::timestamptz
       WHERE id = ${walletLedgerIdComm}::uuid
-    `)
-  })
+    `,
+  )
 })
 
 after(async () => {
   if (!dbAvailable) return
-  await withSystemContext(async (tx) => {
-    // Clean up commission_settlements created by settlement tests
-    // settled_by LIKE 'cert64-%' couvre la période principale ET la période
-    // chevauchante créée par Test 5b (PERIOD_START_OVERLAP = 2097-12-01,
-    // en dehors du range de dates PERIOD_START..PERIOD_END).
-    await tx.execute(sql`
+
+  // commission_settlement_entries has RESTRICT FKs to both commission_settlements
+  // and wallet_ledger — must delete entries before either parent table
+  await cleanupAsSuperuser(
+    (sql) => sql`
+      DELETE FROM commission_settlement_entries
+      WHERE settlement_id IN (
+        SELECT id FROM commission_settlements
+        WHERE settled_by::text LIKE 'cert64-%'
+      )
+    `,
+  )
+
+  // commission_settlements — settled_by is UUID, needs ::text cast for LIKE
+  await cleanupAsSuperuser(
+    (sql) => sql`
       DELETE FROM commission_settlements
-      WHERE settled_by LIKE 'cert64-%'
-    `)
-    // Clean up wallet_ledger entries (commission entry + any debit entries)
-    await tx.execute(sql`
+      WHERE settled_by::text LIKE 'cert64-%'
+    `,
+  )
+
+  // wallet_ledger and economic_entitlements are append-only — superuser required
+  await cleanupAsSuperuser(
+    (sql) => sql`
       DELETE FROM wallet_ledger
       WHERE reservation_id = ${reservationId}::uuid
          OR wallet_account_id = ${walletAccountId}::uuid
-    `)
+    `,
+  )
+  await cleanupAsSuperuser(
+    (sql) => sql`
+      DELETE FROM economic_entitlements
+      WHERE reservation_id = ${reservationId}::uuid
+    `,
+  )
+
+  await withSystemContext(async (tx) => {
     await tx
       .delete(walletAccounts)
       .where(eq(walletAccounts.id, walletAccountId))
     await tx.delete(payments).where(eq(payments.reservationId, reservationId))
-    await tx
-      .delete(economicEntitlements)
-      .where(eq(economicEntitlements.reservationId, reservationId))
     await tx
       .delete(reservationFinancials)
       .where(eq(reservationFinancials.reservationId, reservationId))

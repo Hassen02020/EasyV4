@@ -19,7 +19,7 @@ import { destinationByValue } from "./search-state"
 import { search as virtualSearch } from "@/lib/hotels-monde/virtual-supplier/engine"
 import { memoize } from "@/lib/cache/redis"
 import {
-  fetchExchangeRateForDisplay,
+  fetchExchangeRateForBooking,
   ExchangeRateUnavailableError,
 } from "@/lib/finance/exchange-rate"
 import type {
@@ -184,37 +184,23 @@ async function resolveRateHawkRegionId(
 }
 
 /**
- * CURRENCY-DIM-01a (2026-10) : cette fonction réutilisait `CURRENCY_META`
- * (lib/currency.ts) — le taux STATIQUE, jamais mis à jour, du sélecteur de
- * devise d'AFFICHAGE côté client (purement cosmétique, pensé pour donner un
- * ordre de grandeur sur les pages de listing). Aucun rapport avec un taux de
- * change réel. Tant que RateHawk n'a jamais eu de clé API réelle configurée
- * dans cet environnement (`isDemoMode()` toujours vrai ici), ce bug n'a
- * converti aucun montant réel — mais il aurait silencieusement mal facturé/
- * mal compté chaque offre dès la première vraie clé RateHawk.
+ * CURRENCY-DIM-01a-FIX (2026-10-16) : la version précédente (PR #94) avait
+ * remplacé CURRENCY_META par fetchExchangeRateForDisplay — ce qui substituait
+ * un taux statique par un taux mis en cache indicatif, non verrouillé au
+ * moment de la transaction. Un taux d'affichage ne doit jamais servir à un
+ * calcul financier (règle permanente CLAUDE.md).
  *
- * Correctif volontairement minimal (périmètre CURRENCY-DIM-01a) : ne JAMAIS
- * convertir avec un taux inventé. Toute offre dont le montant n'est pas déjà
- * en TND est REJETÉE explicitement (voir l'appelant : offre ignorée, jamais
- * un prix fabriqué) — un vrai taux de change (source fournisseur/PSP réelle,
- * horodaté) reste à construire par CURRENCY-DIM-01 (chantier séparé, pas
- * encore GO'd).
+ * Correctif : fetchExchangeRateForBooking() — toujours frais, jamais mis en
+ * cache, verrouillé au moment exact de la recherche côté fournisseur.
+ * Si le provider de taux est indisponible, ExchangeRateUnavailableError est
+ * levée → l'appelant ignore l'offre (fail-closed, jamais un taux inventé).
  */
-export class UnsupportedRateHawkCurrencyError extends Error {
-  constructor(public readonly currency: string) {
-    super(
-      `RateHawk a renvoyé un montant en "${currency}", jamais TND — aucune conversion réelle n'est câblée (CURRENCY-DIM-01, pas encore livré). Offre ignorée plutôt que mal convertie.`,
-    )
-    this.name = "UnsupportedRateHawkCurrencyError"
-  }
-}
-
 export async function convertRateHawkAmountToTnd(
   amount: number,
   currency: string,
 ): Promise<number> {
   if (currency === "TND") return amount
-  const rate = await fetchExchangeRateForDisplay(currency, "TND")
+  const rate = await fetchExchangeRateForBooking(currency, "TND")
   return Math.round(amount * rate.rate * 100) / 100
 }
 

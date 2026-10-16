@@ -32,6 +32,7 @@ import { randomUUID } from "node:crypto"
 import { eq, sql } from "drizzle-orm"
 
 import { withSystemContext } from "@/lib/db/tenant-context"
+import { cleanupAsSuperuser } from "@/lib/db/test-helpers/superuser-cleanup"
 import {
   agencies,
   customers,
@@ -177,40 +178,68 @@ before(async () => {
       })
       .returning({ id: walletLedger.id })
     walletLedgerIdComm = (ledgerInserted as Array<{ id: string }>)[0]!.id
+  })
 
-    // Backdate the entry into our far-future test period so it qualifies for settlement
-    await tx.execute(sql`
+  // Backdate the entry into our far-future test period — wallet_ledger is append-only,
+  // UPDATE requires superuser (app_runtime has no UPDATE on this table)
+  await cleanupAsSuperuser(
+    (sql) => sql`
       UPDATE wallet_ledger
       SET created_at = ${PERIOD_START.toISOString()}::timestamptz
       WHERE id = ${walletLedgerIdComm}::uuid
-    `)
-  })
+    `,
+  )
 })
 
 after(async () => {
   if (!dbAvailable) return
-  await withSystemContext(async (tx) => {
-    // Clean up commission_settlements created by settlement tests
-    // settled_by LIKE 'cert64-%' couvre la période principale ET la période
-    // chevauchante créée par Test 5b (PERIOD_START_OVERLAP = 2097-12-01,
-    // en dehors du range de dates PERIOD_START..PERIOD_END).
-    await tx.execute(sql`
+
+  // commission_settlement_entries has RESTRICT FKs to both commission_settlements
+  // and wallet_ledger — must delete entries before either parent table.
+  // Use period_start range (far-future, test-only) instead of settled_by:
+  // markSettlementPaid overwrites settled_by → agencyId lookup would miss rows.
+  await cleanupAsSuperuser(
+    (sql) => sql`
+      DELETE FROM commission_settlement_entries
+      WHERE settlement_id IN (
+        SELECT id FROM commission_settlements
+        WHERE period_start >= '2097-12-01'::date
+      )
+    `,
+  )
+
+  // economic_entitlements.settlement_ref FK → commission_settlements.id ON DELETE RESTRICT
+  // (migration 0105) — must delete entitlements BEFORE commission_settlements.
+  // wallet_ledger is append-only — superuser required.
+  await cleanupAsSuperuser(
+    (sql) => sql`
+      DELETE FROM economic_entitlements
+      WHERE reservation_id = ${reservationId}::uuid
+    `,
+  )
+
+  // commission_settlements — period_start range covers PERIOD_START (2098) and
+  // PERIOD_START_OVERLAP (2097-12) created by the overlapping-period test.
+  await cleanupAsSuperuser(
+    (sql) => sql`
       DELETE FROM commission_settlements
-      WHERE settled_by LIKE 'cert64-%'
-    `)
-    // Clean up wallet_ledger entries (commission entry + any debit entries)
-    await tx.execute(sql`
+      WHERE period_start >= '2097-12-01'::date
+    `,
+  )
+
+  await cleanupAsSuperuser(
+    (sql) => sql`
       DELETE FROM wallet_ledger
       WHERE reservation_id = ${reservationId}::uuid
          OR wallet_account_id = ${walletAccountId}::uuid
-    `)
+    `,
+  )
+
+  await withSystemContext(async (tx) => {
     await tx
       .delete(walletAccounts)
       .where(eq(walletAccounts.id, walletAccountId))
     await tx.delete(payments).where(eq(payments.reservationId, reservationId))
-    await tx
-      .delete(economicEntitlements)
-      .where(eq(economicEntitlements.reservationId, reservationId))
     await tx
       .delete(reservationFinancials)
       .where(eq(reservationFinancials.reservationId, reservationId))
@@ -394,7 +423,7 @@ test("settleCommissions : agrège les commissions non settlées et crée commiss
   const result = await settleCommissions(
     PERIOD_START,
     PERIOD_END,
-    "cert64-admin",
+    agencyId,
     "Certification Chantier 64 — test settlement",
   )
 
@@ -420,7 +449,7 @@ test("settleCommissions : agrège les commissions non settlées et crée commiss
     result.entryCount,
     "ledger_entry_count cohérent",
   )
-  assert.equal(s.settledBy, "cert64-admin", "settled_by renseigné")
+  assert.equal(s.settledBy, agencyId, "settled_by renseigné")
 
   // R4-03 : le lien ledger ↔ settlement est dans commission_settlement_entries,
   // jamais dans wallet_ledger (append-only — settled_at/settlement_id sur
@@ -475,7 +504,7 @@ test("markSettlementPaid : passe le settlement de pending → paid avec settled_
   if (!settlementId)
     return void t.skip("Test 3 n'a pas créé de settlement — skip")
 
-  await markSettlementPaid(settlementId, "cert64-tresorier")
+  await markSettlementPaid(settlementId, customerId)
 
   const rows = await withSystemContext((tx) =>
     tx
@@ -487,7 +516,7 @@ test("markSettlementPaid : passe le settlement de pending → paid avec settled_
   const s = rows[0]!
   assert.equal(s.status, "paid", "status=paid après markSettlementPaid")
   assert.ok(s.settledAt != null, "settled_at renseigné")
-  assert.equal(s.settledBy, "cert64-tresorier", "settled_by mis à jour")
+  assert.equal(s.settledBy, customerId, "settled_by mis à jour")
 })
 
 /* -------------------------------------------------------------------------- */
@@ -501,7 +530,7 @@ test("settleCommissions : UNIQUE INDEX bloque un deuxième settlement sur la mê
 
   await assert.rejects(
     async () => {
-      await settleCommissions(PERIOD_START, PERIOD_END, "cert64-admin-retry")
+      await settleCommissions(PERIOD_START, PERIOD_END, agencyId)
     },
     (err: unknown) => {
       const msg = (err as { message?: string }).message ?? ""
@@ -535,7 +564,7 @@ test("settleCommissions : une période chevauchante ne ré-inclut pas les entré
   const result = await settleCommissions(
     PERIOD_START_OVERLAP,
     PERIOD_END_OVERLAP,
-    "cert64-overlap-admin",
+    agencyId,
     "IDEMPOTENCE-01 — test période chevauchante",
   )
 

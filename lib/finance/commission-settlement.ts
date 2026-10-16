@@ -157,8 +157,13 @@ export async function settleCommissions(
           .map((e) => e.reservationId)
           .filter((r): r is string => r !== null)
         if (reservationIds.length > 0) {
+          // Drizzle sql template passes a JS array as a single parameter binding;
+          // postgres.js then sends it as a plain scalar instead of a PG array
+          // literal — `::uuid[]` cast fails with "malformed array literal".
+          // Pre-format as a PG array literal string so $1 = '{uuid1,uuid2}'.
+          const reservationIdsLiteral = `{${reservationIds.join(",")}}`
           await tx.execute(
-            sql`SELECT mark_econ_commission_settled(${reservationIds}::uuid[], ${settlement.id}::uuid)`,
+            sql`SELECT mark_econ_commission_settled(${reservationIdsLiteral}::uuid[], ${settlement.id}::uuid)`,
           )
         }
       }

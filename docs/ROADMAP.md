@@ -36,6 +36,50 @@ Un seul chantier actif à la fois ; il est indiqué dans ROADMAP.md (section "Ch
 
 ## Chantier actif
 
+**WALLET-E2E-CI-INTEGRATION-01** — PR #213 (`claude/wallet-e2e-ci-01`) — EN ATTENTE DE GO MERGE (2026-10-16).
+
+**Objectif** : rendre les tests de settlement (settleCommissions, markSettlementPaid, idempotence UNIQUE, période chevauchante, violation UNIQUE DB) réellement exécutés en CI — ils étaient skippés silencieusement via un try/catch masquant une erreur RLS réelle.
+
+**Deux bugs corrigés :**
+
+1. **RLS DENY pour `app_runtime` sur `commission_settlements`** (commit `5c7ecf0`) — bug de production : `withSystemContext` tourne sous le rôle `app_runtime` (non-BYPASSRLS) ; la policy migration 0066 était `TO authenticated` uniquement → DEFAULT DENY → `settleCommissions` et `markSettlementPaid` échouaient silencieusement depuis leur création (jamais déclenchés en production à ce jour). Correction : `drizzle/manual/0136_commission_settlements_app_runtime_rls.sql` — `CREATE POLICY commission_settlements_app_runtime ON commission_settlements FOR ALL TO app_runtime USING (is_super_admin()) WITH CHECK (is_super_admin())`.
+
+2. **`malformed array literal` sur `mark_econ_commission_settled`** (commit `13683e4`) — Drizzle `sql` template passe un tableau JS comme scalaire plain à postgres.js → le cast `::uuid[]` échoue. Correction : `const reservationIdsLiteral = \`{${reservationIds.join(",")}}\`` préformaté en littéral PG avant le binding.
+
+**Tests corrigés** (commit `5c7ecf0`) : suppression du try/catch masquant, ordre FK cleanup corrigé (economic_entitlements avant commission_settlements), condition cleanup corrigée (period_start >= '2097-12-01'), UUID invalide dans test chevauchant corrigé.
+
+**CI run 38889976786 sur SHA `13683e4f` — 7/8 green** :
+
+- format ✅ lint ✅ typecheck ✅ test ✅ build ✅ `financial-e2e` ✅ lighthouse ✅
+- `playwright-a11y` ❌ infra flake Docker ("Initialize containers" échoue, même cause que le run précédent `38888831593`, passe sur `main` run `38634614189` — non lié au code de cette PR)
+
+**Fichiers** : `lib/finance/commission-settlement.ts`, `drizzle/manual/0136_commission_settlements_app_runtime_rls.sql`, `lib/finance/__tests__/payment-settlement-chain.integration.test.ts`, `docs/ROADMAP.md`
+
+→ **EN ATTENTE DE GO MERGE Direction**
+
+---
+
+**CANCEL-COMMISSION-WRITER-01** — PR #212 (`claude/cancel-commission-01-7gyb5v`) — EN ATTENTE DE GO MERGE (2026-10-15, revue complète effectuée le 2026-10-16).
+
+**Objectif** : câbler `cancellationTreatment` sur les 7 modules manquants pour que `reverseCommissionOnCancellation()` puisse reverser correctement les commissions lors d'une annulation. Sans `cancellationTreatment`, toute annulation skip le reversement (logique défensive correcte, mais incomplète).
+
+**Implémentation** :
+
+- Cars/Transfers B2B+B2C : commission entitlement ajoutée conditionnellement (`commissionAmountForEntitlements > 0`), `seller_margin` = marge brute − commission (invariant Σ entitlements = salePriceTnd préservé exactement — le rounding est absorbé par `seller_margin`), `cancellationTreatment: "non_refundable"`.
+- Vols : commission lue depuis `getMarginsForAgency` au moment de la confirmation (non snapshotée — acceptable, commission = 0 pré-lancement, à snapshotter lors du premier chantier vols réel).
+- Network : `cancellationTreatment: "non_refundable"` ajouté sur l'entitlement commission existant (gap CANCEL-COMMISSION-POLICY-01 confirmé comblé).
+- Packages/Omra/Activités : `cancellationTreatment: "non_refundable"` ajouté sur `owner_share` existant — documentation de politique, commission = 0 par design (aucune ligne à 0 fabriquée, règle ECON-WIRING-01 respectée).
+
+**CI run 38812785520 sur SHA `f32c5598` — 8/8 green** (format ✅ lint ✅ typecheck ✅ test ✅ build ✅ financial-e2e ✅ lighthouse ✅ playwright-a11y ✅). 2880 tests, 0 échec.
+
+**Chevauchement avec PR #213** : aucun (fichiers distincts, logiques complémentaires — #212 active la politique d'annulation, #213 corrige le settlement).
+
+**NOT VERIFIED** : exécution réelle SQL avec DB pour Cars/Transfers/Vols commission wiring (CI financier vert mais sans test d'intégration ciblé spécifique à ces modules pour cette PR — les tests CI existants exercent `financial-e2e`, pas de test ciblé Cars/Transfers/Vols commission dans cette PR au-delà des invariants statiques).
+
+→ **EN ATTENTE DE GO MERGE Direction**
+
+---
+
 **Aucun** — MANUAL-PAYMENT-STATUS-STUCK-01 — CLÔTURÉ (2026-10-14, PR #209, squash merge `c96d62c`). Trouvaille #4.1 du rapport `docs/audits/visual-audit-01-report.md` (VISUAL-AUDIT-01) : après l'action admin "Vérifier le règlement" sur une réservation Omra/Package/Activité, `reservations.status` restait `pending` au lieu de transiter vers `confirmed` — voucher PDF renvoyait 404.
 
 **Cause racine** : `lib/vols/fulfillment-action.ts` porte la directive `"use server"`, qui impose à Next.js que CHAQUE export du fichier soit une fonction async. Il exportait pourtant directement `FULFILL_ROLES` (un tableau de rôles), ce qui fait planter l'évaluation du module côté client dès qu'un autre Server Action du même bundle de page est importé — silencieusement, sans erreur réseau exploitable (React démonte le sous-arbre en échec via son error boundary). Sur `/admin/reservations/[id]`, le bundle regroupe TOUTES les actions admin (Vérifier, Rembourser, Émettre billet...) : `<VerifyPaymentButton>` plantait donc dès que la page importait transitivement `fulfillment-action.ts` (via le bouton "Émettre le billet" vol, co-présent sur la même page) — le clic sur "Confirmer le règlement" fermait la modale (le sous-arbre entier disparaissant avec l'erreur), donnant l'illusion d'un succès alors que `verifyManualPayment` n'était jamais réellement invoqué. Aucune transaction DB, aucun débit, aucun impact sur des données réelles n'a eu lieu pendant que ce bug était actif.

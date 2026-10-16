@@ -32,6 +32,7 @@ import {
 } from "@/components/ui/dialog"
 import { getCustomer360 } from "@/lib/admin/inbox-actions"
 import type { Customer360 } from "@/lib/admin/customer-360-core"
+import { LeadTasksPanel } from "@/components/admin/lead-tasks-panel"
 
 const VIP_SIGNAL_LABEL: Record<string, string> = {
   lead_quality: "Qualité du lead",
@@ -307,6 +308,8 @@ export function Customer360Button({
                     </p>
                   )}
                 </section>
+
+                <LeadTasksPanel leadId={leadId} />
 
                 <section>
                   <h3 className="mb-2 flex items-center gap-1.5 text-sm font-semibold">

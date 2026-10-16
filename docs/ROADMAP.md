@@ -56,7 +56,7 @@ Un seul chantier actif à la fois ; il est indiqué dans ROADMAP.md (section "Ch
 
 → **CLÔTURÉ** — PR #217 mergée sur main, SHA `1f7f5c7c`, 2026-10-16.
 
-**NOT VERIFIED** : migration 0136 (`commission_settlements_app_runtime` RLS), migrations CRM-C `0128`/`0129` — non encore appliquées en production (`crygnaichvlxavvbifqi`). Nécessite `supabase db push` ou migration manuelle lors du prochain déploiement.
+**VÉRIFIÉ 2026-10-16** : Vercel `dpl_5bHT8byENfjUCD7bkVr4Uc8qvC1p` — `state=READY`, `target=production`, SHA `1f7f5c7cca9a973ba822eb77e5a549781c008b63` ✅. Migration `0136` (`commission_settlements_app_runtime_rls`) appliquée ✅ (version `20261016113205`). Migration `0129` (`crm_tasks_rls_fix`) appliquée ✅ (version `0129`). Migration `0128` (`crm_tasks_01`) : **absente du registre** ⚠️ — table `crm_tasks` EXISTS en production (`rls_enabled=true`) mais création non tracée dans `supabase_migrations` (exécution directe probable hors `supabase db push`). Anomalie de tracking, fonctionnellement opérationnel. Alerte sécurité hors-scope : table `_rls_fix_probe_drop_me` sans RLS — à traiter sur GO séparé.
 
 ---
 
@@ -78,7 +78,7 @@ Un seul chantier actif à la fois ; il est indiqué dans ROADMAP.md (section "Ch
 
 → **CLÔTURÉ** — PR #213 mergée sur main, SHA `ea2ad7b4`, 2026-10-16.
 
-**NOT VERIFIED** : migration 0136 (`commission_settlements_app_runtime` RLS policy) non encore appliquée en production (`crygnaichvlxavvbifqi`) — nécessite un `supabase db push` ou migration manuelle lors du prochain déploiement.
+**VÉRIFIÉ 2026-10-16** : migration `0136` (`commission_settlements_app_runtime_rls`) appliquée en production (`crygnaichvlxavvbifqi`), version `20261016113205` ✅. `settleCommissions` et `markSettlementPaid` peuvent maintenant fonctionner correctement côté `app_runtime`.
 
 ---
 

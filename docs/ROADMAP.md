@@ -36,6 +36,30 @@ Un seul chantier actif à la fois ; il est indiqué dans ROADMAP.md (section "Ch
 
 ## Chantier actif
 
+**MIGRATIONS-TRACKING-RECONCILE-01** — branche `claude/migrations-tracking-reconcile-01` — **CLÔTURÉ 2026-10-16**.
+
+**Objectif** : réconcilier le registre `supabase_migrations.schema_migrations` pour la migration `0128` (`crm_tasks_01`) appliquée directement hors `apply_migration` — table `crm_tasks` existait et fonctionnait, tracking absent depuis REBASE-PR217-01 (2026-10-16).
+
+**Méthode retenue** : INSERT direct dans `supabase_migrations.schema_migrations` sans rejouer les DDL (colonne `statements` nullable — aucun DDL exécuté en production, aucun risque de timeout).
+
+**Exécution** (2026-10-16, `execute_sql`) :
+
+```sql
+INSERT INTO supabase_migrations.schema_migrations(version, name)
+VALUES ('0128', '0128_crm_tasks_01')
+ON CONFLICT (version) DO NOTHING;
+```
+
+**Vérifications production** :
+
+- `SELECT version, name FROM supabase_migrations.schema_migrations WHERE version = '0128'` → `{version: "0128", name: "0128_crm_tasks_01"}` ✅
+- `SELECT count(*) FROM crm_tasks` → `0` (table inchangée) ✅
+- `SELECT policyname FROM pg_policies WHERE tablename = 'crm_tasks'` → 3 policies `current_agency_id() OR is_super_admin()` — version `0129` préservée ✅
+
+**NOT VERIFIED** : `0137` (`0137_drop_rls_probe_table`) — tracking toujours absent (DROP exécuté par Direction, Option A acceptée dans RLS-PROBE-DROP-01). Même INSERT applicable sur GO Direction après merge PR #219.
+
+---
+
 **REBASE-PR217-01** — PR #217 (`claude/easy2book-v6-modernization-7gyb5v`) — **CLÔTURÉ, squash merge sur main, SHA `1f7f5c7c` (2026-10-16)**.
 
 **Objectif** : rebase de la branche de développement sur `origin/main` et merge des 4 chantiers accumulés.

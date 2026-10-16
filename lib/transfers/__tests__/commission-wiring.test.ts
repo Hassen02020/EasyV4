@@ -81,9 +81,13 @@ test("COMMISSION-WIRING-COVERAGE-01/transfers : entitlement seller avec qualific
   assert.match(src, /qualification:\s*"seller_margin"/)
 })
 
-test("COMMISSION-WIRING-COVERAGE-01/transfers : seller_margin = totalTnd - transferSupplierCostTnd", () => {
-  // La marge du vendeur est la différence entre prix de vente et coût réel.
-  assert.match(src, /amount:\s*totalTnd\s*-\s*transferSupplierCostTnd/)
+test("COMMISSION-WIRING-COVERAGE-01/transfers : seller_margin = transferMarginTnd - commissionAmountForEntitlements (net de commission)", () => {
+  // CANCEL-COMMISSION-WRITER-01 : seller_margin est net de commission.
+  // transferMarginTnd = totalTnd - transferSupplierCostTnd
+  assert.match(
+    src,
+    /amount:\s*transferMarginTnd\s*-\s*commissionAmountForEntitlements/,
+  )
 })
 
 // ─── Invariant 4 : imports corrects ───────────────────────────────────────

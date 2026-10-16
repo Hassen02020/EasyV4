@@ -74,20 +74,19 @@ for (const [label, path, costVar] of [
     "transferSupplierCostTnd",
   ],
 ] as const) {
-  test(`Car/Transfer — ${label} : 2 lignes (agency product_owner + agency seller), pas de ligne commission fabriquée`, () => {
+  test(`Car/Transfer — ${label} : entitlement product_owner/supplier_cost + seller/seller_margin + commission conditionnelle (non_refundable si commissionPercent > 0)`, () => {
     const src = read(path)
     assert.match(
       src,
       /role: "product_owner",\s*\n\s*qualification: "supplier_cost",/,
     )
     assert.match(src, /role: "seller",\s*\n\s*qualification: "seller_margin",/)
-    assert.equal(
-      src.includes('qualification: "commission"'),
-      false,
-      "aucune commission réelle sur ce module aujourd'hui — pas de ligne fabriquée",
-    )
-    // Σ = coût + (vente - coût) = vente : les deux montants réutilisent la
-    // même variable que supplierPriceTnd, jamais un second calcul.
+    // CANCEL-COMMISSION-WRITER-01 : commission entitlement ajouté conditionnellement
+    // (spread …(commissionAmountForEntitlements > 0 ? […] : [])).
+    // Jamais fabriqué à 0 — guard: commissionAmountForEntitlements > 0.
+    assert.match(src, /commissionAmountForEntitlements\s*>\s*0/)
+    assert.match(src, /cancellationTreatment:\s*"non_refundable"/)
+    // Σ = coût + (vente - coût) = vente : le coût réutilise la même variable.
     assert.equal(countOccurrences(src, `amount: ${costVar},`), 1)
   })
 }
@@ -110,14 +109,16 @@ test("Hotels-Monde — hotels-monde/guest-booking-actions.ts : 3 lignes (externa
   )
 })
 
-test("vols/flight-financials.ts : 2 lignes conditionnées à la résolution réelle de agencyId (pas de ligne si la réservation est introuvable)", () => {
+test("vols/flight-financials.ts : entitlements conditionnés à la résolution réelle de agencyId + commission conditionnelle (non_refundable)", () => {
   const src = read("lib/vols/flight-financials.ts")
   assert.match(
     src,
     /partyType: "external_supplier",\s*\n\s*partyId: null,\s*\n\s*role: "supplier",\s*\n\s*qualification: "supplier_cost",/,
   )
   assert.match(src, /role: "seller",\s*\n\s*qualification: "seller_margin",/)
-  assert.equal(src.includes('qualification: "commission"'), false)
+  // CANCEL-COMMISSION-WRITER-01 : commission entitlement ajouté conditionnellement
+  assert.match(src, /flightCommissionAmount\s*>\s*0/)
+  assert.match(src, /cancellationTreatment:\s*"non_refundable"/)
   assert.match(src, /economicEntitlements: reservation\s*\n\s*\? \[/)
 })
 

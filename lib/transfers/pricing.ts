@@ -50,6 +50,10 @@ export interface TransferPricingResult {
   marginAmount?: number
   totalTnd: number
   currency: string
+  /** Taux de commission Easy2Book configuré dans la règle de marge (MarginRule.commissionPercent).
+   * Absent = 0 (pas de commission). Propagé au booking action pour alimenter
+   * recordReservationFinancials et l'entitlement commission/easy2book. */
+  commissionPercent?: number
   breakdown: {
     base: number
     surcharge: number
@@ -152,6 +156,7 @@ export async function calculateTransferPrice(
     marginAmount: marginAmount || undefined,
     totalTnd,
     currency: "TND",
+    commissionPercent: rule.isActive ? rule.commissionPercent : undefined,
     breakdown: {
       base: basePriceTnd,
       surcharge: nightSurchargeAmount,

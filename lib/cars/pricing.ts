@@ -41,6 +41,10 @@ export interface CarPricingResult {
   marginAmount?: number
   totalTnd: number
   currency: string
+  /** Taux de commission Easy2Book configuré dans la règle de marge (MarginRule.commissionPercent).
+   * Absent = 0 (pas de commission). Propagé au booking action pour alimenter
+   * recordReservationFinancials et l'entitlement commission/easy2book. */
+  commissionPercent?: number
   breakdown: {
     base: number
     insurance: number
@@ -155,6 +159,7 @@ export async function calculateCarPrice(
     marginAmount: marginAmount || undefined,
     totalTnd,
     currency: "TND",
+    commissionPercent: rule.isActive ? rule.commissionPercent : undefined,
     breakdown: {
       base: baseTotalTnd,
       insurance: insuranceTotalTnd,

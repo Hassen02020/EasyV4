@@ -37,6 +37,7 @@ import {
   applyFxCorrection,
   computeBankFeeContribution,
 } from "@/lib/finance/fx-policy"
+import { getMarginsForAgency } from "@/lib/pro/server-context"
 
 export async function finalizeFlightBookingFinancials(
   tx: DrizzleTransaction,
@@ -116,6 +117,11 @@ export async function finalizeFlightBookingFinancials(
   // modules à fournisseur externe. Lecture de agencyId (non fourni par les
   // deux appelants aujourd'hui) — simple SELECT dans la même transaction,
   // aucun changement de comportement du calcul financier lui-même.
+  // CANCEL-COMMISSION-WRITER-01 : commissionPercent lu depuis la règle de marge
+  // "flight" de l'agence à la confirmation (règle courante, pas snapshotée —
+  // acceptable pré-lancement car 0 commission réelle à ce jour). Ligne
+  // commission ajoutée uniquement si commissionAmount > 0. seller_margin =
+  // marge brute − commission (invariant Σ entitlements = salePriceTnd).
   const [reservation] = await tx
     .select({
       agencyId: reservations.agencyId,
@@ -125,12 +131,23 @@ export async function finalizeFlightBookingFinancials(
     .where(eq(reservations.id, input.reservationId))
     .limit(1)
 
+  const flightMarginRule = reservation
+    ? (await getMarginsForAgency(reservation.agencyId, undefined, "direct"))
+        .flight
+    : null
+
+  const flightMarginTnd = salePriceTnd - supplierPriceTnd
+  const flightCommissionRate = flightMarginRule?.commissionPercent ?? 0
+  const flightCommissionAmount =
+    Math.round(flightMarginTnd * (flightCommissionRate / 100) * 100) / 100
+
   const { commissionAmount } = await recordReservationFinancials({
     tx,
     reservationId: input.reservationId,
     supplierPriceTnd,
     salePriceTnd,
     ...financialExtra,
+    commissionPercent: flightMarginRule?.commissionPercent,
     economicEntitlements: reservation
       ? [
           {
@@ -147,9 +164,8 @@ export async function finalizeFlightBookingFinancials(
             partyId: reservation.agencyId,
             role: "seller",
             qualification: "seller_margin",
-            amount: salePriceTnd - supplierPriceTnd,
-            basis:
-              "marge vendeur (aucune commission Easy2Book aujourd'hui sur ce module)",
+            amount: flightMarginTnd - flightCommissionAmount,
+            basis: "marge vendeur nette de commission",
           },
           // CURRENCY-DIM-02 : estimation proratisée du frais bancaire FX, uniquement
           // si supplierCurrency ≠ TND et si la politique FX définit un frais > 0.
@@ -165,6 +181,19 @@ export async function finalizeFlightBookingFinancials(
                   qualification: "platform_fee" as const,
                   amount: -bankFeeTnd,
                   basis: `frais bancaire FX (CURRENCY-DIM-02, politique version ${financialExtra.appliedRate?.policyVersion ?? "?"})`,
+                },
+              ]
+            : []),
+          ...(flightCommissionAmount > 0
+            ? [
+                {
+                  partyType: "easy2book",
+                  partyId: null as null,
+                  role: "easy2book" as const,
+                  qualification: "commission" as const,
+                  amount: flightCommissionAmount,
+                  basis: `commission Easy2Book sur marge (${flightCommissionRate}% × marge)`,
+                  cancellationTreatment: "non_refundable" as const,
                 },
               ]
             : []),

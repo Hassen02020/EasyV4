@@ -365,16 +365,24 @@ async function runCreateGuestCarBooking(
         // que le chemin B2B (lib/cars/actions.ts) : réutilise les DEUX
         // montants déjà calculés par calculateCarPrice()/applyMargin(),
         // jamais un recalcul.
-        // ECON-WIRING-01 — voir lib/cars/actions.ts (chemin B2B) pour le
-        // commentaire complet : agence product_owner ET seller (catalogue
-        // propre, pas de fournisseur externe), pas de commission aujourd'hui.
+        // ECON-WIRING-01 / CANCEL-COMMISSION-WRITER-01 — voir
+        // lib/cars/actions.ts (chemin B2B) pour le commentaire complet.
+        // PRICING-PROMO-LINK-01 : salePriceTnd = totalTnd (local, post-promo),
+        // commission calculée sur la marge réelle (totalTnd − coût fournisseur).
         const carSupplierCostTnd =
           pricing.baseTotalTnd + pricing.insuranceTotalTnd
+        const carMarginTnd = totalTnd - carSupplierCostTnd
+        const commissionRateForEntitlements = pricing.commissionPercent ?? 0
+        const commissionAmountForEntitlements =
+          Math.round(
+            carMarginTnd * (commissionRateForEntitlements / 100) * 100,
+          ) / 100
         const { commissionAmount } = await recordReservationFinancials({
           tx,
           reservationId,
           supplierPriceTnd: carSupplierCostTnd,
           salePriceTnd: totalTnd,
+          commissionPercent: pricing.commissionPercent,
           economicEntitlements: [
             {
               partyType: "agency",
@@ -390,10 +398,23 @@ async function runCreateGuestCarBooking(
               partyId: agencyId,
               role: "seller",
               qualification: "seller_margin",
-              amount: totalTnd - carSupplierCostTnd,
+              amount: carMarginTnd - commissionAmountForEntitlements,
               basis:
-                "marge vendeur (agence product_owner ET seller sur son propre tarif)",
+                "marge vendeur nette de commission (agence product_owner ET seller sur son propre tarif)",
             },
+            ...(commissionAmountForEntitlements > 0
+              ? [
+                  {
+                    partyType: "easy2book",
+                    partyId: null as null,
+                    role: "easy2book" as const,
+                    qualification: "commission" as const,
+                    amount: commissionAmountForEntitlements,
+                    basis: `commission Easy2Book sur marge (${commissionRateForEntitlements}% × marge)`,
+                    cancellationTreatment: "non_refundable" as const,
+                  },
+                ]
+              : []),
           ],
         })
         await creditPlatformCommission(tx, {

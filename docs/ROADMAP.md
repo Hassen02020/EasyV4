@@ -36,7 +36,7 @@ Un seul chantier actif à la fois ; il est indiqué dans ROADMAP.md (section "Ch
 
 ## Chantier actif
 
-**WALLET-E2E-CI-INTEGRATION-01** — PR #213 (`claude/wallet-e2e-ci-01`) — EN ATTENTE DE GO MERGE (2026-10-16).
+**WALLET-E2E-CI-INTEGRATION-01** — PR #213 (`claude/wallet-e2e-ci-01`) — **CLÔTURÉ, squash merge sur main, SHA `ea2ad7b4` (2026-10-16)**.
 
 **Objectif** : rendre les tests de settlement (settleCommissions, markSettlementPaid, idempotence UNIQUE, période chevauchante, violation UNIQUE DB) réellement exécutés en CI — ils étaient skippés silencieusement via un try/catch masquant une erreur RLS réelle.
 
@@ -48,14 +48,13 @@ Un seul chantier actif à la fois ; il est indiqué dans ROADMAP.md (section "Ch
 
 **Tests corrigés** (commit `5c7ecf0`) : suppression du try/catch masquant, ordre FK cleanup corrigé (economic_entitlements avant commission_settlements), condition cleanup corrigée (period_start >= '2097-12-01'), UUID invalide dans test chevauchant corrigé.
 
-**CI run 38889976786 sur SHA `13683e4f` — 7/8 green** :
-
-- format ✅ lint ✅ typecheck ✅ test ✅ build ✅ `financial-e2e` ✅ lighthouse ✅
-- `playwright-a11y` ❌ infra flake Docker ("Initialize containers" échoue, même cause que le run précédent `38888831593`, passe sur `main` run `38634614189` — non lié au code de cette PR)
+**CI final sur SHA `1783565d` — 8/8 green** (re-run confirmé, format ✅ lint ✅ typecheck ✅ test ✅ build ✅ financial-e2e ✅ lighthouse ✅ playwright-a11y ✅).
 
 **Fichiers** : `lib/finance/commission-settlement.ts`, `drizzle/manual/0136_commission_settlements_app_runtime_rls.sql`, `lib/finance/__tests__/payment-settlement-chain.integration.test.ts`, `docs/ROADMAP.md`
 
-→ **EN ATTENTE DE GO MERGE Direction**
+→ **CLÔTURÉ** — PR #213 mergée sur main, SHA `ea2ad7b4`, 2026-10-16.
+
+**NOT VERIFIED** : migration 0136 (`commission_settlements_app_runtime` RLS policy) non encore appliquée en production (`crygnaichvlxavvbifqi`) — nécessite un `supabase db push` ou migration manuelle lors du prochain déploiement.
 
 ---
 

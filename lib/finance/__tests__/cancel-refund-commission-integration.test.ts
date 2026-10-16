@@ -298,10 +298,7 @@ async function cleanupChain(
       SET current_balance = (
         current_balance::numeric
         - COALESCE((
-            SELECT SUM(
-              CASE WHEN type = 'credit' THEN amount::numeric
-                   ELSE -(amount::numeric) END
-            )
+            SELECT SUM(amount::numeric)
             FROM wallet_ledger
             WHERE reservation_id = ${reservationId}
               AND wallet_account_id = ${PLATFORM_COMMISSION_WALLET_ID}
@@ -474,11 +471,11 @@ test("reverseCommissionOnCancellation : insère 1 entitlement compensated et 1 d
       .from(economicEntitlements)
       .where(eq(economicEntitlements.reservationId, seed.reservationId)),
   )
-  const compensated = allEntitlements.filter((r) => r.status === "compensated")
+  const compensated = allEntitlements.filter((r) => r.status === "pending")
   assert.equal(
     compensated.length,
     1,
-    `exactement 1 entitlement compensated attendu — got: ${compensated.length}`,
+    `exactement 1 entitlement compensated (status=pending) attendu — got: ${compensated.length}`,
   )
 
   // Le wallet commission doit avoir exactement 1 crédit (seed) + 1 débit (reversal)
@@ -493,8 +490,8 @@ test("reverseCommissionOnCancellation : insère 1 entitlement compensated et 1 d
         ),
       ),
   )
-  const commissionCredits = commissionRows.filter((r) => r.type === "credit")
-  const commissionDebits = commissionRows.filter((r) => r.type === "debit")
+  const commissionCredits = commissionRows.filter((r) => r.type === "commission")
+  const commissionDebits = commissionRows.filter((r) => r.type === "adjustment")
   assert.equal(commissionCredits.length, 1, "1 crédit commission (seed)")
   assert.equal(commissionDebits.length, 1, "1 débit commission (reversal)")
 })
@@ -538,11 +535,11 @@ test("reverseCommissionOnCancellation : idempotence — 2 appels → 1 entitleme
       .from(economicEntitlements)
       .where(eq(economicEntitlements.reservationId, seed.reservationId)),
   )
-  const compensated = allEntitlements.filter((r) => r.status === "compensated")
+  const compensated = allEntitlements.filter((r) => r.status === "pending")
   assert.equal(
     compensated.length,
     1,
-    `Exactement 1 entitlement compensated attendu après 2 appels — got: ${compensated.length}`,
+    `Exactement 1 entitlement compensated (status=pending) attendu après 2 appels — got: ${compensated.length}`,
   )
 
   // Exactement 1 débit commission wallet (pas de double-débit)
@@ -554,7 +551,7 @@ test("reverseCommissionOnCancellation : idempotence — 2 appels → 1 entitleme
         and(
           eq(walletLedger.reservationId, seed.reservationId),
           eq(walletLedger.walletAccountId, PLATFORM_COMMISSION_WALLET_ID),
-          eq(walletLedger.type, "debit"),
+          eq(walletLedger.type, "adjustment"),
         ),
       ),
   )
@@ -602,7 +599,7 @@ test("chaîne complète cancel → applyReservationRefund + reverseCommissionOnC
     PLATFORM_COMMISSION_WALLET_ID,
     "c'est bien le crédit commission",
   )
-  assert.equal(ledgerBefore[0]?.type, "credit", "de type credit")
+  assert.equal(ledgerBefore[0]?.type, "commission", "de type commission")
 
   // Les deux opérations dans la MÊME transaction — atomicité réelle
   await withSystemContext(async (tx) => {
@@ -646,11 +643,11 @@ test("chaîne complète cancel → applyReservationRefund + reverseCommissionOnC
   const commissionCredits = ledgerAfter.filter(
     (r) =>
       r.walletAccountId === PLATFORM_COMMISSION_WALLET_ID &&
-      r.type === "credit",
+      r.type === "commission",
   )
   const commissionDebits = ledgerAfter.filter(
     (r) =>
-      r.walletAccountId === PLATFORM_COMMISSION_WALLET_ID && r.type === "debit",
+      r.walletAccountId === PLATFORM_COMMISSION_WALLET_ID && r.type === "adjustment",
   )
   assert.equal(clientCredits.length, 1, "1 crédit client (remboursement B2C)")
   assert.equal(
@@ -672,9 +669,9 @@ test("chaîne complète cancel → applyReservationRefund + reverseCommissionOnC
     "entitlement earned d'origine doit exister",
   )
   assert.equal(
-    allEntitlements.filter((r) => r.status === "compensated").length,
+    allEntitlements.filter((r) => r.status === "pending").length,
     1,
-    "exactement 1 entitlement compensated",
+    "exactement 1 entitlement compensated (status=pending)",
   )
 })
 
@@ -759,8 +756,8 @@ test("rollback transactionnel : refund + reversal annulés ensemble — seule la
   )
   assert.equal(
     commissionRows[0]?.type,
-    "credit",
-    "la ligne commission restante est bien un crédit (seed, pas le débit rollbacké)",
+    "commission",
+    "la ligne commission restante est bien de type commission (seed, pas le débit rollbacké)",
   )
 
   // Aucun entitlement compensated (le reversal a été rollbacké)

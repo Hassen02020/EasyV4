@@ -201,16 +201,16 @@ after(async () => {
       DELETE FROM commission_settlement_entries
       WHERE settlement_id IN (
         SELECT id FROM commission_settlements
-        WHERE settled_by::text LIKE 'cert64-%'
+        WHERE settled_by = ${agencyId}::uuid
       )
     `,
   )
 
-  // commission_settlements — settled_by is UUID, needs ::text cast for LIKE
+  // commission_settlements — settled_by is UUID
   await cleanupAsSuperuser(
     (sql) => sql`
       DELETE FROM commission_settlements
-      WHERE settled_by::text LIKE 'cert64-%'
+      WHERE settled_by = ${agencyId}::uuid
     `,
   )
 
@@ -417,7 +417,7 @@ test("settleCommissions : agrège les commissions non settlées et crée commiss
   const result = await settleCommissions(
     PERIOD_START,
     PERIOD_END,
-    "cert64-admin",
+    agencyId,
     "Certification Chantier 64 — test settlement",
   )
 
@@ -443,7 +443,7 @@ test("settleCommissions : agrège les commissions non settlées et crée commiss
     result.entryCount,
     "ledger_entry_count cohérent",
   )
-  assert.equal(s.settledBy, "cert64-admin", "settled_by renseigné")
+  assert.equal(s.settledBy, agencyId, "settled_by renseigné")
 
   // R4-03 : le lien ledger ↔ settlement est dans commission_settlement_entries,
   // jamais dans wallet_ledger (append-only — settled_at/settlement_id sur
@@ -498,7 +498,7 @@ test("markSettlementPaid : passe le settlement de pending → paid avec settled_
   if (!settlementId)
     return void t.skip("Test 3 n'a pas créé de settlement — skip")
 
-  await markSettlementPaid(settlementId, "cert64-tresorier")
+  await markSettlementPaid(settlementId, customerId)
 
   const rows = await withSystemContext((tx) =>
     tx
@@ -510,7 +510,7 @@ test("markSettlementPaid : passe le settlement de pending → paid avec settled_
   const s = rows[0]!
   assert.equal(s.status, "paid", "status=paid après markSettlementPaid")
   assert.ok(s.settledAt != null, "settled_at renseigné")
-  assert.equal(s.settledBy, "cert64-tresorier", "settled_by mis à jour")
+  assert.equal(s.settledBy, customerId, "settled_by mis à jour")
 })
 
 /* -------------------------------------------------------------------------- */
@@ -524,7 +524,7 @@ test("settleCommissions : UNIQUE INDEX bloque un deuxième settlement sur la mê
 
   await assert.rejects(
     async () => {
-      await settleCommissions(PERIOD_START, PERIOD_END, "cert64-admin-retry")
+      await settleCommissions(PERIOD_START, PERIOD_END, agencyId)
     },
     (err: unknown) => {
       const msg = (err as { message?: string }).message ?? ""

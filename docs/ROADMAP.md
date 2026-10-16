@@ -78,7 +78,7 @@ Un seul chantier actif à la fois ; il est indiqué dans ROADMAP.md (section "Ch
 
 → **CLÔTURÉ** — PR #213 mergée sur main, SHA `ea2ad7b4`, 2026-10-16.
 
-**VÉRIFIÉ 2026-10-16** : migration `0136` (`commission_settlements_app_runtime_rls`) appliquée en production (`crygnaichvlxavvbifqi`), version `20261016113205` ✅. `settleCommissions` et `markSettlementPaid` peuvent maintenant fonctionner correctement côté `app_runtime`.
+**VÉRIFIÉ 2026-10-16** : migration `0136` (`commission_settlements_app_runtime_rls`) appliquée en production (`crygnaichvlxavvbifqi`), version `20261016113205` ✅. Le blocage RLS `app_runtime` sur `commission_settlements` est levé. **NOT VERIFIED** : exécution réelle de `settleCommissions` / `markSettlementPaid` en production non testée directement — les tests CI (financial-e2e ✅ sur PR #213) tournaient contre un postgres local, pas contre la DB production.
 
 ---
 

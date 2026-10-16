@@ -36,7 +36,30 @@ Un seul chantier actif à la fois ; il est indiqué dans ROADMAP.md (section "Ch
 
 ## Chantier actif
 
-**RLS-PROBE-DROP-01** — branche `claude/rls-probe-drop-01` — **Suppression physique confirmée en production — clôture globale en attente de validation du suivi documentaire et du statut de migration**.
+**CI-FIX-ECR-RATELIMIT-01** — PR #216 (`ci/fix-ecr-ratelimit-01`) — **CLÔTURÉ, en attente de merge Direction**.
+
+**Objectif** : éliminer l'erreur `toomanyrequests: Data limit exceeded` sur ECR Public Gallery qui bloquait les 3 jobs CI (`financial-e2e`, `lighthouse`, `playwright-a11y`) lors de pulls simultanés de `public.ecr.aws/docker/library/postgres:16`.
+
+**Correction (CI-FIX-07)** : remplacement des 3 blocs `services.postgres:` (pull image ECR) par PostgreSQL 16 pré-installé sur les runners `ubuntu-24.04`. Chaque job :
+
+- `runs-on: ubuntu-latest` → `ubuntu-24.04` (épinglage garantissant PG16 même après le futur switch Ubuntu 26.04 LTS)
+- Ajout d'un step `Start PostgreSQL` (systemctl start → pg_isready → ALTER USER postgres PASSWORD) — 5s, zéro trafic réseau
+- Suppression du bloc `services: postgres:` (17 lignes, ×3 jobs) — bilan net : −33 lignes
+
+**CI run 38898793457 sur SHA `01533fc` — 8/8 green** :
+
+- `financial-e2e` : PostgreSQL ✅, db:push ✅, 161 tests / 0 fail / 0 skipped ✅
+- `lighthouse` : PostgreSQL ✅, db:push ✅, Lighthouse CI ✅
+- `playwright-a11y` : PostgreSQL ✅, db:push ✅, Accessibility tests ✅
+- Aucune ligne `toomanyrequests` ni `public.ecr.aws` dans aucun log ✅
+
+**Fichier** : `.github/workflows/ci.yml`
+
+→ **CLÔTURÉ** — CI 8/8 green, PR #216 prête pour merge Direction.
+
+---
+
+**RLS-PROBE-DROP-01** — PR #219 (`claude/rls-probe-drop-01`) — **CLÔTURÉ, merge sur main, SHA `1d5d771` (2026-10-16)**.
 
 **Objectif** : supprimer la table sonde temporaire `_rls_fix_probe_drop_me` de la production (`crygnaichvlxavvbifqi`) — table vide, créée manuellement hors migrations lors du débogage RLS (chantier CRM-C), aucune référence code, aucune dépendance FK.
 
@@ -55,7 +78,7 @@ Un seul chantier actif à la fois ; il est indiqué dans ROADMAP.md (section "Ch
 - **Fichier migration** : `drizzle/manual/0137_drop_rls_probe_table.sql` — commité sur `claude/rls-probe-drop-01` (commit `0d03f7b`).
 - **Tracking `supabase_migrations.schema_migrations`** : `0137` **absent** ⚠️ — suppression effectuée hors `apply_migration` ; registre non modifié manuellement (condition Direction). Anomalie de tracking similaire à `0128`.
 
-**PR #219** : draft ouverte sur `claude/rls-probe-drop-01`. Contient `0137_drop_rls_probe_table.sql` et mise à jour ROADMAP.md. Merge sur GO Direction uniquement.
+→ **CLÔTURÉ** — PR #219 mergée sur main, SHA `1d5d771`, 2026-10-16.
 
 ---
 
@@ -103,7 +126,7 @@ ON CONFLICT (version) DO NOTHING;
 
 → **CLÔTURÉ** — PR #217 mergée sur main, SHA `1f7f5c7c`, 2026-10-16.
 
-**VÉRIFIÉ 2026-10-16** : Vercel `dpl_5bHT8byENfjUCD7bkVr4Uc8qvC1p` — `state=READY`, `target=production`, SHA `1f7f5c7cca9a973ba822eb77e5a549781c008b63` ✅. Migration `0136` (`commission_settlements_app_runtime_rls`) appliquée ✅ (version `20261016113205`). Migration `0129` (`crm_tasks_rls_fix`) appliquée ✅ (version `0129`). Migration `0128` (`crm_tasks_01`) : **absente du registre** ⚠️ — table `crm_tasks` EXISTS en production (`rls_enabled=true`) mais création non tracée dans `supabase_migrations` (exécution directe probable hors `supabase db push`). Anomalie de tracking, fonctionnellement opérationnel. Alerte sécurité hors-scope : table `_rls_fix_probe_drop_me` sans RLS — à traiter sur GO séparé.
+**VÉRIFIÉ 2026-10-16** : Vercel `dpl_5bHT8byENfjUCD7bkVr4Uc8qvC1p` — `state=READY`, `target=production`, SHA `1f7f5c7cca9a973ba822eb77e5a549781c008b63` ✅. Migration `0136` (`commission_settlements_app_runtime_rls`) appliquée ✅ (version `20261016113205`). Migration `0129` (`crm_tasks_rls_fix`) appliquée ✅ (version `0129`). Migration `0128` (`crm_tasks_01`) : **absente du registre** ⚠️ — table `crm_tasks` EXISTS en production (`rls_enabled=true`) mais création non tracée dans `supabase_migrations` (exécution directe probable hors `supabase db push`). Anomalie de tracking, fonctionnellement opérationnel.
 
 ---
 

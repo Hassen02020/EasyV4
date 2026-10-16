@@ -101,24 +101,7 @@ jobs:
   # service Postgres et la base préparée ici sont détruits à la fin du job,
   # aucune donnée persistante, aucun impact production.
   financial-e2e:
-    runs-on: ubuntu-latest
-    services:
-      postgres:
-        # CI-FIX-05 (2026-10-10): image déplacée vers ECR Public Gallery (miroir
-        # officiel Docker Hub) pour éviter le rate-limit anonyme Docker Hub
-        # sans nécessiter de secrets DOCKERHUB_* dans le dépôt.
-        image: public.ecr.aws/docker/library/postgres:16
-        env:
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: postgres
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd "pg_isready -U postgres"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
+    runs-on: ubuntu-24.04
     env:
       # Rôle propriétaire (superuser du conteneur) : sert à créer le schéma
       # (db:push) et à rejouer les migrations manuelles (DDL/RLS/rôles).
@@ -135,6 +118,12 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+
+      - name: Start PostgreSQL (CI-FIX-07 — pré-installé sur ubuntu-24.04, aucun pull réseau)
+        run: |
+          sudo systemctl start postgresql.service
+          sudo -u postgres pg_isready -t 30
+          sudo -u postgres psql -c "ALTER USER postgres PASSWORD 'postgres';"
 
       - name: db:push (schéma réel depuis lib/db/schema.ts)
         env:
@@ -343,25 +332,8 @@ jobs:
   # Run verte confirmée (run 37903890236, job lighthouse = success).
   # continue-on-error RETIRÉ — job BLOQUANT désormais.
   lighthouse:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     needs: [build]
-    services:
-      postgres:
-        # CI-FIX-05 (2026-10-10): image déplacée vers ECR Public Gallery (miroir
-        # officiel Docker Hub) pour éviter le rate-limit anonyme Docker Hub
-        # sans nécessiter de secrets DOCKERHUB_* dans le dépôt.
-        image: public.ecr.aws/docker/library/postgres:16
-        env:
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: postgres
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd "pg_isready -U postgres"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
     env:
       NEXT_PUBLIC_SUPABASE_URL: https://placeholder.supabase.co
       NEXT_PUBLIC_SUPABASE_ANON_KEY: placeholder-anon-key-ci-lighthouse
@@ -376,6 +348,11 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - name: Start PostgreSQL (CI-FIX-07 — pré-installé sur ubuntu-24.04, aucun pull réseau)
+        run: |
+          sudo systemctl start postgresql.service
+          sudo -u postgres pg_isready -t 30
+          sudo -u postgres psql -c "ALTER USER postgres PASSWORD 'postgres';"
       - name: Schéma DB CI (db:push)
         run: pnpm db:push --force
       - name: Build (production)
@@ -394,25 +371,8 @@ jobs:
   # CI-FIX-04 (2026-10-09) : 0 violations WCAG confirmé (R8-05) + run verte
   # (run 37903890236). continue-on-error RETIRÉ — job BLOQUANT désormais.
   playwright-a11y:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     needs: [build]
-    services:
-      postgres:
-        # CI-FIX-05 (2026-10-10): image déplacée vers ECR Public Gallery (miroir
-        # officiel Docker Hub) pour éviter le rate-limit anonyme Docker Hub
-        # sans nécessiter de secrets DOCKERHUB_* dans le dépôt.
-        image: public.ecr.aws/docker/library/postgres:16
-        env:
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: postgres
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd "pg_isready -U postgres"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
     env:
       NEXT_PUBLIC_SUPABASE_URL: https://placeholder.supabase.co
       NEXT_PUBLIC_SUPABASE_ANON_KEY: placeholder-anon-key-ci-playwright
@@ -427,6 +387,11 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - name: Start PostgreSQL (CI-FIX-07 — pré-installé sur ubuntu-24.04, aucun pull réseau)
+        run: |
+          sudo systemctl start postgresql.service
+          sudo -u postgres pg_isready -t 30
+          sudo -u postgres psql -c "ALTER USER postgres PASSWORD 'postgres';"
       - name: Schéma DB CI (db:push)
         run: pnpm db:push --force
       - name: Build (production)

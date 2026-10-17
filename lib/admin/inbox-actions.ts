@@ -44,9 +44,7 @@ const META_OUTBOUND_CHANNELS = ["messenger", "instagram"] as const
  */
 function canSendOutbound(channel: string): boolean {
   if (channel === "whatsapp") return true
-  if (
-    (META_OUTBOUND_CHANNELS as readonly string[]).includes(channel)
-  ) {
+  if ((META_OUTBOUND_CHANNELS as readonly string[]).includes(channel)) {
     return !!process.env.META_PAGE_ACCESS_TOKEN
   }
   return false
@@ -195,12 +193,11 @@ export async function sendReply(input: {
     if (!canSendOutbound(conversation.channel)) {
       return {
         ok: false,
-        error:
-          (META_OUTBOUND_CHANNELS as readonly string[]).includes(
-            conversation.channel,
-          )
-            ? "Réponses Meta non configurées (PAGE_ACCESS_TOKEN absent)."
-            : "Ce canal ne supporte pas les réponses sortantes.",
+        error: (META_OUTBOUND_CHANNELS as readonly string[]).includes(
+          conversation.channel,
+        )
+          ? "Réponses Meta non configurées (PAGE_ACCESS_TOKEN absent)."
+          : "Ce canal ne supporte pas les réponses sortantes.",
       }
     }
 

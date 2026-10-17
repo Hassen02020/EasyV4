@@ -55,6 +55,7 @@ import { recordReservationFinancials } from "@/lib/finance/reservation-financial
 import { creditPlatformCommission } from "@/lib/finance/platform-commission"
 import { resolveCheckoutPromoCore } from "@/lib/crm/promo-checkout-core"
 import { applyPromoDiscountCore } from "@/lib/finance/promo-discount-core"
+import { sendEvent } from "@/lib/inngest/client"
 
 export type CreateGuestActivityBookingResult =
   | {
@@ -503,14 +504,25 @@ async function runCreateGuestActivityBooking(
           status: (isImmediatelyPaid ? "confirmed" : "pending") as
             | "confirmed"
             | "pending",
+          activityTitle: activity.title,
+          totalTnd,
         }
       },
     )
 
-    // NB : pas d'événement Inngest de confirmation ici, même raison que
-    // Packages (lib/packages/booking-actions.ts) — le template hôtel ne
-    // s'applique pas à une attraction. Voucher réel via
-    // `/api/activities/voucher/[ref]`.
+    if (result.status === "confirmed" && traveler.email) {
+      sendEvent("booking/activity.confirmed", {
+        reservationId: result.reservationId,
+        publicRef: result.publicRef,
+        agencyId,
+        activityTitle: result.activityTitle,
+        paxCount,
+        totalTnd: result.totalTnd,
+        contactEmail: traveler.email,
+      }).catch(() => {
+        /* fire-and-forget */
+      })
+    }
 
     if (result.status === "confirmed") {
       try {

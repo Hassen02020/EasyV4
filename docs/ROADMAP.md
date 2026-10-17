@@ -40,6 +40,16 @@ _Aucun. En attente du prochain GO Direction._
 
 ---
 
+**INNGEST-HANDLER-WIRING-03** — branche `claude/inngest-handler-wiring-03` — PR #227 — **EN ATTENTE MERGE Direction**.
+
+**Objectif** : câbler `booking/package.confirmed` et `booking/activity.confirmed` — les deux derniers modules B2C sans email de confirmation post-réservation.
+
+**Résultat** : 2 nouveaux event types, 2 nouveaux handlers Inngest (email Resend), sendEvent fire-and-forget dans `lib/packages/booking-actions.ts` et `lib/activities/guest-booking-actions.ts`, 24 tests statiques (PKG-WIRING-01–13 + ACTIVITY-WIRING-01–11). pnpm test 2601 pass / 0 fail.
+
+**Action Direction après merge** : provisionner `RESEND_API_KEY` sur `easy2book-new` si non encore fait.
+
+---
+
 **CRM-OUTBOUND-META-01 + B2C-CANCEL-MONDE-02** — branche `claude/easy2book-v6-modernization-7gyb5v` — PR #226 — **CLÔTURÉ, merge sur main, SHA `35a163a` (2026-10-17)**.
 
 **B2C-CANCEL-MONDE-02** — stockage `offerId` + appel `cancel()` best-effort à l'annulation hôtel monde. Migration `0020_hotel_offer_id.sql` ⚠️ **à appliquer en production (action Direction)**.

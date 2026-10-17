@@ -67,6 +67,7 @@ import { creditPlatformCommission } from "@/lib/finance/platform-commission"
 import { resolveCheckoutPromoCore } from "@/lib/crm/promo-checkout-core"
 import { applyPromoDiscountCore } from "@/lib/finance/promo-discount-core"
 import { round2 } from "@/lib/shared/money"
+import { sendEvent } from "@/lib/inngest/client"
 
 export type CreateGuestPackageBookingResult =
   | {
@@ -516,19 +517,27 @@ async function runCreateGuestPackageBooking(
           status: (isImmediatelyPaid ? "confirmed" : "pending") as
             | "confirmed"
             | "pending",
+          packageName: pkg.title,
+          totalTnd,
+          departureDate: departure.departureDate,
         }
       },
     )
 
-    // NB : pas d'événement Inngest de confirmation ici — "booking/confirmed"
-    // (lib/inngest/client.ts) génère un voucher PDF et un email spécifiques
-    // à l'hôtel (lib/pdf/voucher-hotel.tsx, hotelName/checkIn/checkOut) ;
-    // le réutiliser pour un Package enverrait un email trompeur. La
-    // confirmation reste visible immédiatement en page (redirection
-    // `/booking/confirmation/[ref]`) et le voucher réel est téléchargeable
-    // via `/api/packages/voucher/[ref]`. Un événement Inngest dédié
-    // ("booking/package.confirmed") reste une amélioration documentée, pas
-    // un blocage du moteur de réservation lui-même.
+    if (result.status === "confirmed" && booking.traveler.email) {
+      sendEvent("booking/package.confirmed", {
+        reservationId: result.reservationId,
+        publicRef: result.publicRef,
+        agencyId,
+        packageName: result.packageName,
+        departureDate: result.departureDate,
+        paxCount,
+        totalTnd: result.totalTnd,
+        contactEmail: booking.traveler.email,
+      }).catch(() => {
+        /* fire-and-forget */
+      })
+    }
 
     if (result.status === "confirmed") {
       try {

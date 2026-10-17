@@ -10,6 +10,8 @@ export { processWalletCustomerCredited } from "./process-wallet-customer-credite
 export { processTransferConfirmed } from "./process-transfer-confirmed"
 export { processOmraConfirmed } from "./process-omra-confirmed"
 export { processFlightConfirmed } from "./process-flight-confirmed"
+export { processPackageConfirmed } from "./process-package-confirmed"
+export { processActivityConfirmed } from "./process-activity-confirmed"
 export { sendWhatsAppConfirmation } from "./send-whatsapp-confirmation"
 export { syncBookingCrm } from "./sync-booking-crm"
 export { processNewLead } from "./process-new-lead"

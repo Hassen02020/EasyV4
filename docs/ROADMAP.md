@@ -36,11 +36,27 @@ Un seul chantier actif à la fois ; il est indiqué dans ROADMAP.md (section "Ch
 
 ## Chantier actif
 
-**Aucun** — en attente de GO Direction.
+**CRM-OUTBOUND-META-01** — branche `claude/easy2book-v6-modernization-7gyb5v` — PR #226 — **EN COURS (2026-10-17, en attente merge Direction)**.
 
 ---
 
-**CRM-E** — branche `claude/easy2book-v6-modernization-7gyb5v` — PR #225 — **EN COURS (2026-10-17, en attente merge Direction)**.
+**CRM-OUTBOUND-META-01** — branche `claude/easy2book-v6-modernization-7gyb5v` — PR #226 — **EN COURS (2026-10-17, en attente merge Direction)**.
+
+**Objectif** : implémenter les réponses sortantes staff pour Messenger et Instagram via Meta Graph API. Comble le gap UX introduit par CRM-E : `canReply=true` pour ces canaux après PR #225 mais `sendReply` retournait "Canal non pris en charge."
+
+**Fichiers** :
+
+- `lib/admin/inbox-actions.ts` (étendu) — `canSendOutbound()` séparé de `isChannelConnected`, branche messenger/instagram `POST /me/messages` v21.0, guard `META_PAGE_ACCESS_TOKEN`, `messaging_type:"RESPONSE"`, `recipient.id=PSID`, journalisation après confirmation Meta
+- `components/admin/inbox-panel.tsx` (corrigé) — message de repli cohérent pour canaux Meta
+- `lib/crm/__tests__/crm-channel-wiring.test.ts` (étendu) — 6 nouveaux invariants statiques (33/33 ✓)
+
+**Var env à provisionner** : `META_PAGE_ACCESS_TOKEN` (Page Access Token longue durée — action Direction).
+
+→ **PR #226 ouverte — SHA `edd91c7` — en attente merge Direction.**
+
+---
+
+**CRM-E** — branche `claude/easy2book-v6-modernization-7gyb5v` — PR #225 — **CLÔTURÉ, merge sur main, SHA `0dca74f` (2026-10-17)**.
 
 **Objectif** : brancher 3 canaux CRM entrants sans migration DB — Messenger DMs, Instagram DMs, email entrant Resend. Canaux déjà dans `CRM_CHANNELS` du schéma, aucun webhook ne les alimentait.
 
@@ -54,7 +70,7 @@ Un seul chantier actif à la fois ; il est indiqué dans ROADMAP.md (section "Ch
 
 **Vars env à provisionner** : `META_MESSENGER_VERIFY_TOKEN`, `META_INSTAGRAM_VERIFY_TOKEN`, `RESEND_INBOUND_SECRET` (META_APP_SECRET déjà présent).
 
-→ **PR #225 ouverte — SHA `aba6724` — en attente merge Direction.**
+→ **CLÔTURÉ** — PR #225 mergée sur main, SHA `0dca74f`, 2026-10-17.
 
 ---
 
@@ -3445,7 +3461,8 @@ complet, fire-and-forget, résolution serveur de `packageName` et `contactEmail`
 - **WHITE-LABEL-SUPPLIERS** (per-tenant supplier credentials) → sur besoin client réel
 - **INTELLIGENCE-01** (recommandation, ranking) → sur données fiables + budget ML
 - ~~**CRM-C — Task Management**~~ — **CLÔTURÉ/DEPLOYED** (2026-10-10, PR #172+#173, commit `2ae44425`) — entrée obsolète. Migrations 0128+0129 appliquées en production, `CrmTasksPanel` intégré dans `/admin/support`. Voir ligne ~62.
-- **CRM-E — Canaux supplémentaires** (effort M, impact M) — BLOQUÉ sur confirmation canaux actifs (Instagram/Messenger page Meta Business, email inbound Resend webhook, call = saisie manuelle). Sur GO + confirmation.
+- ~~**CRM-E — Canaux supplémentaires**~~ — CLÔTURÉ (2026-10-17, PR #225, merge `0dca74f`). Webhooks Messenger/Instagram/Resend câblés.
+- ~~**CRM-OUTBOUND-META-01**~~ — EN COURS (2026-10-17, PR #226). Réponses sortantes Messenger/Instagram via Meta Graph API. En attente merge + provision `META_PAGE_ACCESS_TOKEN` (Direction).
 - **CRM-F — Paid Media Measurement** (effort L, impact H) — BLOQUÉ sur budget paid media existant. Table `ad_spend` + import dépenses + extension campaign-performance ROAS/CAC. Règle taux de change applicable. Sur GO + décision architecture.
 
 ### Items réellement "Plus tard"

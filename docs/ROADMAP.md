@@ -36,7 +36,25 @@ Un seul chantier actif à la fois ; il est indiqué dans ROADMAP.md (section "Ch
 
 ## Chantier actif
 
-**CRM-OUTBOUND-META-01** — branche `claude/easy2book-v6-modernization-7gyb5v` — PR #226 — **EN COURS (2026-10-17, en attente merge Direction)**.
+**CRM-OUTBOUND-META-01 + B2C-CANCEL-MONDE-02** — branche `claude/easy2book-v6-modernization-7gyb5v` — PR #226 — **EN COURS (2026-10-17, en attente merge Direction)**.
+
+---
+
+**B2C-CANCEL-MONDE-02** — branche `claude/easy2book-v6-modernization-7gyb5v` — PR #226 — **EN COURS (2026-10-17, inclus dans PR #226, en attente merge Direction)**.
+
+**Objectif** : fermer le TODO explicite de B2C-CANCEL-MONDE-01 — stocker `offerId` retourné par le fournisseur virtuel lors du booking hôtel monde, puis appeler `cancel()` pour libérer l'inventaire virtuel lors des annulations B2C.
+
+**Fichiers** :
+
+- `lib/db/schema.ts` (étendu) — colonne nullable `providerOfferId varchar(128)` ajoutée sur `reservationHotel`
+- `drizzle/0020_hotel_offer_id.sql` (nouveau) — `ALTER TABLE reservation_hotel ADD COLUMN IF NOT EXISTS provider_offer_id varchar(128)` — rétrocompatible
+- `lib/hotels-monde/guest-booking-actions.ts` (étendu) — `providerOfferId: bookResult.offerId` lors du INSERT `reservationHotel`
+- `lib/booking/customer-cancel-actions.ts` (étendu) — import `cancel as cancelVirtualHotel`, guard `providerOfferId && checkIn`, appel best-effort APRÈS la transaction DB, `supplierNotified: !!preCheck.providerOfferId`
+- `lib/hotels-monde/__tests__/b2c-cancel-monde-wiring.test.ts` (nouveau) — 8 invariants statiques readFileSync (8/8 ✓)
+
+**Migration** : `drizzle/0020_hotel_offer_id.sql` — à appliquer en production (action Direction).
+
+→ **PR #226 ouverte — SHA inclus dans edd91c7+ — en attente merge Direction.**
 
 ---
 
@@ -3463,6 +3481,7 @@ complet, fire-and-forget, résolution serveur de `packageName` et `contactEmail`
 - ~~**CRM-C — Task Management**~~ — **CLÔTURÉ/DEPLOYED** (2026-10-10, PR #172+#173, commit `2ae44425`) — entrée obsolète. Migrations 0128+0129 appliquées en production, `CrmTasksPanel` intégré dans `/admin/support`. Voir ligne ~62.
 - ~~**CRM-E — Canaux supplémentaires**~~ — CLÔTURÉ (2026-10-17, PR #225, merge `0dca74f`). Webhooks Messenger/Instagram/Resend câblés.
 - ~~**CRM-OUTBOUND-META-01**~~ — EN COURS (2026-10-17, PR #226). Réponses sortantes Messenger/Instagram via Meta Graph API. En attente merge + provision `META_PAGE_ACCESS_TOKEN` (Direction).
+- ~~**B2C-CANCEL-MONDE-02**~~ — EN COURS (2026-10-17, PR #226). Stockage `offerId` + appel `cancel()` best-effort pour libération inventaire virtuel. Migration `0020_hotel_offer_id.sql` à appliquer. En attente merge + migration (Direction).
 - **CRM-F — Paid Media Measurement** (effort L, impact H) — BLOQUÉ sur budget paid media existant. Table `ad_spend` + import dépenses + extension campaign-performance ROAS/CAC. Règle taux de change applicable. Sur GO + décision architecture.
 
 ### Items réellement "Plus tard"

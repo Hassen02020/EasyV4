@@ -4,6 +4,13 @@
  * CRM / Inbox omnicanal — actions staff (`/admin/support`). Même garde que
  * lib/admin/leads-actions.ts (SUPPORT_STAFF_ROLES), même discipline
  * "use server" / core séparé.
+ *
+ * CRM-OUTBOUND-META-01 : réponses sortantes Messenger / Instagram via
+ * Meta Graph API POST /me/messages. Requiert META_PAGE_ACCESS_TOKEN (Page
+ * Access Token longue durée). Guard explicite : si absent → canReply=false
+ * dans getConversationThread et erreur explicite dans sendReply.
+ * Le contactPhone stocké pour ces canaux est le PSID Meta — c'est le bon
+ * recipient.id pour l'API Send.
  */
 
 import { revalidatePath } from "next/cache"
@@ -15,7 +22,6 @@ import {
   getConversationWithMessagesCore,
   appendOutboundMessageCore,
   canSendSessionMessage,
-  isChannelConnected,
   type ConversationRow,
   type MessageRow,
 } from "@/lib/crm/inbox-core"
@@ -27,6 +33,24 @@ import {
 import { getWhatsAppProvider } from "@/lib/whatsapp/provider"
 
 const SUPPORT_STAFF_ROLES = ["super_admin", "manager", "agent_resa"] as const
+
+const META_OUTBOUND_CHANNELS = ["messenger", "instagram"] as const
+
+/**
+ * Renvoie true si le canal supporte les réponses sortantes staff dans
+ * l'environnement courant. Distinct de isChannelConnected (inbound) :
+ * messenger/instagram peuvent recevoir des messages sans que
+ * META_PAGE_ACCESS_TOKEN soit configuré (outbound).
+ */
+function canSendOutbound(channel: string): boolean {
+  if (channel === "whatsapp") return true
+  if (
+    (META_OUTBOUND_CHANNELS as readonly string[]).includes(channel)
+  ) {
+    return !!process.env.META_PAGE_ACCESS_TOKEN
+  }
+  return false
+}
 
 interface SupportStaffContext {
   userId: string
@@ -111,8 +135,8 @@ export async function getConversationThread(
     )
     if (!result) return { ok: false, error: "Conversation introuvable." }
     const canReply =
-      isChannelConnected(result.conversation.channel) &&
-      canSendSessionMessage(result.conversation)
+      canSendSessionMessage(result.conversation) &&
+      canSendOutbound(result.conversation.channel)
     return {
       ok: true,
       conversation: result.conversation,
@@ -128,11 +152,16 @@ export async function getConversationThread(
 export type SendReplyResult = { ok: true } | { ok: false; error: string }
 
 /**
- * Réponse libre (hors template) — n'existe que pour WhatsApp aujourd'hui
- * (seul canal réellement branché) ET seulement dans la fenêtre de service
- * 24h Meta (voir canSendSessionMessage). Le message n'est journalisé
- * QU'APRÈS confirmation réelle du provider — jamais un "envoyé" fabriqué
- * si l'appel échoue (même discipline que sendBookingConfirmationWhatsApp).
+ * Réponse libre (hors template) — WhatsApp, Messenger et Instagram dans la
+ * fenêtre de service 24h Meta (voir canSendSessionMessage).
+ *
+ * Messenger / Instagram : POST /me/messages via Meta Graph API v21.0,
+ * messaging_type:"RESPONSE", recipient.id = PSID stocké en contactPhone.
+ * Requiert META_PAGE_ACCESS_TOKEN ; guard explicite → erreur si absent.
+ *
+ * Le message n'est journalisé QU'APRÈS confirmation réelle du provider —
+ * jamais un "envoyé" fabriqué si l'appel échoue (même discipline que
+ * sendBookingConfirmationWhatsApp).
  */
 export async function sendReply(input: {
   conversationId: string
@@ -163,20 +192,30 @@ export async function sendReply(input: {
     if (!result) return { ok: false, error: "Conversation introuvable." }
     const { conversation } = result
 
-    if (!isChannelConnected(conversation.channel)) {
-      return { ok: false, error: "Ce canal n'est pas connecté." }
-    }
-    if (conversation.channel === "whatsapp") {
-      if (!canSendSessionMessage(conversation)) {
-        return {
-          ok: false,
-          error:
-            "Fenêtre de service WhatsApp de 24h dépassée depuis le dernier message du client — un message libre n'est plus autorisé par Meta.",
-        }
+    if (!canSendOutbound(conversation.channel)) {
+      return {
+        ok: false,
+        error:
+          (META_OUTBOUND_CHANNELS as readonly string[]).includes(
+            conversation.channel,
+          )
+            ? "Réponses Meta non configurées (PAGE_ACCESS_TOKEN absent)."
+            : "Ce canal ne supporte pas les réponses sortantes.",
       }
-      if (!conversation.contactPhone)
-        return { ok: false, error: "Numéro de contact manquant." }
+    }
 
+    if (!canSendSessionMessage(conversation)) {
+      return {
+        ok: false,
+        error:
+          "Fenêtre de service de 24h dépassée depuis le dernier message du client — une réponse libre n'est plus autorisée par Meta.",
+      }
+    }
+
+    if (!conversation.contactPhone)
+      return { ok: false, error: "Identifiant de contact manquant." }
+
+    if (conversation.channel === "whatsapp") {
       const provider = getWhatsAppProvider()
       const sendResult = await provider.sendSessionMessage({
         to: conversation.contactPhone,
@@ -198,6 +237,51 @@ export async function sendReply(input: {
             body,
             handledByUserId: ctx.userId,
             externalMessageId: sendResult.providerMessageId ?? null,
+          }),
+      )
+      revalidatePath("/admin/support")
+      return { ok: true }
+    }
+
+    if (
+      (META_OUTBOUND_CHANNELS as readonly string[]).includes(
+        conversation.channel,
+      )
+    ) {
+      const pageAccessToken = process.env.META_PAGE_ACCESS_TOKEN!
+      const metaRes = await fetch(
+        "https://graph.facebook.com/v21.0/me/messages",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${pageAccessToken}`,
+          },
+          body: JSON.stringify({
+            recipient: { id: conversation.contactPhone },
+            messaging_type: "RESPONSE",
+            message: { text: body },
+          }),
+        },
+      )
+      if (!metaRes.ok) {
+        const errData = await metaRes.json().catch(() => ({}))
+        console.error(
+          `[sendReply/${conversation.channel}] Échec Meta Send API`,
+          errData,
+        )
+        return { ok: false, error: "Échec de l'envoi via Meta." }
+      }
+
+      await withTenantContext(
+        { agencyId: ctx.agencyId, userId: ctx.userId, isSuperAdmin: false },
+        (tx) =>
+          appendOutboundMessageCore(tx, {
+            agencyId: ctx.agencyId,
+            conversationId: input.conversationId,
+            body,
+            handledByUserId: ctx.userId,
+            externalMessageId: null,
           }),
       )
       revalidatePath("/admin/support")

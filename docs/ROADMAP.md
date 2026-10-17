@@ -40,6 +40,24 @@ _Aucun. En attente du prochain GO Direction._
 
 ---
 
+### SENDEVENT-ACTIVITY-B2B-01 — CLOS / READY FOR MERGE (2026-10-17)
+
+Gap P1 identifié par LAUNCH-E2E-AUDIT-01 : `createActivityBooking` (B2B) ne
+déclenchait pas `sendEvent("booking/activity.confirmed")` → aucun email client
+après réservation wallet confirmée.
+
+Changements :
+- `lib/activities/booking-actions.ts` : import sendEvent, expose activityTitle +
+  totalTnd depuis la transaction, sendEvent fire-and-forget conditionné sur
+  `booking.customerEmail` (optionnel en B2B).
+- `lib/activities/__tests__/activity-b2b-wiring.test.ts` : 12 tests statiques.
+
+Tests : 12/12 nouveaux green, 2613/2613 suite globale, TypeScript clean.
+Commit : `1be49d5` — PR #230.
+Prérequis infrastructure : ENV-INNGEST-01 + ENV-RESEND-01 (Direction, inchangés).
+
+---
+
 ### INDEX-CLEANUP-01 — CLÔTURÉ (2026-10-17)
 
 Migration `drizzle/0021_drop_redundant_compensates_index.sql` :

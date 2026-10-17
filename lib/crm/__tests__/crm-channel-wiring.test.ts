@@ -1,6 +1,6 @@
 /**
- * CRM-E — invariants statiques pour les 3 nouveaux canaux CRM :
- * Messenger, Instagram, Resend inbound email.
+ * CRM-E / CRM-OUTBOUND-META-01 — invariants statiques pour les canaux CRM :
+ * Messenger, Instagram, Resend inbound email + réponses sortantes Meta.
  *
  * Pattern readFileSync (voir lib/admin/__tests__/create-lead-wiring.test.ts) :
  * vérifie statiquement les propriétés de sécurité et de câblage sans
@@ -26,6 +26,10 @@ const resendRoute = readFileSync(
 )
 const inboxCore = readFileSync(
   join(process.cwd(), "lib/crm/inbox-core.ts"),
+  "utf8",
+)
+const inboxActions = readFileSync(
+  join(process.cwd(), "lib/admin/inbox-actions.ts"),
   "utf8",
 )
 
@@ -300,5 +304,85 @@ test("[inbox-core] WEBHOOK_CHANNELS inclut messenger et instagram", () => {
     inboxCore,
     /["']instagram["']/,
     "'instagram' doit figurer dans WEBHOOK_CHANNELS",
+  )
+})
+
+// ===========================================================================
+// inbox-actions.ts — canSendOutbound + Meta Send API (CRM-OUTBOUND-META-01)
+// ===========================================================================
+
+test("[inbox-actions] META_PAGE_ACCESS_TOKEN vérifié avant tout appel Meta Send", () => {
+  const tokenPos = inboxActions.indexOf("META_PAGE_ACCESS_TOKEN")
+  const fetchPos = inboxActions.indexOf(
+    "https://graph.facebook.com/v21.0/me/messages",
+  )
+  assert.ok(tokenPos > -1, "META_PAGE_ACCESS_TOKEN doit être référencé")
+  assert.ok(
+    fetchPos > -1,
+    "URL Meta Send API doit être présente dans inbox-actions",
+  )
+  assert.ok(
+    tokenPos < fetchPos,
+    "META_PAGE_ACCESS_TOKEN doit apparaître AVANT l'appel fetch Meta",
+  )
+})
+
+test("[inbox-actions] messaging_type RESPONSE présent (obligation Meta pour réponses dans fenêtre)", () => {
+  assert.match(
+    inboxActions,
+    /messaging_type['":\s]+["']RESPONSE["']/,
+    "messaging_type:'RESPONSE' requis par Meta Send API",
+  )
+})
+
+test("[inbox-actions] recipient.id utilisé — jamais recipient.phone (PSID, pas numéro)", () => {
+  assert.match(
+    inboxActions,
+    /recipient:\s*\{\s*id:/,
+    "recipient doit utiliser id (PSID), pas phone",
+  )
+  assert.doesNotMatch(
+    inboxActions,
+    /recipient:\s*\{\s*phone/,
+    "recipient.phone ne doit jamais être utilisé pour Messenger/Instagram",
+  )
+})
+
+test("[inbox-actions] canSendOutbound garde séparé de isChannelConnected (inbound ≠ outbound)", () => {
+  assert.match(
+    inboxActions,
+    /canSendOutbound/,
+    "canSendOutbound doit exister comme garde outbound dédié",
+  )
+  assert.doesNotMatch(
+    inboxActions,
+    /isChannelConnected.*canReply/,
+    "canReply ne doit plus dépendre de isChannelConnected (remplacé par canSendOutbound)",
+  )
+})
+
+test("[inbox-actions] canSendSessionMessage vérifié avant envoi Meta (fenêtre 24h)", () => {
+  const sessionPos = inboxActions.indexOf("canSendSessionMessage(conversation)")
+  const metaFetchPos = inboxActions.indexOf(
+    "https://graph.facebook.com/v21.0/me/messages",
+  )
+  assert.ok(
+    sessionPos > -1,
+    "canSendSessionMessage doit être appelée dans sendReply",
+  )
+  assert.ok(
+    sessionPos < metaFetchPos,
+    "canSendSessionMessage doit être vérifié AVANT l'appel fetch Meta",
+  )
+})
+
+test("[inbox-actions] journalisation après confirmation Meta — jamais avant", () => {
+  const metaFetchPos = inboxActions.indexOf(
+    "https://graph.facebook.com/v21.0/me/messages",
+  )
+  const appendPos = inboxActions.lastIndexOf("appendOutboundMessageCore(")
+  assert.ok(
+    metaFetchPos < appendPos,
+    "appendOutboundMessageCore doit être appelé APRÈS la confirmation Meta",
   )
 })

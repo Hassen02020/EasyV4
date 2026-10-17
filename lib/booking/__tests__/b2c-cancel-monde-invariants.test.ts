@@ -19,9 +19,10 @@
  * 9. REFUND ERROR FORMAT — throw "REFUND_ERROR:..." → rollback, réservation
  *    NON annulée, message d'erreur explicite avec publicRef.
  * 10. feeTnd:0 — jamais de frais fournisseur dans cette itération.
- * 11. supplierNotified:false — TOUJOURS false, jamais true (fournisseur non contacté).
- * 12. AUDIT EVENT — action "reservation.cancelled" avec supplierNotified:false et
- *     requiresSupplierAction:true dans le diff.
+ * 11. supplierNotified conditionnel — !!preCheck.providerOfferId (B2C-CANCEL-MONDE-02 :
+ *     false si offerId absent, true si annulation fournisseur tentée).
+ * 12. AUDIT EVENT — action "reservation.cancelled" avec supplierNotified conditionnel et
+ *     requiresSupplierAction:!providerOfferId dans le diff (B2C-CANCEL-MONDE-02).
  * 13. recordCancellationFinancials appelé avec cancellationFeeTnd=0.
  * 14. Loyalty reversal — reverseEarnedPoints + reinstateRedeemedPoints.
  * 15. recordReservationTransition appelé.
@@ -107,22 +108,31 @@ test("B2C-CANCEL-MONDE-01/10 : feeTnd toujours 0 dans le résultat ok", () => {
   assert.match(mondeSrc, /feeTnd:\s*0/)
 })
 
-// ─── 11. supplierNotified:false ───────────────────────────────────────────────
-test("B2C-CANCEL-MONDE-01/11 : supplierNotified toujours false", () => {
-  assert.match(mondeSrc, /supplierNotified:\s*false/)
-  // Ne doit JAMAIS être true dans le return ok
-  const returnOkIdx = mondeSrc.indexOf("supplierNotified: false")
-  assert.ok(
-    returnOkIdx > 0,
-    "supplierNotified: false doit apparaître dans le résultat",
+// ─── 11. supplierNotified conditionnel (B2C-CANCEL-MONDE-02) ─────────────────
+// Depuis B2C-CANCEL-MONDE-02 : supplierNotified = !!preCheck.providerOfferId
+// (false si offerId absent, true si l'annulation fournisseur a pu être tentée).
+test("B2C-CANCEL-MONDE-01/11 : supplierNotified dépend de providerOfferId", () => {
+  assert.match(
+    mondeSrc,
+    /supplierNotified:\s*!!preCheck\.providerOfferId/,
+    "supplierNotified doit être !!preCheck.providerOfferId (B2C-CANCEL-MONDE-02)",
   )
 })
 
 // ─── 12. AUDIT EVENT ─────────────────────────────────────────────────────────
-test('B2C-CANCEL-MONDE-01/12 : audit event "reservation.cancelled" avec supplierNotified:false', () => {
+// Depuis B2C-CANCEL-MONDE-02 : supplierNotified et requiresSupplierAction sont conditionnels.
+test('B2C-CANCEL-MONDE-01/12 : audit event "reservation.cancelled" présent', () => {
   assert.match(mondeSrc, /action:\s*["']reservation\.cancelled["']/)
-  assert.match(mondeSrc, /supplierNotified:\s*false/)
-  assert.match(mondeSrc, /requiresSupplierAction:\s*true/)
+  assert.match(
+    mondeSrc,
+    /supplierNotified:\s*!!preCheck\.providerOfferId/,
+    "supplierNotified dans l'audit doit être conditionnel (B2C-CANCEL-MONDE-02)",
+  )
+  assert.match(
+    mondeSrc,
+    /requiresSupplierAction:\s*!preCheck\.providerOfferId/,
+    "requiresSupplierAction doit être !preCheck.providerOfferId (B2C-CANCEL-MONDE-02)",
+  )
 })
 
 // ─── 13. recordCancellationFinancials avec feeTnd=0 ─────────────────────────

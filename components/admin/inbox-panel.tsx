@@ -222,9 +222,11 @@ export function InboxPanel() {
                   ) : (
                     <p className="text-muted-foreground flex items-center gap-1.5 text-xs">
                       <MessageCircle className="h-3.5 w-3.5" />
-                      {thread.conversation.channel === "whatsapp"
-                        ? "Fenêtre de service WhatsApp de 24h dépassée — réponse libre indisponible."
-                        : "Ce canal n'est pas connecté."}
+                      {["whatsapp", "messenger", "instagram"].includes(
+                        thread.conversation.channel,
+                      )
+                        ? "Fenêtre de service de 24h dépassée ou canal non configuré — réponse libre indisponible."
+                        : "Ce canal ne supporte pas les réponses sortantes."}
                     </p>
                   )}
                 </div>

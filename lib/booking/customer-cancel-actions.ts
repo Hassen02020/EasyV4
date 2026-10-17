@@ -62,6 +62,7 @@ import { recordCancellationFinancials } from "@/lib/finance/cancellation-financi
 import { reverseCommissionOnCancellation } from "@/lib/finance/commission-reversal"
 import { recordReservationTransition } from "@/lib/admin/reservation-status-history"
 import { logger } from "@/lib/logger"
+import { cancel as cancelVirtualHotel } from "@/lib/hotels-monde/virtual-supplier/engine"
 
 const CANCELLABLE_STATUSES = ["confirmed", "pending", "on_request"] as const
 
@@ -77,7 +78,7 @@ export type CancelMyReservationResult =
  * n'est PAS transmise au fournisseur réel automatiquement.
  */
 export type CancelMyHotelMondeResult =
-  | { ok: true; refundedTnd: number; feeTnd: 0; supplierNotified: false }
+  | { ok: true; refundedTnd: number; feeTnd: 0; supplierNotified: boolean }
   | { ok: false; error: string; code?: string }
 
 export async function cancelMyHotelReservation(
@@ -387,6 +388,9 @@ export async function cancelMyHotelMondeReservation(
         status: reservations.status,
         customerId: reservations.customerId,
         cancellationPolicies: reservationHotel.cancellationPolicies,
+        providerOfferId: reservationHotel.providerOfferId,
+        checkIn: reservationHotel.checkIn,
+        hotelRooms: reservationHotel.rooms,
       })
       .from(reservations)
       .innerJoin(customers, eq(reservations.customerId, customers.id))
@@ -437,14 +441,9 @@ export async function cancelMyHotelMondeReservation(
   // 2. Transaction : re-vérifie sous verrou (anti double-clic), calcule
   //    le remboursement selon la politique figée, annule la réservation.
   //
-  //    NOTE : l'annulation auprès du fournisseur virtuel (cancel() de
-  //    lib/hotels-monde/virtual-supplier/engine.ts) N'EST PAS appelée
-  //    dans cette itération — offerId non stocké en DB. L'admin doit
-  //    transmettre la demande manuellement.
-  //    TODO B2C-CANCEL-MONDE-02 : stocker offerId + appeler cancel().
   // ---------------------------------------------------------------------
   try {
-    return await withTenantContext(tenant, async (tx) => {
+    const result = await withTenantContext(tenant, async (tx) => {
       const [locked] = await tx
         .select({
           status: reservations.status,
@@ -559,18 +558,32 @@ export async function cancelMyHotelMondeReservation(
           refundedTnd,
           refundable,
           actor: "customer",
-          supplierNotified: false,
-          requiresSupplierAction: true,
+          supplierNotified: !!preCheck.providerOfferId,
+          requiresSupplierAction: !preCheck.providerOfferId,
         },
       })
 
       return {
-        ok: true,
+        ok: true as const,
         refundedTnd,
-        feeTnd: 0,
-        supplierNotified: false,
-      } as CancelMyHotelMondeResult
+        feeTnd: 0 as const,
+        supplierNotified: !!preCheck.providerOfferId,
+      }
     })
+
+    // Best-effort : libère l'inventaire virtuel (ne lève jamais).
+    if (result.ok && preCheck.providerOfferId && preCheck.checkIn) {
+      const rooms =
+        (preCheck.hotelRooms as Array<{ quantity?: number }> | null)?.[0]
+          ?.quantity ?? 1
+      await cancelVirtualHotel({
+        offerId: preCheck.providerOfferId,
+        checkIn: preCheck.checkIn,
+        rooms,
+      })
+    }
+
+    return result
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err)
     if (msg === "ALREADY_CANCELLED_CONCURRENTLY") {

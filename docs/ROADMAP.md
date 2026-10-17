@@ -138,7 +138,7 @@ ON CONFLICT (version) DO NOTHING;
 - `SELECT count(*) FROM crm_tasks` → `0` (table inchangée) ✅
 - `SELECT policyname FROM pg_policies WHERE tablename = 'crm_tasks'` → 3 policies `current_agency_id() OR is_super_admin()` — version `0129` préservée ✅
 
-**NOT VERIFIED** : `0137` (`0137_drop_rls_probe_table`) — tracking toujours absent (DROP exécuté par Direction, Option A acceptée dans RLS-PROBE-DROP-01). Même INSERT applicable sur GO Direction après merge PR #219.
+**VÉRIFIÉ 2026-10-17** : `0137` (`0137_drop_rls_probe_table`) — tracking enregistré dans `supabase_migrations.schema_migrations` (INSERT direct, ON CONFLICT DO NOTHING, DDL non rejoué — même méthode que 0128). `SELECT version, name … WHERE version = '0137'` → `{version: "0137", name: "0137_drop_rls_probe_table"}` ✅ — **MIGRATIONS-TRACKING-0137-01 CLÔTURÉ (2026-10-17)**.
 
 ---
 

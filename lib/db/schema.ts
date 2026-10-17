@@ -635,6 +635,8 @@ export const reservationHotel = pgTable(
       .references(() => agencies.id, { onDelete: "restrict" }),
     /** Référence externe myGo (BookingCreation.Id). */
     providerBookingId: varchar("provider_booking_id", { length: 64 }),
+    /** offerId retourné par le fournisseur virtuel — nécessaire pour cancel(). */
+    providerOfferId: varchar("provider_offer_id", { length: 128 }),
     /** Token retourné par HotelSearch (utile pour PreBooking/BookingCreation). */
     providerToken: text("provider_token"),
     hotelId: integer("hotel_id").notNull(),

@@ -493,6 +493,7 @@ async function runCreateGuestWorldHotelBooking(
           reservationId,
           agencyId,
           providerBookingId: bookResult.confirmationNumber,
+          providerOfferId: bookResult.offerId,
           hotelId: syntheticHotelId(bookResult.offerId),
           hotelName: bookResult.name,
           cityId: null,

@@ -34,7 +34,7 @@ test("PKG-WIRING-02 : sendEvent booking/package.confirmed câblé", () => {
 test("PKG-WIRING-03 : sendEvent déclenché si status confirmed et email", () => {
   assert.match(
     src,
-    /result\.status\s*===\s*["']confirmed["'].*booking\.traveler\.email/s,
+    /result\.status\s*===\s*["']confirmed["'][\s\S]*booking\.traveler\.email/,
     "guard status confirmed + email requis avant sendEvent",
   )
 })

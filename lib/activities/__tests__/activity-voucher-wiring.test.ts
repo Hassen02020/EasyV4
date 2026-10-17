@@ -37,7 +37,7 @@ test("ACTIVITY-WIRING-02 : sendEvent booking/activity.confirmed câblé", () => 
 test("ACTIVITY-WIRING-03 : sendEvent déclenché si status confirmed et email", () => {
   assert.match(
     src,
-    /result\.status\s*===\s*["']confirmed["'].*traveler\.email/s,
+    /result\.status\s*===\s*["']confirmed["'][\s\S]*traveler\.email/,
     "guard status confirmed + email requis avant sendEvent",
   )
 })

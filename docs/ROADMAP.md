@@ -40,7 +40,7 @@ _Aucun. En attente du prochain GO Direction._
 
 ---
 
-**INNGEST-HANDLER-WIRING-03** — branche `claude/inngest-handler-wiring-03` — PR #227 — **EN ATTENTE MERGE Direction**.
+**INNGEST-HANDLER-WIRING-03** — branche `claude/inngest-handler-wiring-03` — PR #227 — **CLÔTURÉ, merge sur main, SHA `8217aea` (2026-10-17)**.
 
 **Objectif** : câbler `booking/package.confirmed` et `booking/activity.confirmed` — les deux derniers modules B2C sans email de confirmation post-réservation.
 

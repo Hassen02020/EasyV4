@@ -36,8 +36,20 @@ Un seul chantier actif à la fois ; il est indiqué dans ROADMAP.md (section "Ch
 
 ## Chantier actif
 
-**INDEX-CLEANUP-01** — Suppression index redondant `economic_entitlements_compensates_idx`
-Branche : `claude/index-cleanup-01` — en cours.
+_Aucun. En attente du prochain GO Direction._
+
+---
+
+### INDEX-CLEANUP-01 — CLÔTURÉ (2026-10-17)
+
+Migration `drizzle/0021_drop_redundant_compensates_index.sql` :
+`DROP INDEX IF EXISTS "economic_entitlements_compensates_idx"` — supprime l'index
+non-unique redondant, doublon cosmétique de `economic_entitlements_compensates_uniq`
+(UNIQUE, migration 0134). Idempotent (IF EXISTS). Aucun code applicatif référencé.
+
+DB : Application en production par Direction (même workflow que 0020).
+Tests : tsc 0 erreur.
+Commit : `1a42eb2`
 
 ---
 

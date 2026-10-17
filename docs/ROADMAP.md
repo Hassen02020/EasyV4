@@ -42,7 +42,7 @@ Un seul chantier actif à la fois ; il est indiqué dans ROADMAP.md (section "Ch
 
 **Fichiers** : `scripts/seed-base-infra.ts` — 3 ajouts idempotents : supplier + supplier_node + products (network, status=active), product_authorizations "network" pour les deux agences partenaires, partner_credit_movements crédit initial 10 000 TND.
 
-**SHA commit** : `d12bb88` — push sur `claude/easy2book-v6-modernization-7gyb5v`, PR en cours de création.
+**SHA commit** : `d12bb88` — PR #224 sur `claude/easy2book-v6-modernization-7gyb5v`.
 
 ---
 

@@ -47,6 +47,7 @@ déclenchait pas `sendEvent("booking/activity.confirmed")` → aucun email clien
 après réservation wallet confirmée.
 
 Changements :
+
 - `lib/activities/booking-actions.ts` : import sendEvent, expose activityTitle +
   totalTnd depuis la transaction, sendEvent fire-and-forget conditionné sur
   `booking.customerEmail` (optionnel en B2B).

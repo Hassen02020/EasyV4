@@ -322,7 +322,12 @@ export async function createActivityBooking(
           },
         })
 
-        return { reservationId, publicRef, activityTitle: activity.title, totalTnd }
+        return {
+          reservationId,
+          publicRef,
+          activityTitle: activity.title,
+          totalTnd,
+        }
       },
     )
 

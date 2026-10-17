@@ -45,6 +45,7 @@ Un seul chantier actif à la fois ; il est indiqué dans ROADMAP.md (section "Ch
 **Objectif** : brancher 3 canaux CRM entrants sans migration DB — Messenger DMs, Instagram DMs, email entrant Resend. Canaux déjà dans `CRM_CHANNELS` du schéma, aucun webhook ne les alimentait.
 
 **Fichiers** :
+
 - `app/api/webhooks/messenger/route.ts` (nouveau) — GET handshake `META_MESSENGER_VERIFY_TOKEN`, POST HMAC `META_APP_SECRET`, guard `object:"page"`, `channel:"messenger"`
 - `app/api/webhooks/instagram/route.ts` (nouveau) — idem, `META_INSTAGRAM_VERIFY_TOKEN`, guard `object:"instagram"`, `channel:"instagram"`
 - `app/api/webhooks/resend-inbound/route.ts` (nouveau) — POST Bearer `RESEND_INBOUND_SECRET` timingSafeEqual, `captureWebsiteLeadCore`, `sourcePage:"email_inbound"`

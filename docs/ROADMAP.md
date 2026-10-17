@@ -36,13 +36,28 @@ Un seul chantier actif à la fois ; il est indiqué dans ROADMAP.md (section "Ch
 
 ## Chantier actif
 
-**CRM-LEAD-TASK-01** — branche `claude/crm-lead-task-01` — PR #221 — **EN COURS 2026-10-16**.
+**PLAYWRIGHT-LOCALE-FIX-01** — branche `claude/easy2book-v6-modernization-7gyb5v` — **EN COURS 2026-10-17**.
+
+**Objectif** : porter le correctif `locale: "fr-FR"` dans `playwright.config.ts` sur main. Sans ce correctif, le conteneur CI (et tout environnement Linux sans locale FR configurée) négocie Accept-Language → /en, faisant échouer les specs qui attendent du texte FR par défaut — non liée à l'application (documenté MANUAL-PAYMENT-STATUS-STUCK-01, ROADMAP ligne 239).
+
+**Fichiers** : `playwright.config.ts` (+7 lignes, `use.locale: "fr-FR"`).
+
+**Contexte** : les 3 candidats CARTO-TECH-01 sont résolus —
+- SENDVENT-B2C-01 → N/A : VOUCHER-STATUS-GUARD-01 (PR #171) a correctement retiré `sendEvent` de cars/transfers (toujours `status="pending"`) ; les commentaires TODO sont des guards intentionnels.
+- PACKAGES-B2C-01 → REUSE/DONE : `createGuestPackageBooking` existe dans `lib/packages/booking-actions.ts` (ligne 100), câblé depuis `components/packages/package-guest-booking-form.tsx` et `components/cart/cart-view.tsx`.
+- ENV-PRODUCTION-01 → décision Direction requise, pas de code.
+
+**Critère de sortie** : PR mergée sur main, CI 8/8 green.
+
+---
+
+**CRM-LEAD-TASK-01** — branche `claude/crm-lead-task-01` — PR #221 — **CLÔTURÉ, squash merge sur main, SHA `2706714` (2026-10-16)**.
 
 **Objectif** : exposer la liaison `crm_tasks.leadId` dans l'UI. DB + core + server actions déjà présents (EXTEND). Crée `LeadTasksPanel` (composant client compact) intégré dans `Customer360Button` dialog (pipeline + table leads).
 
 **Fichiers** : `components/admin/lead-tasks-panel.tsx` (nouveau), `components/admin/customer-360-panel.tsx` (étendu), `lib/crm/__tests__/crm-lead-task-panel-invariants.test.ts` (8 tests, 8/8 pass).
 
-**Critère de sortie** : PR #221 mergée sur main → déploiement Vercel `easy2book-new` `state=READY`.
+→ **CLÔTURÉ** — PR #221 mergée sur main, SHA `2706714`, 2026-10-16.
 
 ---
 

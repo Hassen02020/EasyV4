@@ -36,19 +36,27 @@ Un seul chantier actif à la fois ; il est indiqué dans ROADMAP.md (section "Ch
 
 ## Chantier actif
 
-**PLAYWRIGHT-LOCALE-FIX-01** — branche `claude/easy2book-v6-modernization-7gyb5v` — **EN COURS 2026-10-17**.
+**JOURNEY-BUILDER-E2E-FIX-01** — branche `claude/easy2book-v6-modernization-7gyb5v` — **EN COURS**.
+
+**Objectif** : débloquer `e2e/journey-builder-01.spec.ts` (2/2 scenarios failing). Cause racine : deux données manquantes dans le seed E2E. `createNetworkProductBooking` échouait avec `INSUFFICIENT_FUNDS` car (1) aucun solde `partner_credit_movements` pour Sahara Voyages et (2) aucun Network Product `40000000-...-0003` en base.
+
+**Fichiers** : `scripts/seed-base-infra.ts` — 3 ajouts idempotents : supplier + supplier_node + products (network, status=active), product_authorizations "network" pour les deux agences partenaires, partner_credit_movements crédit initial 10 000 TND.
+
+**SHA commit** : `d12bb88` — PR #224 sur `claude/easy2book-v6-modernization-7gyb5v`.
+
+---
+
+**PLAYWRIGHT-LOCALE-FIX-01** — branche `claude/easy2book-v6-modernization-7gyb5v` — PR #223 — **CLÔTURÉ, squash merge sur main, SHA `a33e941` (2026-10-17)**.
 
 **Objectif** : porter le correctif `locale: "fr-FR"` dans `playwright.config.ts` sur main. Sans ce correctif, le conteneur CI (et tout environnement Linux sans locale FR configurée) négocie Accept-Language → /en, faisant échouer les specs qui attendent du texte FR par défaut — non liée à l'application (documenté MANUAL-PAYMENT-STATUS-STUCK-01, ROADMAP ligne 239).
 
 **Fichiers** : `playwright.config.ts` (+7 lignes, `use.locale: "fr-FR"`).
 
-**Contexte** : les 3 candidats CARTO-TECH-01 sont résolus —
+**Contexte** : les 3 candidats CARTO-TECH-01 résolus — SENDVENT-B2C-01 (N/A), PACKAGES-B2C-01 (REUSE/DONE), ENV-PRODUCTION-01 (décision Direction requise).
 
-- SENDVENT-B2C-01 → N/A : VOUCHER-STATUS-GUARD-01 (PR #171) a correctement retiré `sendEvent` de cars/transfers (toujours `status="pending"`) ; les commentaires TODO sont des guards intentionnels.
-- PACKAGES-B2C-01 → REUSE/DONE : `createGuestPackageBooking` existe dans `lib/packages/booking-actions.ts` (ligne 100), câblé depuis `components/packages/package-guest-booking-form.tsx` et `components/cart/cart-view.tsx`.
-- ENV-PRODUCTION-01 → décision Direction requise, pas de code.
+**CI post-merge** : 8/8 green (format ✅ lint ✅ typecheck ✅ test ✅ build ✅ financial-e2e ✅ playwright-a11y ✅ lighthouse ✅).
 
-**Critère de sortie** : PR mergée sur main, CI 8/8 green.
+→ **CLÔTURÉ** — PR #223 mergée sur main, SHA `a33e941`, 2026-10-17.
 
 ---
 

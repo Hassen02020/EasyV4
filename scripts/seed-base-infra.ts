@@ -62,6 +62,10 @@ import {
   catalogActivities,
   catalogActivitySessions,
   productAuthorizations,
+  suppliers,
+  supplierNodes,
+  products,
+  partnerCreditMovements,
 } from "@/lib/db/schema"
 
 /* -------------------------------------------------------------------------- */
@@ -93,6 +97,12 @@ const CATALOG_PACKAGE_DEPARTURE_ID = "20000000-0000-0000-0000-000000000002"
 
 const CATALOG_ACTIVITY_ID = "30000000-0000-0000-0000-000000000001"
 const CATALOG_ACTIVITY_SESSION_ID = "30000000-0000-0000-0000-000000000002"
+
+const SUPPLIER_ID = "50000000-0000-0000-0000-000000000001"
+const SUPPLIER_NODE_ID = "50000000-0000-0000-0000-000000000002"
+/** Must match e2e/journey-builder-01.spec.ts NETWORK_PRODUCT_ID */
+const NETWORK_PRODUCT_ID = "40000000-0000-0000-0000-000000000003"
+const SEED_PARTNER_CREDIT_ID = "60000000-0000-0000-0000-000000000001"
 
 /** Aujourd'hui = 2026-09-11 (contexte mission). Départs dans le futur proche
  * pour ne jamais être rejetés par une validation de fenêtre de résa. */
@@ -287,7 +297,7 @@ async function main() {
       })
       .onConflictDoNothing({ target: catalogPackageDepartures.id })
 
-    console.log("[seed-base] 6/6 Activity + session (OTA)...")
+    console.log("[seed-base] 6/9 Activity + session (OTA)...")
     await tx
       .insert(catalogActivities)
       .values({
@@ -326,7 +336,50 @@ async function main() {
       })
       .onConflictDoNothing({ target: catalogActivitySessions.id })
 
-    console.log("[seed-base] 7/7 product_authorizations (revente B2B)...")
+    console.log(
+      "[seed-base] 7/9 Supplier + SupplierNode + Network product (OTA)...",
+    )
+    await tx
+      .insert(suppliers)
+      .values({
+        id: SUPPLIER_ID,
+        name: "Fournisseur Réseau Test",
+        type: "custom",
+        status: "active",
+      })
+      .onConflictDoNothing({ target: suppliers.id })
+
+    await tx
+      .insert(supplierNodes)
+      .values({
+        id: SUPPLIER_NODE_ID,
+        supplierId: SUPPLIER_ID,
+        slug: "fournisseur-reseau-test",
+        displayName: "Fournisseur Réseau Test",
+        modules: ["activity"],
+        onboardingStatus: "active",
+        portalEnabled: false,
+      })
+      .onConflictDoNothing({ target: supplierNodes.id })
+
+    await tx
+      .insert(products)
+      .values({
+        id: NETWORK_PRODUCT_ID,
+        agencyId: OTA_AGENCY_ID,
+        supplierNodeId: SUPPLIER_NODE_ID,
+        costPrice: "200.000",
+        costCurrency: "TND",
+        sku: "NET-TEST-001",
+        type: "activity",
+        status: "active",
+        name: "Excursion Réseau Test",
+        basePrice: "250.000",
+        currency: "TND",
+      })
+      .onConflictDoNothing({ target: products.id })
+
+    console.log("[seed-base] 8/9 product_authorizations (revente B2B)...")
     // RLS élargie (drizzle/manual/0023_commerce_completion.sql) : une agence
     // B2B ne voit un produit catalogue qu'à la condition
     // `agency_id = current_agency_id() OR EXISTS product_authorizations`.
@@ -361,6 +414,13 @@ async function main() {
             channel: "b2b",
             isActive: true,
           },
+          {
+            agencyId: partnerId,
+            productType: "network",
+            productId: NETWORK_PRODUCT_ID,
+            channel: "b2b",
+            isActive: true,
+          },
         ])
         .onConflictDoNothing({
           target: [
@@ -370,6 +430,28 @@ async function main() {
           ],
         })
     }
+
+    console.log(
+      "[seed-base] 9/9 partner_credit_movements (dépôt initial Sahara Voyages)...",
+    )
+    // PARTNER_AGENCY_ID uniquement — EXISTING_PARTNER_AGENCY_ID n'est créée
+    // que conditionnellement (agence pré-existante en base réelle) ; une FK
+    // vers une agence inexistante provoquerait un constraint error. Le flow
+    // E2E utilise pro.test → PARTNER_AGENCY_ID (seed fresh DB).
+    await tx
+      .insert(partnerCreditMovements)
+      .values({
+        id: SEED_PARTNER_CREDIT_ID,
+        agencyId: PARTNER_AGENCY_ID,
+        movementType: "credit",
+        amount: "10000.000",
+        balanceAfter: "10000.000",
+        reference: "SEED-INITIAL",
+        description: "Crédit initial de test (seed)",
+        idempotencyKey:
+          "seed:partner-credit:00000000-0000-0000-0000-000000000002",
+      })
+      .onConflictDoNothing({ target: partnerCreditMovements.id })
   })
 
   console.log("[seed-base] ✅ done. Verifying counts...")

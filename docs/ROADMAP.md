@@ -43,6 +43,7 @@ Un seul chantier actif à la fois ; il est indiqué dans ROADMAP.md (section "Ch
 **Fichiers** : `playwright.config.ts` (+7 lignes, `use.locale: "fr-FR"`).
 
 **Contexte** : les 3 candidats CARTO-TECH-01 sont résolus —
+
 - SENDVENT-B2C-01 → N/A : VOUCHER-STATUS-GUARD-01 (PR #171) a correctement retiré `sendEvent` de cars/transfers (toujours `status="pending"`) ; les commentaires TODO sont des guards intentionnels.
 - PACKAGES-B2C-01 → REUSE/DONE : `createGuestPackageBooking` existe dans `lib/packages/booking-actions.ts` (ligne 100), câblé depuis `components/packages/package-guest-booking-form.tsx` et `components/cart/cart-view.tsx`.
 - ENV-PRODUCTION-01 → décision Direction requise, pas de code.

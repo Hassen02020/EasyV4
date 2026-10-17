@@ -39,6 +39,7 @@ import {
   resolveSessionContext,
   withTenantContext,
 } from "@/lib/db/tenant-context"
+import { sendEvent } from "@/lib/inngest/client"
 import { generateInvoiceForReservation } from "@/lib/finance/invoice-actions"
 import { recordReservationTransition } from "@/lib/admin/reservation-status-history"
 import { recordReservationFinancials } from "@/lib/finance/reservation-financials"
@@ -321,7 +322,12 @@ export async function createActivityBooking(
           },
         })
 
-        return { reservationId, publicRef }
+        return {
+          reservationId,
+          publicRef,
+          activityTitle: activity.title,
+          totalTnd,
+        }
       },
     )
 
@@ -342,6 +348,20 @@ export async function createActivityBooking(
         "[activity-b2b] génération facture échouée",
         err instanceof Error ? err.message : String(err),
       )
+    }
+
+    if (booking.customerEmail) {
+      sendEvent("booking/activity.confirmed", {
+        reservationId: result.reservationId,
+        publicRef: result.publicRef,
+        agencyId,
+        activityTitle: result.activityTitle,
+        paxCount,
+        totalTnd: result.totalTnd,
+        contactEmail: booking.customerEmail,
+      }).catch(() => {
+        /* fire-and-forget — échec Inngest ne doit pas annuler la réservation */
+      })
     }
 
     return {

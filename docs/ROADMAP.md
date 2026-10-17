@@ -36,7 +36,8 @@ Un seul chantier actif à la fois ; il est indiqué dans ROADMAP.md (section "Ch
 
 ## Chantier actif
 
-_Aucun. En attente du prochain GO Direction._
+**INDEX-CLEANUP-01** — Suppression index redondant `economic_entitlements_compensates_idx`
+Branche : `claude/index-cleanup-01` — en cours.
 
 ---
 

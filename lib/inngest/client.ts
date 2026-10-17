@@ -121,6 +121,31 @@ export type Events = {
       contactEmail: string
     }
   }
+  /** Voyage organisé (Package) confirmé — email récapitulatif client. */
+  "booking/package.confirmed": {
+    data: {
+      reservationId: string
+      publicRef: string
+      agencyId: string
+      packageName: string
+      departureDate: string
+      paxCount: number
+      totalTnd: number
+      contactEmail: string
+    }
+  }
+  /** Attraction (Activity) confirmée — email récapitulatif client. */
+  "booking/activity.confirmed": {
+    data: {
+      reservationId: string
+      publicRef: string
+      agencyId: string
+      activityTitle: string
+      paxCount: number
+      totalTnd: number
+      contactEmail: string
+    }
+  }
   /**
    * CAMPAIGN-DELIVERY-01 — campagne lancée, déclenche l'envoi des messages
    * aux campaign_targets via le canal de la campagne (email/whatsapp/call).

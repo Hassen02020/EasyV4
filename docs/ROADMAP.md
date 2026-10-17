@@ -36,13 +36,17 @@ Un seul chantier actif à la fois ; il est indiqué dans ROADMAP.md (section "Ch
 
 ## Chantier actif
 
-**JOURNEY-BUILDER-E2E-FIX-01** — branche `claude/easy2book-v6-modernization-7gyb5v` — **EN COURS**.
+**Aucun** — en attente de GO Direction.
+
+---
+
+**JOURNEY-BUILDER-E2E-FIX-01** — branche `claude/easy2book-v6-modernization-7gyb5v` — PR #224 — **CLÔTURÉ, merge sur main, SHA `33d5eb8` (2026-10-17)**.
 
 **Objectif** : débloquer `e2e/journey-builder-01.spec.ts` (2/2 scenarios failing). Cause racine : deux données manquantes dans le seed E2E. `createNetworkProductBooking` échouait avec `INSUFFICIENT_FUNDS` car (1) aucun solde `partner_credit_movements` pour Sahara Voyages et (2) aucun Network Product `40000000-...-0003` en base.
 
 **Fichiers** : `scripts/seed-base-infra.ts` — 3 ajouts idempotents : supplier + supplier_node + products (network, status=active), product_authorizations "network" pour les deux agences partenaires, partner_credit_movements crédit initial 10 000 TND.
 
-**SHA commit** : `d12bb88` — PR #224 sur `claude/easy2book-v6-modernization-7gyb5v`.
+→ **CLÔTURÉ** — PR #224 mergée sur main, SHA `33d5eb8`, 2026-10-17.
 
 ---
 

@@ -36,13 +36,35 @@ Un seul chantier actif à la fois ; il est indiqué dans ROADMAP.md (section "Ch
 
 ## Chantier actif
 
-**JOURNEY-BUILDER-E2E-FIX-01** — branche `claude/easy2book-v6-modernization-7gyb5v` — **EN COURS**.
+**Aucun** — en attente de GO Direction.
+
+---
+
+**CRM-E** — branche `claude/easy2book-v6-modernization-7gyb5v` — PR #225 — **EN COURS (2026-10-17, en attente merge Direction)**.
+
+**Objectif** : brancher 3 canaux CRM entrants sans migration DB — Messenger DMs, Instagram DMs, email entrant Resend. Canaux déjà dans `CRM_CHANNELS` du schéma, aucun webhook ne les alimentait.
+
+**Fichiers** :
+
+- `app/api/webhooks/messenger/route.ts` (nouveau) — GET handshake `META_MESSENGER_VERIFY_TOKEN`, POST HMAC `META_APP_SECRET`, guard `object:"page"`, `channel:"messenger"`
+- `app/api/webhooks/instagram/route.ts` (nouveau) — idem, `META_INSTAGRAM_VERIFY_TOKEN`, guard `object:"instagram"`, `channel:"instagram"`
+- `app/api/webhooks/resend-inbound/route.ts` (nouveau) — POST Bearer `RESEND_INBOUND_SECRET` timingSafeEqual, `captureWebsiteLeadCore`, `sourcePage:"email_inbound"`
+- `lib/crm/inbox-core.ts` (étendu) — `isChannelConnected` +messenger +instagram +email, `WEBHOOK_CHANNELS` ["whatsapp","messenger","instagram"] origin event template
+- `lib/crm/__tests__/crm-channel-wiring.test.ts` (nouveau) — 27/27 invariants statiques ✓
+
+**Vars env à provisionner** : `META_MESSENGER_VERIFY_TOKEN`, `META_INSTAGRAM_VERIFY_TOKEN`, `RESEND_INBOUND_SECRET` (META_APP_SECRET déjà présent).
+
+→ **PR #225 ouverte — SHA `aba6724` — en attente merge Direction.**
+
+---
+
+**JOURNEY-BUILDER-E2E-FIX-01** — branche `claude/easy2book-v6-modernization-7gyb5v` — PR #224 — **CLÔTURÉ, merge sur main, SHA `33d5eb8` (2026-10-17)**.
 
 **Objectif** : débloquer `e2e/journey-builder-01.spec.ts` (2/2 scenarios failing). Cause racine : deux données manquantes dans le seed E2E. `createNetworkProductBooking` échouait avec `INSUFFICIENT_FUNDS` car (1) aucun solde `partner_credit_movements` pour Sahara Voyages et (2) aucun Network Product `40000000-...-0003` en base.
 
 **Fichiers** : `scripts/seed-base-infra.ts` — 3 ajouts idempotents : supplier + supplier_node + products (network, status=active), product_authorizations "network" pour les deux agences partenaires, partner_credit_movements crédit initial 10 000 TND.
 
-**SHA commit** : `d12bb88` — PR #224 sur `claude/easy2book-v6-modernization-7gyb5v`.
+→ **CLÔTURÉ** — PR #224 mergée sur main, SHA `33d5eb8`, 2026-10-17.
 
 ---
 

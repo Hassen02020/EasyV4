@@ -53,12 +53,12 @@ test("canSendSessionMessage : jamais de message entrant → false", () => {
   assert.equal(canSendSessionMessage({ lastInboundAt: null }), false)
 })
 
-test("isChannelConnected : seul whatsapp est réellement branché", () => {
+test("isChannelConnected : whatsapp, messenger, instagram, email sont branchés (CRM-E)", () => {
   assert.equal(isChannelConnected("whatsapp"), true)
-  assert.equal(isChannelConnected("instagram"), false)
-  assert.equal(isChannelConnected("messenger"), false)
+  assert.equal(isChannelConnected("instagram"), true)
+  assert.equal(isChannelConnected("messenger"), true)
+  assert.equal(isChannelConnected("email"), true)
   assert.equal(isChannelConnected("call"), false)
-  assert.equal(isChannelConnected("email"), false)
   assert.equal(isChannelConnected("web"), false)
 })
 

@@ -225,18 +225,23 @@ export async function upsertConversationForInboundCore(
       })
       leadId = created.id
 
-      // NETWORK-DEMAND-CAPTURE-01 — seule source RÉELLEMENT opérationnelle
-      // aujourd'hui (voir fiche §3) : le webhook WhatsApp est signé/vérifié
-      // HMAC avant d'appeler cette fonction (app/api/webhooks/whatsapp/
-      // route.ts), donc authorized=true est correct ici — aucune autre
-      // source préparatoire n'a d'appelant réel (voir test dédié).
-      if (params.channel === "whatsapp") {
+      // CRM-E — tous les canaux avec un webhook entrant HMAC-vérifié
+      // (whatsapp, messenger, instagram) enregistrent leur origine ; les
+      // canaux sans webhook actif (call, email, web) n'ont pas d'appelant
+      // réel ici, l'origine est tracée côté captureStaffLeadCore /
+      // captureWebsiteLeadCore.
+      const WEBHOOK_CHANNELS: Array<typeof params.channel> = [
+        "whatsapp",
+        "messenger",
+        "instagram",
+      ]
+      if ((WEBHOOK_CHANNELS as string[]).includes(params.channel)) {
         await recordLeadOriginEventCore(tx, {
           agencyId: params.agencyId,
           leadId,
           role: "channel",
-          actorRef: "whatsapp",
-          source: "whatsapp_webhook",
+          actorRef: params.channel,
+          source: `${params.channel}_webhook`,
           authorized: true,
         })
       }
@@ -351,7 +356,12 @@ export function canSendSessionMessage(
   )
 }
 
-/** Conversations sans conversation ouverte pour un canal non branché — jamais fabriqué, juste absent. */
+/** Canaux avec un webhook entrant actif (signé/vérifié HMAC ou Bearer). */
 export function isChannelConnected(channel: CrmChannel): boolean {
-  return channel === "whatsapp"
+  return (
+    channel === "whatsapp" ||
+    channel === "messenger" ||
+    channel === "instagram" ||
+    channel === "email"
+  )
 }

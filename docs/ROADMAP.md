@@ -36,7 +36,64 @@ Un seul chantier actif à la fois ; il est indiqué dans ROADMAP.md (section "Ch
 
 ## Chantier actif
 
-_Aucun. En attente du prochain GO Direction._
+_LOCAL-FULL-E2E-01 — stack local E2E complet (en cours, branche `claude/local-full-e2e-01`)._
+
+---
+
+### LOCAL-FULL-E2E-01 — CLOS / READY FOR MERGE (2026-10-18)
+
+Stack local E2E complet — répétition générale des 18 specs Playwright en
+environnement isolé (Supabase CLI + GoTrue + Virtual suppliers + PAYMENT_MODE=virtual).
+
+**Livrables :**
+
+- `scripts/seed-base-infra.ts` : fix P0 — `futureDate()` utilisait une base fixe
+  `2026-09-11` générant des dates déjà passées. Corrigé en `new Date()` dynamique.
+  Dates affectées : session activité (futureDate(20)), départ package (futureDate(30/36)),
+  deadline réservation (futureDate(35)).
+- `scripts/create-e2e-gotrue-users.ts` : crée les 2 utilisateurs GoTrue avec UUIDs
+  fixes (11111111-... admin, 66666666-... partner) via `supabase.auth.admin.createUser`.
+  Idempotent (ignore "already exists").
+- `.env.test.example` : template minimal pour l'environnement E2E local avec
+  PAYMENT_MODE=virtual, MYGO_MODE=virtual, MEDIA_STORAGE_BACKEND=local.
+- `scripts/run-e2e-local.sh` : orchestrateur complet (supabase start → db:push →
+  seed-base-infra → create-e2e-gotrue-users → pnpm dev → playwright test 18 specs).
+
+**Prérequis Direction pour exécution complète :**
+- Docker + Supabase CLI installés sur la machine de test
+- `.env.test` créé depuis `.env.test.example`
+- Pour hôtels monde : `EXCHANGE_RATE_API_KEY` (sinon bloqué fail-closed)
+
+**Statut specs E2E :**
+- 6 specs runnable sans auth (a11y, header/footer, hotel-search, mobile-overflow,
+  b2c-guest-checkout, omra-packages-storefront)
+- 12 specs runnable avec GoTrue (all dashboard-operations-*, auth, journey-builder)
+- 0 spec nécessitant Inngest réel (PAYMENT_MODE=virtual couvre tous les flows)
+
+TypeScript clean. Branche : `claude/local-full-e2e-01` | PR #233.
+
+---
+
+### ENV-PRODUCTION-01 — AUDIT LIVRÉ / ACTION DIRECTION REQUISE (2026-10-18)
+
+Audit complet des variables d'environnement production Vercel `easy2book-new`.
+
+Résultat : 11 groupes de variables documentés dans `docs/env-production-audit.md`.
+
+**Priorités immédiates (Direction → Vercel dashboard) :**
+1. Vérifier DATABASE_URL, SUPABASE_SERVICE_ROLE_KEY
+2. `INNGEST_SIGNING_KEY` + `INNGEST_EVENT_KEY` → débloque tous les workflows
+3. `RESEND_API_KEY` → débloque emails clients
+4. `EXCHANGE_RATE_API_KEY` → débloque hôtels monde devise étrangère
+5. `PAYMENT_PROVIDER=paymee` + `PAYMEE_API_KEY` + `PAYMEE_ENVIRONMENT=production`
+6. Rotation des secrets par défaut : `PRICE_TOKEN_SECRET`, `SUPPLIER_CREDENTIALS_ENCRYPTION_KEY`, `CRON_SECRET`
+
+**Blocage MCP** : lecture/écriture env vars Vercel bloquée (403 scope `easy2book`).
+Direction agit directement : Vercel → easy2book-new → Settings → Environment Variables.
+
+Branche : `claude/env-production-01` | Fichier livré : `docs/env-production-audit.md` | PR #232.
+
+NOT VERIFIED : valeurs actuellement posées en production (lecture bloquée).
 
 ---
 

@@ -107,7 +107,7 @@ const SEED_PARTNER_CREDIT_ID = "60000000-0000-0000-0000-000000000001"
 /** Aujourd'hui = 2026-09-11 (contexte mission). Départs dans le futur proche
  * pour ne jamais être rejetés par une validation de fenêtre de résa. */
 function futureDate(daysFromNow: number): string {
-  const d = new Date("2026-09-11T00:00:00Z")
+  const d = new Date()
   d.setUTCDate(d.getUTCDate() + daysFromNow)
   return d.toISOString().slice(0, 10)
 }

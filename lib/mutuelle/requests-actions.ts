@@ -404,7 +404,8 @@ export async function reviewMutuelleRequest(
           if (!group) {
             return {
               ok: false as const,
-              error: "Groupe Mutuelle introuvable — impossible de créer la réservation.",
+              error:
+                "Groupe Mutuelle introuvable — impossible de créer la réservation.",
             }
           }
 

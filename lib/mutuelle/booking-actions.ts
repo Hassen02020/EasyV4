@@ -114,14 +114,17 @@ export async function createMutuelleBookingInTx(
   } = input
 
   const MODULE_VALUES = reservationModule.enumValues
-  if (!MODULE_VALUES.includes(request.module as (typeof MODULE_VALUES)[number])) {
+  if (
+    !MODULE_VALUES.includes(request.module as (typeof MODULE_VALUES)[number])
+  ) {
     throw new Error(
       `Module "${request.module}" invalide pour la réservation Mutuelle.`,
     )
   }
 
   // Prix de vente = base × (1 + markup%)
-  const salePriceTnd = Math.round(basePriceTnd * (1 + markupPercent / 100) * 100) / 100
+  const salePriceTnd =
+    Math.round(basePriceTnd * (1 + markupPercent / 100) * 100) / 100
   const marginAmount = Math.round((salePriceTnd - basePriceTnd) * 100) / 100
 
   // --- Client (membre) ---

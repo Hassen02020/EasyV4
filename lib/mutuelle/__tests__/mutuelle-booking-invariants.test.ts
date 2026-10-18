@@ -156,7 +156,8 @@ describe("invariants financiers Mutuelle", () => {
   it("commissionPercent 0 → commissionAmount = 0", () => {
     const marginAmount = 100
     const commissionRate = 0
-    const commission = Math.round(marginAmount * (commissionRate / 100) * 100) / 100
+    const commission =
+      Math.round(marginAmount * (commissionRate / 100) * 100) / 100
     expect(commission).toBe(0)
   })
 

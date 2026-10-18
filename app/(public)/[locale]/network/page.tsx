@@ -13,14 +13,7 @@ import { Button } from "@/components/ui/button"
 import { CatalogPagination } from "@/components/catalog-pagination"
 import { withSystemContext } from "@/lib/db/tenant-context"
 import { products } from "@/lib/db/schema"
-import {
-  and,
-  eq,
-  isNotNull,
-  ilike,
-  or,
-  sql,
-} from "drizzle-orm"
+import { and, eq, isNotNull, ilike, or, sql } from "drizzle-orm"
 import { Input } from "@/components/ui/input"
 import { getDefaultAgencyId } from "@/lib/agencies/default-agency"
 import { getMarginsForAgency } from "@/lib/pro/server-context"

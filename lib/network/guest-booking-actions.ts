@@ -151,9 +151,8 @@ async function runCreateGuestNetworkBooking(
 
   // Marge réelle canal "direct" (vente publique OTA) — même moteur que
   // hotel/flight/transfer/network B2B. Appelée AVANT la transaction.
-  const directMarginRule = (
-    await getMarginsForAgency(agencyId, "", "direct")
-  ).network
+  const directMarginRule = (await getMarginsForAgency(agencyId, "", "direct"))
+    .network
 
   try {
     const result = await withTenantContext(

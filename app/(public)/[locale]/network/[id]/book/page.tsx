@@ -36,10 +36,7 @@ async function getBookableProduct(id: string) {
       )
       .limit(1)
     if (!product) return null
-    const salePriceTnd = applyMargin(
-      Number(product.costPrice),
-      margins.network,
-    )
+    const salePriceTnd = applyMargin(Number(product.costPrice), margins.network)
     return { product, salePriceTnd }
   })
 }

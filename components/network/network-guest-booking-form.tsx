@@ -60,7 +60,9 @@ export function NetworkGuestBookingForm({ product, salePriceTnd }: Props) {
     useState<AllowedPaymentMethod>("card")
 
   const form = useForm<NetworkGuestBookingInput>({
-    resolver: zodResolver(networkGuestBookingSchema) as Resolver<NetworkGuestBookingInput>,
+    resolver: zodResolver(
+      networkGuestBookingSchema,
+    ) as Resolver<NetworkGuestBookingInput>,
     defaultValues: {
       productId: product.id,
       quantity: 1,

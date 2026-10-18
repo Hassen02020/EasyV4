@@ -1,3 +1,5 @@
+import { describe, it, expect } from "vitest"
+
 /**
  * MUTUELLE-BOOKING-01 — Analyse de concurrence (DIRECTION DIRECTIVE audit, point 2).
  *
@@ -37,8 +39,6 @@
  * Cette correction n'est PAS implémentée dans cette PR ; la PR actuelle est
  * correcte au sens où la contrainte UNIQUE garantit l'absence de doublon.
  */
-
-import { describe, it, expect } from "vitest"
 
 /* ============================================================ */
 /* Helpers statiques reproduisant la logique réelle            */

@@ -36,7 +36,55 @@ Un seul chantier actif à la fois ; il est indiqué dans ROADMAP.md (section "Ch
 
 ## Chantier actif
 
-_LOCAL-FULL-E2E-01 — stack local E2E complet (en cours, branche `claude/local-full-e2e-01`)._
+_Aucun chantier actif — MUTUELLE-BOOKING-01 fusionné (2026-10-18). En attente des instructions de la Direction._
+
+---
+
+### MUTUELLE-BOOKING-01 — CLOS / FUSIONNÉ (2026-10-18)
+
+**Leg réservation B2B2C sur approbation directeur (module Mutuelle).**
+
+Ferme le gap `Mutuelle | PARTIEL` identifié par CARTO-TECH-01 : lorsqu'un directeur
+approuve une demande membre, une réservation `confirmed` est créée immédiatement dans
+la même transaction DB, avec la chaîne financière complète.
+
+**Livrables :**
+
+- `lib/mutuelle/booking-actions.ts` [CREATE] — helper `createMutuelleBookingInTx()`
+  appelé dans la transaction `reviewMutuelleRequest` :
+  `salePriceTnd = basePriceTnd × (1 + markupPercent/100)`, ref `MUT-YYYY-NNNNNN`,
+  `recordReservationFinancials` + `creditPlatformCommission` (commissionPercent=0),
+  `providerPayload.channel = "mutuelle_b2b2c"`, audit `reservation.mutuelle_booking.created`.
+- `lib/mutuelle/requests-actions.ts` [EXTEND] — `reviewInputSchema` étendu (`basePriceTnd`
+  requis sur `approved`), résultat `{ reservationId?, publicRef? }`, appel
+  `createMutuelleBookingInTx` dans la transaction, fire-and-forget post-commit :
+  `generateInvoiceForReservation` + `sendEvent("booking/mutuelle.confirmed")`.
+- `lib/inngest/client.ts` [EXTEND] — type `"booking/mutuelle.confirmed"` dans `Events`.
+- `lib/inngest/functions/process-mutuelle-confirmed.ts` [CREATE] — handler Inngest email récap.
+- `lib/inngest/functions/index.ts` [EXTEND] — export `processMutuelleConfirmed`.
+- `lib/mutuelle/__tests__/mutuelle-booking-invariants.test.ts` [CREATE] — 16 invariants statiques.
+- `lib/mutuelle/__tests__/mutuelle-concurrency.test.ts` [CREATE] — 13 tests statiques,
+  4 scénarios de concurrence (CAS A/B/C/D).
+
+**Preuves de fusion :**
+
+- Branche : `claude/mutuelle-booking-01`
+- SHA head fusionné : `ab13e52210e1a1bd320147628c9023484ebbdec5`
+- Merge commit `main` : `ae215629bfe8e80921b50a1c68b972a63c6434d0`
+- PR : #235 — fusionnée par Direction (`Hassen02020`) le 2026-10-18T20:11:21Z
+- CI run pre-merge (SHA `ab13e52`) : run #654 → tous contrôles ✅ (format/lint/typecheck/test/financial-e2e/build/playwright-a11y/lighthouse)
+- CI run post-merge (SHA `ae215629`, run #656) : 8/8 ✅ (format/lint/typecheck/test/financial-e2e/build/playwright-a11y/lighthouse)
+
+**Aucune migration DB.** Réservation via schéma `reservations` existant,
+traçabilité Mutuelle via `providerPayload.channel = "mutuelle_b2b2c"`.
+
+**3 risques résiduels documentés (non corrigés — GO Direction séparé requis pour chacun) :**
+
+| ID | Description | Impact si déclenché | Proposition technique |
+|---|---|---|---|
+| CAS-B | `SELECT MAX(publicRef)` non-verrouillant → collision UNIQUE `(agencyId, publicRef)` sur approbations concurrent | PG 23505 → rollback TX → demande reste `pending` → retry directeur OK (pas de corruption) | `pg_advisory_xact_lock(hashtext(agencyId + year))` |
+| CAS-C | `generateInvoiceForReservation` appelé post-commit (fire-and-forget) → crash process avant appel → facture manquante | Facture orpheline, récupérable manuellement | Inngest `step.run` pour garantie d'exécution |
+| CAS-D | `mutuelleGroups.status` non vérifié à l'approbation → groupe inactif/suspendu peut être approuvé | Réservation créée pour groupe non actif | Guard `if (group.status !== "active") throw` dans `reviewMutuelleRequest` |
 
 ---
 

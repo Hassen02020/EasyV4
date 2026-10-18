@@ -146,6 +146,18 @@ export type Events = {
       contactEmail: string
     }
   }
+  /** NETWORK-B2C-01 — réservation Network B2C confirmée (carte). */
+  "booking/network.confirmed": {
+    data: {
+      reservationId: string
+      publicRef: string
+      agencyId: string
+      productName: string
+      quantity: number
+      totalTnd: number
+      contactEmail: string
+    }
+  }
   /**
    * CAMPAIGN-DELIVERY-01 — campagne lancée, déclenche l'envoi des messages
    * aux campaign_targets via le canal de la campagne (email/whatsapp/call).

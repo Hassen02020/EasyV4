@@ -24,9 +24,6 @@ import type { DrizzleTransaction } from "@/lib/db/client"
 import {
   reservations,
   customers,
-  mutuelleGroups,
-  mutuelleRequests,
-  users,
   auditEvents,
   type MutuelleRequest,
   reservationModule,

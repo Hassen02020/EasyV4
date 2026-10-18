@@ -314,7 +314,7 @@ describe("T06 — échec dans createMutuelleBookingInTx → rollback atomique", 
 
   it("si createMutuelleBookingInTx throw, la transaction rollback (simulation)", async () => {
     // Simulation : si la fonction lève une erreur, le résultat est { ok: false }
-    let txState = { requestStatus: "pending" as RequestStatus }
+    const txState = { requestStatus: "pending" as RequestStatus }
     const simulateApprovalWithFailingBooking = async (): Promise<{
       ok: boolean
       error?: string

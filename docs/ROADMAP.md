@@ -36,7 +36,43 @@ Un seul chantier actif à la fois ; il est indiqué dans ROADMAP.md (section "Ch
 
 ## Chantier actif
 
-_LOCAL-FULL-E2E-01 — stack local E2E complet (en cours)._
+_LOCAL-FULL-E2E-01 — stack local E2E complet (en cours, branche `claude/local-full-e2e-01`)._
+
+---
+
+### LOCAL-FULL-E2E-01 — CLOS / READY FOR MERGE (2026-10-18)
+
+Stack local E2E complet — répétition générale des 18 specs Playwright en
+environnement isolé (Supabase CLI + GoTrue + Virtual suppliers + PAYMENT_MODE=virtual).
+
+**Livrables :**
+
+- `scripts/seed-base-infra.ts` : fix P0 — `futureDate()` utilisait une base fixe
+  `2026-09-11` générant des dates déjà passées. Corrigé en `new Date()` dynamique.
+  Dates affectées : session activité (futureDate(20)), départ package (futureDate(30/36)),
+  deadline réservation (futureDate(35)).
+- `scripts/create-e2e-gotrue-users.ts` : crée les 2 utilisateurs GoTrue avec UUIDs
+  fixes (11111111-... admin, 66666666-... partner) via `supabase.auth.admin.createUser`.
+  Idempotent (ignore "already exists").
+- `.env.test.example` : template minimal pour l'environnement E2E local avec
+  PAYMENT_MODE=virtual, MYGO_MODE=virtual, MEDIA_STORAGE_BACKEND=local.
+- `scripts/run-e2e-local.sh` : orchestrateur complet (supabase start → db:push →
+  seed-base-infra → create-e2e-gotrue-users → pnpm dev → playwright test 18 specs).
+
+**Prérequis Direction pour exécution complète :**
+
+- Docker + Supabase CLI installés sur la machine de test
+- `.env.test` créé depuis `.env.test.example`
+- Pour hôtels monde : `EXCHANGE_RATE_API_KEY` (sinon bloqué fail-closed)
+
+**Statut specs E2E :**
+
+- 6 specs runnable sans auth (a11y, header/footer, hotel-search, mobile-overflow,
+  b2c-guest-checkout, omra-packages-storefront)
+- 12 specs runnable avec GoTrue (all dashboard-operations-\*, auth, journey-builder)
+- 0 spec nécessitant Inngest réel (PAYMENT_MODE=virtual couvre tous les flows)
+
+TypeScript clean. Branche : `claude/local-full-e2e-01` | PR #233.
 
 ---
 
@@ -58,9 +94,31 @@ Résultat : 11 groupes de variables documentés dans `docs/env-production-audit.
 **Blocage MCP** : lecture/écriture env vars Vercel bloquée (403 scope `easy2book`).
 Direction agit directement : Vercel → easy2book-new → Settings → Environment Variables.
 
-Branche : `claude/env-production-01` | Fichier livré : `docs/env-production-audit.md`
+Branche : `claude/env-production-01` | Fichier livré : `docs/env-production-audit.md` | PR #232.
 
 NOT VERIFIED : valeurs actuellement posées en production (lecture bloquée).
+
+---
+
+### NETWORK-B2C-01 — CLOS / READY FOR MERGE (2026-10-18)
+
+**Objectif** : Portail B2C public pour la réservation de produits Network par les
+clients finaux (guest checkout sans compte).
+
+**Fichiers créés / modifiés :**
+
+- `lib/network/schemas.ts` : Zod schema `networkGuestBookingSchema` + type `NetworkGuestBookingInput`.
+- `lib/network/guest-booking-actions.ts` : Server action `createGuestNetworkBooking` — filtre produit actif (`status='active'`, `supplierNodeId IS NOT NULL`), guard `CART-DRIFT-01`, transaction complète (`recordReservationFinancials` + `creditPlatformCommission` + `earnPendingPoints` + `recordReservationTransition` + `generateInvoiceForReservation`), `sendEvent("booking/network.confirmed")` fire-and-forget, ref publique `NET-YYYY-NNNNNN`.
+- `lib/network/__tests__/product-booking-actions-invariants.test.ts` : 13 tests statiques d'invariants.
+- `app/(public)/[locale]/network/page.tsx` : Liste paginée des produits Network avec recherche.
+- `app/(public)/[locale]/network/[id]/page.tsx` : Page détail produit + sidebar réservation.
+- `app/(public)/[locale]/network/[id]/book/page.tsx` : Page formulaire guest checkout.
+- `components/network/network-guest-booking-form.tsx` : Formulaire client (quantité, contact, paiement card/transfer/cash), CART-DRIFT-01 UX.
+- `lib/inngest/client.ts` : Event type `booking/network.confirmed`.
+- `messages/{fr,en,ar}.json` : 31 clés namespace "Network".
+
+**Tests** : 13/13 nouveaux green, 2626/2626 suite globale, TypeScript 0 erreur.
+**Branche** : `claude/network-b2c-01` — PR #234.
 
 ---
 

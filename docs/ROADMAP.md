@@ -40,6 +40,28 @@ _Aucun. En attente du prochain GO Direction._
 
 ---
 
+### NETWORK-B2C-01 — CLOS / READY FOR MERGE (2026-10-18)
+
+**Objectif** : Portail B2C public pour la réservation de produits Network par les
+clients finaux (guest checkout sans compte).
+
+**Fichiers créés / modifiés :**
+
+- `lib/network/schemas.ts` : Zod schema `networkGuestBookingSchema` + type `NetworkGuestBookingInput`.
+- `lib/network/guest-booking-actions.ts` : Server action `createGuestNetworkBooking` — filtre produit actif (`status='active'`, `supplierNodeId IS NOT NULL`), guard `CART-DRIFT-01`, transaction complète (`recordReservationFinancials` + `creditPlatformCommission` + `earnPendingPoints` + `recordReservationTransition` + `generateInvoiceForReservation`), `sendEvent("booking/network.confirmed")` fire-and-forget, ref publique `NET-YYYY-NNNNNN`.
+- `lib/network/__tests__/product-booking-actions-invariants.test.ts` : 13 tests statiques d'invariants.
+- `app/(public)/[locale]/network/page.tsx` : Liste paginée des produits Network avec recherche.
+- `app/(public)/[locale]/network/[id]/page.tsx` : Page détail produit + sidebar réservation.
+- `app/(public)/[locale]/network/[id]/book/page.tsx` : Page formulaire guest checkout.
+- `components/network/network-guest-booking-form.tsx` : Formulaire client (quantité, contact, paiement card/transfer/cash), CART-DRIFT-01 UX.
+- `lib/inngest/client.ts` : Event type `booking/network.confirmed`.
+- `messages/{fr,en,ar}.json` : 31 clés namespace "Network".
+
+**Tests** : 13/13 nouveaux green, 2626/2626 suite globale, TypeScript 0 erreur.
+**Branche** : `claude/network-b2c-01` — PR #234.
+
+---
+
 ### SENDEVENT-ACTIVITY-B2B-01 — CLOS / READY FOR MERGE (2026-10-17)
 
 Gap P1 identifié par LAUNCH-E2E-AUDIT-01 : `createActivityBooking` (B2B) ne

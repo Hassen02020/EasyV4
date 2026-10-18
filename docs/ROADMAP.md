@@ -47,6 +47,7 @@ Audit complet des variables d'environnement production Vercel `easy2book-new`.
 Résultat : 11 groupes de variables documentés dans `docs/env-production-audit.md`.
 
 **Priorités immédiates (Direction → Vercel dashboard) :**
+
 1. Vérifier DATABASE_URL, SUPABASE_SERVICE_ROLE_KEY
 2. `INNGEST_SIGNING_KEY` + `INNGEST_EVENT_KEY` → débloque tous les workflows
 3. `RESEND_API_KEY` → débloque emails clients

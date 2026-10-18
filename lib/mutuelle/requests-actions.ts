@@ -363,6 +363,31 @@ export async function reviewMutuelleRequest(
           }
         }
 
+        // CAS-D : verrou du groupe + garde statut avant toute écriture métier —
+        // empêche toute approbation/création de réservation sur un groupe suspendu.
+        const [lockedGroup] = await tx
+          .select({
+            status: mutuelleGroups.status,
+            executionAgencyId: mutuelleGroups.executionAgencyId,
+            markupPercent: mutuelleGroups.markupPercent,
+          })
+          .from(mutuelleGroups)
+          .where(eq(mutuelleGroups.id, groupId))
+          .for("update")
+
+        if (!lockedGroup) {
+          return {
+            ok: false as const,
+            error: "Groupe Mutuelle introuvable.",
+          }
+        }
+        if (lockedGroup.status !== "active") {
+          return {
+            ok: false as const,
+            error: `Le groupe Mutuelle est "${lockedGroup.status}" — approbation impossible.`,
+          }
+        }
+
         await tx
           .update(mutuelleRequests)
           .set({
@@ -391,24 +416,6 @@ export async function reviewMutuelleRequest(
 
         // Création de réservation immédiate à l'approbation
         if (input.decision === "approved" && input.basePriceTnd) {
-          // Lire le groupe pour executionAgencyId + markupPercent
-          const [group] = await tx
-            .select({
-              executionAgencyId: mutuelleGroups.executionAgencyId,
-              markupPercent: mutuelleGroups.markupPercent,
-            })
-            .from(mutuelleGroups)
-            .where(eq(mutuelleGroups.id, groupId))
-            .limit(1)
-
-          if (!group) {
-            return {
-              ok: false as const,
-              error:
-                "Groupe Mutuelle introuvable — impossible de créer la réservation.",
-            }
-          }
-
           // Lire l'email et le nom du membre
           const [member] = await tx
             .select({ email: users.email, name: users.name })
@@ -428,8 +435,8 @@ export async function reviewMutuelleRequest(
             request: locked,
             memberEmail: member.email,
             memberName: member.name,
-            executionAgencyId: group.executionAgencyId,
-            markupPercent: Number(group.markupPercent),
+            executionAgencyId: lockedGroup.executionAgencyId,
+            markupPercent: Number(lockedGroup.markupPercent),
             basePriceTnd: input.basePriceTnd,
             directorUserId: userId,
             directorAgencyId: profile.agencyId,
@@ -441,7 +448,7 @@ export async function reviewMutuelleRequest(
             publicRef: booking.publicRef,
             totalTnd: booking.totalTnd,
             memberEmail: member.email,
-            executionAgencyId: group.executionAgencyId,
+            executionAgencyId: lockedGroup.executionAgencyId,
             module: locked.module,
             travelStartDate: locked.travelStartDate,
             travelEndDate: locked.travelEndDate,

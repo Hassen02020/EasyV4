@@ -36,7 +36,7 @@ Un seul chantier actif à la fois ; il est indiqué dans ROADMAP.md (section "Ch
 
 ## Chantier actif
 
-_Aucun chantier actif — MUTUELLE-BOOKING-01 fusionné (2026-10-18). En attente des instructions de la Direction._
+_Aucun chantier actif — CAS-D-FIX-01 fusionné (2026-10-18). En attente des instructions de la Direction._
 
 ---
 
@@ -80,11 +80,35 @@ traçabilité Mutuelle via `providerPayload.channel = "mutuelle_b2b2c"`.
 
 **3 risques résiduels documentés (non corrigés — GO Direction séparé requis pour chacun) :**
 
-| ID | Description | Impact si déclenché | Proposition technique |
-|---|---|---|---|
-| CAS-B | `SELECT MAX(publicRef)` non-verrouillant → collision UNIQUE `(agencyId, publicRef)` sur approbations concurrent | PG 23505 → rollback TX → demande reste `pending` → retry directeur OK (pas de corruption) | `pg_advisory_xact_lock(hashtext(agencyId + year))` |
-| CAS-C | `generateInvoiceForReservation` appelé post-commit (fire-and-forget) → crash process avant appel → facture manquante | Facture orpheline, récupérable manuellement | Inngest `step.run` pour garantie d'exécution |
-| CAS-D | `mutuelleGroups.status` non vérifié à l'approbation → groupe inactif/suspendu peut être approuvé | Réservation créée pour groupe non actif | Guard `if (group.status !== "active") throw` dans `reviewMutuelleRequest` |
+| ID        | Description                                                                                                          | Impact si déclenché                                                                       | Proposition technique                                                                                                                                   |
+| --------- | -------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| CAS-B     | `SELECT MAX(publicRef)` non-verrouillant → collision UNIQUE `(agencyId, publicRef)` sur approbations concurrent      | PG 23505 → rollback TX → demande reste `pending` → retry directeur OK (pas de corruption) | `pg_advisory_xact_lock(hashtext(agencyId + year))`                                                                                                      |
+| CAS-C     | `generateInvoiceForReservation` appelé post-commit (fire-and-forget) → crash process avant appel → facture manquante | Facture orpheline, récupérable manuellement                                               | Inngest `step.run` pour garantie d'exécution                                                                                                            |
+| ~~CAS-D~~ | ~~`mutuelleGroups.status` non vérifié à l'approbation → groupe inactif/suspendu peut être approuvé~~                 | ~~Réservation créée pour groupe non actif~~                                               | **CORRIGÉ** — PR #236 (2026-10-18) : `SELECT mutuelleGroups FOR UPDATE` + garde `status !== "active"` avant toute écriture dans `reviewMutuelleRequest` |
+
+---
+
+### CAS-D-FIX-01 — CLOS / FUSIONNÉ (2026-10-18)
+
+**Garde statut groupe Mutuelle avant toute écriture dans `reviewMutuelleRequest`.**
+
+Défaut : `UPDATE mutuelleRequests` s'exécutait AVANT le `SELECT mutuelleGroups` (sans `FOR UPDATE`, sans garde statut) → approbation possible sur un groupe suspendu.
+
+Correction : insertion de `SELECT mutuelleGroups FOR UPDATE` + garde `if (status !== "active") return { ok: false }` entre le verrou de la demande et la première écriture métier. SELECT redondant de la branche `approved` supprimé.
+
+**Preuves de fusion :**
+
+- Branche : `claude/cas-d-fix-01`
+- SHA head fusionné : `1af33eea8a2586caa2e92ca39ee70e760a6a73e0`
+- Merge commit `main` : `3761d0a` (PR #236, fusionnée par Direction `Hassen02020` le 2026-10-18T22:30:59Z)
+- CI run pre-merge : 9/10 ✅ (`format` ❌ sur `docs/ROADMAP.md` — pré-existant, hors diff PR, 0 ligne de diff entre branche et main)
+- Tests unitaires vitest : 5/5 PASS (T-D7a/b/c/d/e) — 100 % statiques, aucune DB
+- Tests concurrence existants : 13/13 PASS (aucune régression)
+- Test PostgreSQL live (55P03) : **SKIP** — non exécuté, aucune DB locale disponible
+
+**Aucune migration DB.** Schéma `mutuelleGroups.status` (`varchar(16).notNull().default("active")`) inchangé.
+
+**NOT VERIFIED :** validation de la sérialisation `FOR UPDATE` réelle (SQLSTATE 55P03) — test live disponible dans `lib/mutuelle/__tests__/mutuelle-group-for-update-concurrency.live.test.ts`, nécessite `ALLOW_LIVE_DB_TESTS=true` + Supabase CLI local.
 
 ---
 

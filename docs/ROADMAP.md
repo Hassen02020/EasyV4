@@ -60,14 +60,16 @@ environnement isolé (Supabase CLI + GoTrue + Virtual suppliers + PAYMENT_MODE=v
   seed-base-infra → create-e2e-gotrue-users → pnpm dev → playwright test 18 specs).
 
 **Prérequis Direction pour exécution complète :**
+
 - Docker + Supabase CLI installés sur la machine de test
 - `.env.test` créé depuis `.env.test.example`
 - Pour hôtels monde : `EXCHANGE_RATE_API_KEY` (sinon bloqué fail-closed)
 
 **Statut specs E2E :**
+
 - 6 specs runnable sans auth (a11y, header/footer, hotel-search, mobile-overflow,
   b2c-guest-checkout, omra-packages-storefront)
-- 12 specs runnable avec GoTrue (all dashboard-operations-*, auth, journey-builder)
+- 12 specs runnable avec GoTrue (all dashboard-operations-\*, auth, journey-builder)
 - 0 spec nécessitant Inngest réel (PAYMENT_MODE=virtual couvre tous les flows)
 
 TypeScript clean. Branche : `claude/local-full-e2e-01` | PR #233.
@@ -81,6 +83,7 @@ Audit complet des variables d'environnement production Vercel `easy2book-new`.
 Résultat : 11 groupes de variables documentés dans `docs/env-production-audit.md`.
 
 **Priorités immédiates (Direction → Vercel dashboard) :**
+
 1. Vérifier DATABASE_URL, SUPABASE_SERVICE_ROLE_KEY
 2. `INNGEST_SIGNING_KEY` + `INNGEST_EVENT_KEY` → débloque tous les workflows
 3. `RESEND_API_KEY` → débloque emails clients

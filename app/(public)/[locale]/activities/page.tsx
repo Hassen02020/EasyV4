@@ -22,7 +22,11 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardFooter } from "@/components/ui/card"
 import { withSystemContext } from "@/lib/db/tenant-context"
-import { catalogActivities, catalogActivitySessions, reviews } from "@/lib/db/schema"
+import {
+  catalogActivities,
+  catalogActivitySessions,
+  reviews,
+} from "@/lib/db/schema"
 import { and, eq, gte, inArray, sql, arrayContains } from "drizzle-orm"
 import { getDefaultAgencyId } from "@/lib/agencies/default-agency"
 import { getCoverMediaForProducts } from "@/lib/media/query"
@@ -229,9 +233,9 @@ function ActivityCard({ activity }: { activity: ActivityWithPrice }) {
         )}
       </CardContent>
 
-      <CardFooter className="px-5 pb-5 pt-0">
+      <CardFooter className="px-5 pt-0 pb-5">
         <Button asChild variant="outline" className="w-full">
-          <Link href={`/activities/${activity.slug}`}>Voir l'activité</Link>
+          <Link href={`/activities/${activity.slug}`}>{"Voir l'activité"}</Link>
         </Button>
       </CardFooter>
     </Card>
@@ -268,14 +272,19 @@ export default async function ActivitiesPage({
         <div className="mx-auto max-w-6xl px-4 py-8">
           {totalCount > 0 && (
             <p className="text-muted-foreground mb-6 text-sm">
-              {totalCount} {totalCount === 1 ? "activité disponible" : "activités disponibles"}
+              {totalCount}{" "}
+              {totalCount === 1
+                ? "activité disponible"
+                : "activités disponibles"}
             </p>
           )}
 
           {activities.length === 0 ? (
             <div className="py-16 text-center">
               <MapPin className="text-muted-foreground/30 mx-auto mb-4 h-12 w-12" />
-              <p className="font-medium">Aucune activité disponible pour le moment</p>
+              <p className="font-medium">
+                Aucune activité disponible pour le moment
+              </p>
               <p className="text-muted-foreground mt-1 text-sm">
                 Notre catalogue se remplit bientôt. Revenez nous voir !
               </p>

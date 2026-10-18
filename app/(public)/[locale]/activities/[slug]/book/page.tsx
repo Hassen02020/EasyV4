@@ -16,10 +16,7 @@ import { ArrowLeft } from "lucide-react"
 import { HeaderWrapper as Header } from "@/components/header-wrapper"
 import { Footer } from "@/components/footer"
 import { withSystemContext } from "@/lib/db/tenant-context"
-import {
-  catalogActivities,
-  catalogActivitySessions,
-} from "@/lib/db/schema"
+import { catalogActivities, catalogActivitySessions } from "@/lib/db/schema"
 import { getDefaultAgencyId } from "@/lib/agencies/default-agency"
 import { ActivityGuestBookingForm } from "@/components/activities/activity-guest-booking-form"
 import { BookingSteps } from "@/components/booking/booking-steps"
@@ -94,9 +91,11 @@ export default async function ActivityBookPage({
             className="text-muted-foreground hover:text-foreground mb-4 inline-flex items-center gap-1.5 text-sm"
           >
             <ArrowLeft className="size-4" />
-            Retour à l'activité
+            {"Retour à l'activité"}
           </Link>
-          <h1 className="mb-2 text-2xl font-bold sm:text-3xl">{activity.title}</h1>
+          <h1 className="mb-2 text-2xl font-bold sm:text-3xl">
+            {activity.title}
+          </h1>
           <p className="text-muted-foreground mb-6">
             Choisissez une session et renseignez vos coordonnées.
           </p>

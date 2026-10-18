@@ -76,7 +76,10 @@ const getActivityWithSessions = cache(async (slug: string) => {
             gte(catalogActivitySessions.sessionDate, today),
           ),
         )
-        .orderBy(catalogActivitySessions.sessionDate, catalogActivitySessions.sessionStart)
+        .orderBy(
+          catalogActivitySessions.sessionDate,
+          catalogActivitySessions.sessionStart,
+        )
 
       const sessions = sessionsRaw
         .map((s) => ({ ...s, capacityLeft: s.capacity - s.booked }))
@@ -157,9 +160,7 @@ export default async function ActivityDetailPage({
     : null
 
   const firstSession = sessions[0]
-  const minPrice = firstSession
-    ? parseFloat(firstSession.adultPriceTnd)
-    : null
+  const minPrice = firstSession ? parseFloat(firstSession.adultPriceTnd) : null
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -234,7 +235,9 @@ export default async function ActivityDetailPage({
             {((activity.inclusions?.length ?? 0) > 0 ||
               (activity.exclusions?.length ?? 0) > 0) && (
               <section className="bg-card rounded-xl border p-5">
-                <h2 className="mb-4 text-lg font-semibold">Inclus / Non inclus</h2>
+                <h2 className="mb-4 text-lg font-semibold">
+                  Inclus / Non inclus
+                </h2>
                 <div className="grid gap-4 sm:grid-cols-2">
                   {activity.inclusions && activity.inclusions.length > 0 && (
                     <ul className="space-y-1.5 text-sm">
@@ -268,7 +271,9 @@ export default async function ActivityDetailPage({
               </h2>
               {sessions.length === 0 ? (
                 <p className="text-muted-foreground text-sm">
-                  Aucune session n'est ouverte à la réservation pour le moment.
+                  {
+                    "Aucune session n'est ouverte à la réservation pour le moment."
+                  }
                   Contactez-nous pour connaître les prochaines dates.
                 </p>
               ) : (

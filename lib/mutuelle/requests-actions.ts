@@ -26,12 +26,16 @@ import { z } from "zod"
 import { withTenantContext } from "@/lib/db/tenant-context"
 import {
   mutuelleRequests,
+  mutuelleGroups,
   auditEvents,
   reservationModule,
   users,
 } from "@/lib/db/schema"
 import { createServerSupabase } from "@/lib/supabase/server"
 import { getCurrentAdminProfile, type AdminProfile } from "@/lib/auth/profile"
+import { generateInvoiceForReservation } from "@/lib/finance/invoice-actions"
+import { sendEvent } from "@/lib/inngest/client"
+import { createMutuelleBookingInTx } from "./booking-actions"
 import { logger } from "@/lib/logger"
 
 export async function requireMutuelleProfile(
@@ -276,15 +280,27 @@ export async function listGroupMutuelleRequests(): Promise<
 /* 3. Directeur — Valider / refuser                                           */
 /* -------------------------------------------------------------------------- */
 
-const reviewInputSchema = z.object({
-  requestId: z.string().uuid(),
-  decision: z.enum(["approved", "rejected"]),
-  directorNote: z.string().trim().max(2000).optional(),
-})
+const reviewInputSchema = z
+  .object({
+    requestId: z.string().uuid(),
+    decision: z.enum(["approved", "rejected"]),
+    directorNote: z.string().trim().max(2000).optional(),
+    /** Prix de base TND (hors markup) — requis quand decision === "approved". */
+    basePriceTnd: z.coerce.number().positive().optional(),
+  })
+  .superRefine((data, ctx) => {
+    if (data.decision === "approved" && !data.basePriceTnd) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Le prix de base est requis pour approuver une demande.",
+        path: ["basePriceTnd"],
+      })
+    }
+  })
 
 export type ReviewMutuelleRequestInput = z.infer<typeof reviewInputSchema>
 export type ReviewMutuelleRequestResult =
-  | { ok: true }
+  | { ok: true; reservationId?: string; publicRef?: string }
   | { ok: false; error: string }
 
 export async function reviewMutuelleRequest(
@@ -307,7 +323,7 @@ export async function reviewMutuelleRequest(
   const groupId = profile.mutuelleGroupId!
 
   try {
-    return await withTenantContext(
+    const txResult = await withTenantContext(
       {
         agencyId: profile.agencyId,
         userId,
@@ -322,6 +338,12 @@ export async function reviewMutuelleRequest(
           .select({
             id: mutuelleRequests.id,
             groupId: mutuelleRequests.groupId,
+            memberUserId: mutuelleRequests.memberUserId,
+            module: mutuelleRequests.module,
+            description: mutuelleRequests.description,
+            travelStartDate: mutuelleRequests.travelStartDate,
+            travelEndDate: mutuelleRequests.travelEndDate,
+            paxCount: mutuelleRequests.paxCount,
             status: mutuelleRequests.status,
           })
           .from(mutuelleRequests)
@@ -367,12 +389,120 @@ export async function reviewMutuelleRequest(
           },
         })
 
+        // Création de réservation immédiate à l'approbation
+        if (input.decision === "approved" && input.basePriceTnd) {
+          // Lire le groupe pour executionAgencyId + markupPercent
+          const [group] = await tx
+            .select({
+              executionAgencyId: mutuelleGroups.executionAgencyId,
+              markupPercent: mutuelleGroups.markupPercent,
+            })
+            .from(mutuelleGroups)
+            .where(eq(mutuelleGroups.id, groupId))
+            .limit(1)
+
+          if (!group) {
+            return {
+              ok: false as const,
+              error:
+                "Groupe Mutuelle introuvable — impossible de créer la réservation.",
+            }
+          }
+
+          // Lire l'email et le nom du membre
+          const [member] = await tx
+            .select({ email: users.email, name: users.name })
+            .from(users)
+            .where(eq(users.id, locked.memberUserId))
+            .limit(1)
+
+          if (!member) {
+            return {
+              ok: false as const,
+              error: "Membre introuvable — impossible de créer la réservation.",
+            }
+          }
+
+          const booking = await createMutuelleBookingInTx({
+            tx,
+            request: locked,
+            memberEmail: member.email,
+            memberName: member.name,
+            executionAgencyId: group.executionAgencyId,
+            markupPercent: Number(group.markupPercent),
+            basePriceTnd: input.basePriceTnd,
+            directorUserId: userId,
+            directorAgencyId: profile.agencyId,
+          })
+
+          return {
+            ok: true as const,
+            reservationId: booking.reservationId,
+            publicRef: booking.publicRef,
+            totalTnd: booking.totalTnd,
+            memberEmail: member.email,
+            executionAgencyId: group.executionAgencyId,
+            module: locked.module,
+            travelStartDate: locked.travelStartDate,
+            travelEndDate: locked.travelEndDate,
+            paxCount: locked.paxCount,
+          }
+        }
+
         return { ok: true as const }
       },
-    ).then((result) => {
-      if (result.ok) revalidatePath("/mutuelle/dossiers")
-      return result
-    })
+    )
+
+    if (!txResult.ok) return txResult
+
+    revalidatePath("/mutuelle/dossiers")
+
+    // Tâches post-transaction (fire-and-forget, hors transaction)
+    if ("reservationId" in txResult && txResult.reservationId) {
+      const {
+        reservationId,
+        publicRef,
+        totalTnd,
+        memberEmail,
+        executionAgencyId,
+        module: moduleName,
+        travelStartDate,
+        travelEndDate,
+        paxCount,
+      } = txResult
+
+      sendEvent("booking/mutuelle.confirmed", {
+        reservationId,
+        publicRef,
+        agencyId: executionAgencyId,
+        moduleName,
+        travelStartDate,
+        travelEndDate,
+        paxCount,
+        totalTnd,
+        contactEmail: memberEmail,
+      }).catch((err) => {
+        logger.error("[mutuelle-requests-actions] sendEvent échoué", {
+          reservationId,
+          err: err instanceof Error ? err.message : String(err),
+        })
+      })
+
+      generateInvoiceForReservation({
+        agencyId: executionAgencyId,
+        reservationId,
+        actorUserId: userId,
+      }).catch((err) => {
+        logger.error("[mutuelle-requests-actions] génération facture échouée", {
+          reservationId,
+          err: err instanceof Error ? err.message : String(err),
+        })
+      })
+
+      return { ok: true as const, reservationId, publicRef }
+    }
+
+    return { ok: true as const }
   } catch (err) {
     logger.error("[mutuelle-requests-actions] reviewMutuelleRequest failed", {
       err: err instanceof Error ? err.message : String(err),

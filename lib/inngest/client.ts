@@ -158,6 +158,20 @@ export type Events = {
       contactEmail: string
     }
   }
+  /** MUTUELLE-BOOKING-01 — réservation Mutuelle B2B2C confirmée (approbation directeur). */
+  "booking/mutuelle.confirmed": {
+    data: {
+      reservationId: string
+      publicRef: string
+      agencyId: string
+      moduleName: string
+      travelStartDate: string
+      travelEndDate: string
+      paxCount: number
+      totalTnd: number
+      contactEmail: string
+    }
+  }
   /**
    * CAMPAIGN-DELIVERY-01 — campagne lancée, déclenche l'envoi des messages
    * aux campaign_targets via le canal de la campagne (email/whatsapp/call).

@@ -170,6 +170,8 @@ export type Events = {
       paxCount: number
       totalTnd: number
       contactEmail: string
+      /** CAS-C — directeur ayant approuvé, requis par generateInvoiceForReservation (actorUserId). */
+      directorUserId: string
     }
   }
   /**

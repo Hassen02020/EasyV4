@@ -190,6 +190,133 @@ export async function generateInvoiceForReservation(
   }
 }
 
+/**
+ * Génère (ou retourne l'existante) une facture "issued" (émise, non réglée)
+ * pour une réservation confirmée SANS preuve de paiement réel au moment de
+ * la création — ex. réservation Mutuelle B2B2C créée sur simple approbation
+ * directeur, sans capture PSP/wallet (voir MUTUELLE-INVOICE-SETTLEMENT-01,
+ * trouvaille INVOICE-PAID-STATUS-UNVERIFIED-01).
+ *
+ * Volontairement SÉPARÉE de `generateInvoiceForReservation` plutôt que d'y
+ * ajouter un paramètre : cette dernière est appelée par 14 autres flux
+ * (webhook PSP, débit wallet/crédit partenaire réel) où `status="paid"`
+ * immédiat est correct et vérifié — la toucher risquerait une régression
+ * sur un chemin financier déjà en production. Cette fonction n'est appelée
+ * par AUCUN de ces 14 flux.
+ *
+ * `amountPaid="0"` — aucun règlement présumé. Le passage à "paid" se fait
+ * EXCLUSIVEMENT via `confirmMutuelleInvoiceSettlement`
+ * (lib/finance/mutuelle-invoice-settlement-actions.ts), sur preuve de
+ * règlement réel (référence vérifiable), jamais automatiquement ici.
+ *
+ * Idempotente au même titre que `generateInvoiceForReservation` — même
+ * contrainte DB `partner_invoices_reservation_uniq`, même patron
+ * savepoint + relecture sur conflit.
+ */
+export async function generateIssuedInvoiceForReservation(
+  input: GenerateInvoiceInput,
+): Promise<GenerateInvoiceResult> {
+  if (!process.env.DATABASE_URL) {
+    return { ok: false, error: "Base de données non configurée" }
+  }
+
+  try {
+    return await withTenantContext(
+      {
+        agencyId: input.agencyId,
+        userId: input.actorUserId,
+        isSuperAdmin: false,
+      },
+      async (tx) => {
+        const [reservation] = await tx
+          .select()
+          .from(reservations)
+          .where(eq(reservations.id, input.reservationId))
+          .limit(1)
+
+        if (!reservation) return { ok: false, error: "RESERVATION_NOT_FOUND" }
+        if (reservation.status !== "confirmed") {
+          return { ok: false, error: "RESERVATION_NOT_CONFIRMED" }
+        }
+
+        const totalTtc = parseFloat(reservation.tndAmount)
+        const payload =
+          (reservation.providerPayload as Record<string, unknown> | null) ?? {}
+        const label =
+          typeof payload.offerLabel === "string"
+            ? payload.offerLabel
+            : `Réservation ${reservation.module}`
+
+        try {
+          // Savepoint — même raison que generateInvoiceForReservation (voir
+          // son commentaire ci-dessus) : isoler l'échec de conflit d'unicité
+          // pour garder `tx` utilisable pour la relecture.
+          const created = await tx.transaction(async (tx2) => {
+            const invoiceNumber = await nextInvoiceNumber(tx2, input.agencyId)
+            const [row] = await tx2
+              .insert(partnerInvoices)
+              .values({
+                agencyId: input.agencyId,
+                invoiceNumber,
+                invoiceType: "facture",
+                validationDate: new Date().toISOString().slice(0, 10),
+                reservationId: input.reservationId,
+                lineItems: [
+                  {
+                    reservationId: input.reservationId,
+                    label,
+                    amount: totalTtc,
+                  },
+                ],
+                totalHt: totalTtc.toFixed(2),
+                totalTva: "0.00",
+                totalTtc: totalTtc.toFixed(2),
+                amountPaid: "0.00",
+                status: "issued",
+              })
+              .returning({
+                id: partnerInvoices.id,
+                invoiceNumber: partnerInvoices.invoiceNumber,
+              })
+            return row
+          })
+
+          return {
+            ok: true,
+            invoiceId: created.id,
+            invoiceNumber: created.invoiceNumber,
+            alreadyExisted: false,
+          }
+        } catch (err) {
+          if (pgErrorCode(err) !== "23505") throw err
+
+          const [existing] = await tx
+            .select({
+              id: partnerInvoices.id,
+              invoiceNumber: partnerInvoices.invoiceNumber,
+            })
+            .from(partnerInvoices)
+            .where(eq(partnerInvoices.reservationId, input.reservationId))
+            .limit(1)
+
+          if (!existing) throw err
+          return {
+            ok: true,
+            invoiceId: existing.id,
+            invoiceNumber: existing.invoiceNumber,
+            alreadyExisted: true,
+          }
+        }
+      },
+    )
+  } catch (err) {
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : "Erreur interne",
+    }
+  }
+}
+
 /* -------------------------------------------------------------------------- */
 /* Lecture pour rendu PDF (Phase 21.2)                                        */
 /* -------------------------------------------------------------------------- */

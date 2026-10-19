@@ -77,6 +77,19 @@ async function nextMutuellePublicRef(
 ): Promise<string> {
   const year = new Date().getFullYear()
   const prefix = `MUT-${year}-`
+  // CAS-B (MUTUELLE-CONCURRENCY-COMPLETE-01) — sérialise les approbations
+  // concurrentes de la même (agencyId, année) : sans ce verrou, deux
+  // transactions peuvent lire le même MAX(publicRef) avant qu'aucune n'ait
+  // committé, provoquant une collision sur reservations_public_ref_uniq
+  // (23505) et le rollback d'une des deux. Verrou avisoire *transaction-scope*
+  // (libéré automatiquement au commit/rollback, jamais retenu au-delà) —
+  // seul appelant de cette fonction (createMutuelleBookingInTx, un seul
+  // chemin de création réel) : couvre 100% des cas par construction. La
+  // contrainte UNIQUE reste le filet de sécurité structurel en dernier
+  // recours, inchangée.
+  await tx.execute(
+    sql`SELECT pg_advisory_xact_lock(hashtext(${agencyId + ":" + prefix}))`,
+  )
   const [row] = await tx
     .select({ maxRef: sql<string | null>`MAX(${reservations.publicRef})` })
     .from(reservations)

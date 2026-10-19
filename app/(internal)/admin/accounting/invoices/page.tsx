@@ -31,6 +31,8 @@ import { createServerSupabase } from "@/lib/supabase/server"
 import { getCurrentAdminProfile } from "@/lib/auth/profile"
 import { isAllowedIntoAdmin } from "@/lib/auth/admin-gate"
 import { listAdminInvoices } from "@/lib/finance/invoice-actions"
+import { MANUAL_PAYMENT_ALLOWED_ROLES } from "@/lib/finance/manual-payment-logic"
+import { ConfirmMutuelleInvoiceSettlementButton } from "@/components/admin/confirm-mutuelle-invoice-settlement-button"
 
 export const metadata: Metadata = { title: "Factures — Admin Easy2Book" }
 export const dynamic = "force-dynamic"
@@ -39,6 +41,24 @@ const TND_FORMAT = new Intl.NumberFormat("fr-TN", {
   minimumFractionDigits: 2,
   maximumFractionDigits: 2,
 })
+
+/**
+ * MUTUELLE-INVOICE-SETTLEMENT-01 — distingue visuellement "issued" (émise,
+ * non réglée — ex. facture Mutuelle avant confirmation de règlement) de
+ * "paid" (réglée, avec preuve). Les autres statuts restent affichés tels
+ * quels (draft/partial/overdue/cancelled), aucun cas réel connu pour eux
+ * à ce jour en dehors de "paid" (14 flux) et "issued" (Mutuelle).
+ */
+const STATUS_LABEL: Record<string, { label: string; className: string }> = {
+  paid: {
+    label: "Payée",
+    className: "border-green-300 bg-green-100 text-green-900",
+  },
+  issued: {
+    label: "Émise — non réglée",
+    className: "border-amber-300 bg-amber-100 text-amber-900",
+  },
+}
 
 export default async function AdminInvoicesPage() {
   const supabase = await createServerSupabase()
@@ -58,6 +78,9 @@ export default async function AdminInvoicesPage() {
     user.id,
     isSuperAdmin,
   )
+  const canConfirmSettlement = (
+    MANUAL_PAYMENT_ALLOWED_ROLES as readonly string[]
+  ).includes(profile.role)
 
   return (
     <div className="space-y-6">
@@ -97,33 +120,57 @@ export default async function AdminInvoicesPage() {
                     <TableHead className="text-right">Total TTC</TableHead>
                     <TableHead className="text-right">Payé</TableHead>
                     <TableHead>Statut</TableHead>
+                    {canConfirmSettlement ? <TableHead /> : null}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {invoices.map((inv) => (
-                    <TableRow key={inv.id}>
-                      <TableCell className="font-mono text-xs">
-                        {inv.invoiceNumber}
-                      </TableCell>
-                      {isSuperAdmin ? (
-                        <TableCell>{inv.agencyName ?? "—"}</TableCell>
-                      ) : null}
-                      <TableCell>{inv.invoiceType}</TableCell>
-                      <TableCell className="text-muted-foreground text-xs">
-                        {inv.validationDate ?? "—"}
-                      </TableCell>
-                      <TableCell className="text-right font-semibold">
-                        {TND_FORMAT.format(Number.parseFloat(inv.totalTtc))} DT
-                      </TableCell>
-                      <TableCell className="text-right">
-                        {TND_FORMAT.format(Number.parseFloat(inv.amountPaid))}{" "}
-                        DT
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant="outline">{inv.status}</Badge>
-                      </TableCell>
-                    </TableRow>
-                  ))}
+                  {invoices.map((inv) => {
+                    const statusInfo = STATUS_LABEL[inv.status]
+                    return (
+                      <TableRow key={inv.id}>
+                        <TableCell className="font-mono text-xs">
+                          {inv.invoiceNumber}
+                        </TableCell>
+                        {isSuperAdmin ? (
+                          <TableCell>{inv.agencyName ?? "—"}</TableCell>
+                        ) : null}
+                        <TableCell>{inv.invoiceType}</TableCell>
+                        <TableCell className="text-muted-foreground text-xs">
+                          {inv.validationDate ?? "—"}
+                        </TableCell>
+                        <TableCell className="text-right font-semibold">
+                          {TND_FORMAT.format(Number.parseFloat(inv.totalTtc))}{" "}
+                          DT
+                        </TableCell>
+                        <TableCell className="text-right">
+                          {TND_FORMAT.format(Number.parseFloat(inv.amountPaid))}{" "}
+                          DT
+                        </TableCell>
+                        <TableCell>
+                          {statusInfo ? (
+                            <Badge
+                              variant="outline"
+                              className={statusInfo.className}
+                            >
+                              {statusInfo.label}
+                            </Badge>
+                          ) : (
+                            <Badge variant="outline">{inv.status}</Badge>
+                          )}
+                        </TableCell>
+                        {canConfirmSettlement ? (
+                          <TableCell>
+                            {inv.status === "issued" ? (
+                              <ConfirmMutuelleInvoiceSettlementButton
+                                invoiceId={inv.id}
+                                invoiceNumber={inv.invoiceNumber}
+                              />
+                            ) : null}
+                          </TableCell>
+                        ) : null}
+                      </TableRow>
+                    )
+                  })}
                 </TableBody>
               </Table>
             </div>

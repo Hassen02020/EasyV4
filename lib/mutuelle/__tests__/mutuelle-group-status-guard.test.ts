@@ -57,7 +57,6 @@ import { withTenantContext } from "@/lib/db/tenant-context"
 import { createServerSupabase } from "@/lib/supabase/server"
 import { getCurrentAdminProfile } from "@/lib/auth/profile"
 import { createMutuelleBookingInTx } from "../booking-actions"
-import { generateInvoiceForReservation } from "@/lib/finance/invoice-actions"
 import { sendEvent } from "@/lib/inngest/client"
 
 const mockWithTenant = vi.mocked(withTenantContext)
@@ -259,9 +258,13 @@ describe("CAS-D-FIX-01 — garde statut groupe avant toute écriture", () => {
         basePriceTnd: 500,
       }),
     )
-    // sendEvent et generateInvoice planifiés
-    expect(sendEvent).toHaveBeenCalled()
-    expect(generateInvoiceForReservation).toHaveBeenCalled()
+    // sendEvent planifié, avec directorUserId (consommé par le step.run
+    // Inngest pour la génération de facture CAS-C — plus un appel direct
+    // depuis reviewMutuelleRequest, voir MUTUELLE-CONCURRENCY-COMPLETE-01)
+    expect(sendEvent).toHaveBeenCalledWith(
+      "booking/mutuelle.confirmed",
+      expect.objectContaining({ directorUserId: DIRECTOR_ID }),
+    )
   })
 
   it("T-D7e : groupe actif + rejected → rejet normal (UPDATE + INSERT), sans booking", async () => {

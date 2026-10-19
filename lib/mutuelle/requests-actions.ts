@@ -33,7 +33,6 @@ import {
 } from "@/lib/db/schema"
 import { createServerSupabase } from "@/lib/supabase/server"
 import { getCurrentAdminProfile, type AdminProfile } from "@/lib/auth/profile"
-import { generateInvoiceForReservation } from "@/lib/finance/invoice-actions"
 import { sendEvent } from "@/lib/inngest/client"
 import { createMutuelleBookingInTx } from "./booking-actions"
 import { logger } from "@/lib/logger"
@@ -478,6 +477,11 @@ export async function reviewMutuelleRequest(
         paxCount,
       } = txResult
 
+      // CAS-C — la génération de facture se fait désormais dans le handler
+      // Inngest processMutuelleConfirmed (step.run, fast-path) ET, en filet
+      // de sécurité durable indépendant de cet événement, dans le cron
+      // recover-mutuelle-missing-invoices.ts. Plus d'appel fire-and-forget
+      // direct ici.
       sendEvent("booking/mutuelle.confirmed", {
         reservationId,
         publicRef,
@@ -488,19 +492,9 @@ export async function reviewMutuelleRequest(
         paxCount,
         totalTnd,
         contactEmail: memberEmail,
+        directorUserId: userId,
       }).catch((err) => {
         logger.error("[mutuelle-requests-actions] sendEvent échoué", {
-          reservationId,
-          err: err instanceof Error ? err.message : String(err),
-        })
-      })
-
-      generateInvoiceForReservation({
-        agencyId: executionAgencyId,
-        reservationId,
-        actorUserId: userId,
-      }).catch((err) => {
-        logger.error("[mutuelle-requests-actions] génération facture échouée", {
           reservationId,
           err: err instanceof Error ? err.message : String(err),
         })

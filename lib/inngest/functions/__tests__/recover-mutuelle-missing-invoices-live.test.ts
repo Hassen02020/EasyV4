@@ -57,9 +57,7 @@ const skipReason = () => "Postgres local indisponible (DATABASE_URL)."
  * 'mutuelle_b2b2c' + providerPayload.mutuelleRequestId -> mutuelleRequests
  * .reviewedByUserId, le "directorUserId" attendu par la récupération).
  */
-async function createOrphanedMutuelleReservation(
-  tndAmount: string,
-): Promise<{
+async function createOrphanedMutuelleReservation(tndAmount: string): Promise<{
   agencyId: string
   reservationId: string
   directorUserId: string
@@ -139,7 +137,11 @@ async function createOrphanedMutuelleReservation(
         },
       })
       .returning({ id: reservations.id })
-    return { agencyId: agency!.id, reservationId: reservation!.id, directorUserId }
+    return {
+      agencyId: agency!.id,
+      reservationId: reservation!.id,
+      directorUserId,
+    }
   })
 }
 
@@ -194,14 +196,20 @@ test("RÉCUPÉRATION — réservation confirmée sans facture (événement perdu
 
   const candidatesBefore = await findMutuelleReservationsMissingInvoice()
   assert.ok(
-    candidatesBefore.some((c) => c.reservationId === recoveryFixture!.reservationId),
+    candidatesBefore.some(
+      (c) => c.reservationId === recoveryFixture!.reservationId,
+    ),
     "la réservation orpheline doit être détectée par la requête de repérage",
   )
 
   const result = await recoverMutuelleInvoicesCore()
   assert.ok(result.checked >= 1)
   assert.ok(result.recovered >= 1)
-  assert.equal(result.failed, 0, "aucune ligne ne doit échouer dans ce scénario")
+  assert.equal(
+    result.failed,
+    0,
+    "aucune ligne ne doit échouer dans ce scénario",
+  )
 
   const [row] = await withSystemContext((tx) =>
     tx
@@ -218,7 +226,9 @@ test("RÉCUPÉRATION — réservation confirmée sans facture (événement perdu
   const second = await recoverMutuelleInvoicesCore()
   const stillMissing = await findMutuelleReservationsMissingInvoice()
   assert.ok(
-    !stillMissing.some((c) => c.reservationId === recoveryFixture!.reservationId),
+    !stillMissing.some(
+      (c) => c.reservationId === recoveryFixture!.reservationId,
+    ),
     "la réservation ne doit plus apparaître comme manquante après récupération",
   )
   void second

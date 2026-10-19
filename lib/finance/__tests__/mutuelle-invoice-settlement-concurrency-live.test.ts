@@ -26,7 +26,12 @@ import assert from "node:assert/strict"
 import { randomUUID } from "node:crypto"
 import { eq, and, sql } from "drizzle-orm"
 import { withSystemContext } from "@/lib/db/tenant-context"
-import { agencies, customers, reservations, partnerInvoices } from "@/lib/db/schema"
+import {
+  agencies,
+  customers,
+  reservations,
+  partnerInvoices,
+} from "@/lib/db/schema"
 import { generateIssuedInvoiceForReservation } from "@/lib/finance/invoice-actions"
 import { confirmMutuelleInvoiceSettlementCore } from "@/lib/finance/mutuelle-invoice-settlement-actions"
 
@@ -107,11 +112,12 @@ async function cleanupReservation(fixture: {
   })
 }
 
-let creationFixture: Awaited<ReturnType<typeof createConfirmedReservation>> | null =
-  null
-let settlementFixture:
-  | Awaited<ReturnType<typeof createConfirmedReservation>>
-  | null = null
+let creationFixture: Awaited<
+  ReturnType<typeof createConfirmedReservation>
+> | null = null
+let settlementFixture: Awaited<
+  ReturnType<typeof createConfirmedReservation>
+> | null = null
 let settlementInvoiceId: string | null = null
 
 before(async () => {

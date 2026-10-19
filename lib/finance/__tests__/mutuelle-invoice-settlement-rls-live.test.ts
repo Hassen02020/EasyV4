@@ -26,7 +26,12 @@ import assert from "node:assert/strict"
 import { randomUUID } from "node:crypto"
 import { eq, sql } from "drizzle-orm"
 import { withSystemContext, withTenantContext } from "@/lib/db/tenant-context"
-import { agencies, customers, reservations, partnerInvoices } from "@/lib/db/schema"
+import {
+  agencies,
+  customers,
+  reservations,
+  partnerInvoices,
+} from "@/lib/db/schema"
 import { generateIssuedInvoiceForReservation } from "@/lib/finance/invoice-actions"
 import { confirmMutuelleInvoiceSettlementCore } from "@/lib/finance/mutuelle-invoice-settlement-actions"
 
@@ -143,7 +148,11 @@ test("RLS RÉELLE (app_runtime) — l'agence B ne voit JAMAIS la facture Mutuell
   if (!dbAvailable) return t.skip(skipReason())
 
   const rowsSeenByB = await withTenantContext(
-    { agencyId: agencyB!.agencyId, userId: agencyB!.userId, isSuperAdmin: false },
+    {
+      agencyId: agencyB!.agencyId,
+      userId: agencyB!.userId,
+      isSuperAdmin: false,
+    },
     (tx) =>
       tx
         .select()
@@ -159,7 +168,11 @@ test("RLS RÉELLE (app_runtime) — l'agence B ne voit JAMAIS la facture Mutuell
   // Sanity : l'agence A voit bien SA PROPRE facture (RLS n'est pas fail-closed
   // pour tout le monde — seulement pour les tiers).
   const rowsSeenByA = await withTenantContext(
-    { agencyId: agencyA!.agencyId, userId: agencyA!.userId, isSuperAdmin: false },
+    {
+      agencyId: agencyA!.agencyId,
+      userId: agencyA!.userId,
+      isSuperAdmin: false,
+    },
     (tx) =>
       tx
         .select()

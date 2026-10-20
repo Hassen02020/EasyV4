@@ -36,11 +36,11 @@ Un seul chantier actif à la fois ; il est indiqué dans ROADMAP.md (section "Ch
 
 ## Chantier actif
 
-_Aucun chantier actif — CAS-D-FIX-01 fusionné (2026-10-18). En attente des instructions de la Direction._
+_Aucun chantier actif — HOTEL-B2B-DOUBLE-BOOKING-LOCK-01, INVENTORY-LOCK-TOCTOU-01 et HOTEL-PRO-DOC-ACCESS-TEST-01 fusionnés et intégration vérifiée (2026-10-20, Niveau 4). En attente des instructions de la Direction._
 
 ---
 
-### HOTEL-B2B-DOUBLE-BOOKING-LOCK-01 — NIVEAU 3 (BRIQUE VALIDÉE) — PR CRÉÉE, EN ATTENTE DE GO DE FUSION (2026-10-20)
+### HOTEL-B2B-DOUBLE-BOOKING-LOCK-01 — NIVEAU 4 (BRIQUE INTÉGRÉE) — FUSIONNÉ (2026-10-20)
 
 **Contexte** : identifié par l'audit de certification complète du module hôtel (B2C/B2B/B2B2C/Partners) — `lib/booking/actions.ts::createReservationFromDraft` (chemin B2B) n'appelait jamais `acquireLock`/`releaseLock`, contrairement au chemin guest/B2C (`lib/booking/guest-actions.ts`) : deux requêtes B2B concurrentes sur la même offre myGo n'étaient pas bloquées avant l'appel fournisseur.
 
@@ -62,9 +62,23 @@ _Aucun chantier actif — CAS-D-FIX-01 fusionné (2026-10-18). En attente des in
 
 **NOT VERIFIED** : clic-à-travers B2B authentifié réel (`/pro/booking/travelers` → `createReservationFromDraft`) — impossible dans ce labo sans GoTrue/Supabase Auth.
 
+**Preuves de fusion :**
+
+- Branche : `pr-hotel-b2b-double-booking-lock-01`
+- SHA head fusionné : `28f66d435b028d103f05931cfc6e2ce7f3d39c4d`
+- Merge commit `main` : `c5aae48208452f1f7503312cca10c09fbd3cc119`
+- PR : #239 — fusionnée par Direction (`Hassen02020`) le 2026-10-20T20:08:15Z
+- CI run pré-fusion (SHA `28f66d4`) : run #665 (id `39484962777`) → 8/8 ✅ (format/lint/typecheck/test/financial-e2e/build/playwright-a11y/lighthouse)
+
+**Preuves d'intégration (Niveau 4) :**
+
+- CI GitHub réelle post-fusion complète (les 3 chantiers combinés), commit `3b70cb1` (push vers `main`), run #673 (id `39494449917`) : `success`.
+- Build local (`pnpm build`) sur `main` intégré (`3b70cb1`) : propre, exit 0, routes `/pro/hotels`, `/pro/hotels/[id]`, `/pro/reservations/[id]`, `/pro/booking/travelers` toutes compilées.
+- Suite complète locale (`pnpm test`) sur `main` intégré : 3046/3095 PASS, 47 échecs (identiques, zéro nouvelle régression), 2 skip. Écart de 4 tests vs le point de contrôle `lab-local-01a` expliqué : `lib/i18n/__tests__/` (chantier I18N-CHECKOUT-TRANSFER-01) n'a jamais eu sa propre PR, reste hors scope de cette intégration.
+
 ---
 
-### INVENTORY-LOCK-TOCTOU-01 — NIVEAU 3 (BRIQUE VALIDÉE) — PR CRÉÉE, EN ATTENTE DE GO DE FUSION (2026-10-20)
+### INVENTORY-LOCK-TOCTOU-01 — NIVEAU 4 (BRIQUE INTÉGRÉE) — FUSIONNÉ (2026-10-20)
 
 **Découvert en vérifiant HOTEL-B2B-DOUBLE-BOOKING-LOCK-01** (chantier compagnon, PR séparée) : le test existant « deux sessions concurrentes » de `lib/booking/__tests__/inventory.test.ts` faisait `await winner` PUIS `await loser` — séquentiel, jamais de vraie concurrence — et passait aussi bien avec que sans le défaut décrit ci-dessous, malgré son nom.
 
@@ -90,9 +104,23 @@ _Aucun chantier actif — CAS-D-FIX-01 fusionné (2026-10-18). En attente des in
 
 **NOT VERIFIED** : la preuve ci-dessus utilise le mock Redis en mémoire déjà établi par ce fichier de test (fidèle à la sémantique documentée de `SET NX`, mais sans aller jusqu'à un aller-retour réseau réel vers Upstash) — le comportement sous latence réseau réelle n'a pas été rejoué séparément.
 
+**Preuves de fusion :**
+
+- Branche : `pr-inventory-lock-toctou-01`
+- SHA head fusionné : `9d86b9d9684b3ce3c6571b62e8e2dd5e289a9147` (rebasée une fois sur `main` post-#239 avant fusion)
+- Merge commit `main` : `4915550205d7b11cf58df5c1fdd6008d63c58c3d`
+- PR : #240 — fusionnée par Direction (`Hassen02020`) le 2026-10-20T20:32:16Z
+- CI run pré-fusion (SHA `9d86b9d`) : run #669 (id `39491761299`) → 10/10 ✅
+
+**Preuves d'intégration (Niveau 4) :**
+
+- CI GitHub réelle post-fusion complète (les 3 chantiers combinés), commit `3b70cb1` (push vers `main`), run #673 (id `39494449917`) : `success`.
+- Build local (`pnpm build`) sur `main` intégré (`3b70cb1`) : propre, exit 0.
+- Suite complète locale (`pnpm test`) sur `main` intégré : 3046/3095 PASS, 47 échecs (identiques, zéro nouvelle régression), 2 skip. Écart de 4 tests vs le point de contrôle `lab-local-01a` expliqué (chantier I18N-CHECKOUT-TRANSFER-01, jamais mis en PR, hors scope).
+
 ---
 
-### HOTEL-PRO-DOC-ACCESS-TEST-01 — NIVEAU 3 (BRIQUE VALIDÉE) — PR CRÉÉE, EN ATTENTE DE GO DE FUSION (2026-10-20)
+### HOTEL-PRO-DOC-ACCESS-TEST-01 — NIVEAU 4 (BRIQUE INTÉGRÉE) — FUSIONNÉ (2026-10-20)
 
 **Contexte** : dernier des 4 chantiers proposés par l'audit de certification complète du module hôtel — test-coverage gap identifié (pas un défaut de code) sur `/api/pro/reservations/[id]/{voucher,invoice}`, les deux routes de téléchargement voucher/facture de l'espace partenaire.
 
@@ -125,7 +153,21 @@ _Aucun chantier actif — CAS-D-FIX-01 fusionné (2026-10-18). En attente des in
 
 **NOT VERIFIED** : clic-à-travers HTTP réel sur les deux routes avec une vraie session Supabase — impossible dans ce labo sans GoTrue ; preuve apportée au niveau DB/RLS directement, même frontière que les routes, code de production non réimplémenté.
 
-**Niveau actuel : 3 (Brique validée).** Pas encore Niveau 4 — PR créée (ce commit), en attente de GO de fusion puis de vérification d'intégration post-merge.
+**Preuves de fusion :**
+
+- Branche : `pr-hotel-pro-doc-access-test-01`
+- SHA head fusionné : `8d9d9c70e2979c4caa32d95cb1ad4b4e08507461` (rebasée deux fois sur `main`, post-#239 puis post-#240, avant fusion)
+- Merge commit `main` : `3b70cb108982a017ad3d9c1b009ca0e8dd33d2b2`
+- PR : #241 — fusionnée par Direction (`Hassen02020`) le 2026-10-20T20:43:40Z
+- CI run pré-fusion (SHA `8d9d9c7`) : run #672 (id `39493220465`) → 10/10 ✅
+
+**Preuves d'intégration (Niveau 4) :**
+
+- CI GitHub réelle post-fusion complète (les 3 chantiers combinés), commit `3b70cb1` (push vers `main`), run #673 (id `39494449917`) : `success`.
+- Build local (`pnpm build`) sur `main` intégré (`3b70cb1`) : propre, exit 0.
+- Suite complète locale (`pnpm test`) sur `main` intégré : 3046/3095 PASS, 47 échecs (identiques, zéro nouvelle régression), 2 skip. Écart de 4 tests vs le point de contrôle `lab-local-01a` expliqué (chantier I18N-CHECKOUT-TRANSFER-01, jamais mis en PR, hors scope).
+
+**Niveau actuel : 4 (Brique intégrée).** Fusionnée dans `main`, comportement vérifié après intégration avec les 2 autres chantiers de cette série (CI réelle + build + suite complète locale, tous propres).
 
 ---
 

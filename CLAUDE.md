@@ -96,6 +96,28 @@ Puis :
 
 Retour au point 1.
 
+## NIVEAUX DE CERTIFICATION D'UNE BRIQUE
+
+Un chantier ("brique") progresse à travers 4 niveaux. Le niveau affiché dans `ROADMAP.md` pour une brique est TOUJOURS le niveau le plus élevé **réellement atteint** — jamais une liste des 4 niveaux affichée par défaut avec des cases cochées par habitude. Un niveau ne progresse que sur preuve concrète citée (fichier, commit, SHA, résultat de test, lien PR) — jamais par écoulement du temps, jamais parce que le niveau précédent est passé depuis longtemps. C'est cette discipline qui fait de `ROADMAP.md` un véritable tableau de contrôle de la préparation à la production, pas une liste de cases cochées par rituel.
+
+| Niveau             | Signification                                                                                               | Preuve exigée                                               |
+| ------------------ | ----------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------- |
+| 1. Code écrit      | La fonctionnalité existe dans le code.                                                                      | diff/commit local                                           |
+| 2. Code testé      | Les scénarios prévus passent.                                                                               | résultat de test réel (pass/fail, pas une affirmation)      |
+| 3. Brique validée  | Tests, sécurité, dépendances et risques examinés avec preuves (non-régression, non-vacuité, revue du diff). | rapport de preuves (étape CERTIFIER LES PREUVES ci-dessous) |
+| 4. Brique intégrée | PR fusionnée dans `main` ET comportement vérifié après intégration avec le reste du projet réel.            | SHA de merge + preuve de vérification post-intégration      |
+
+Cycle complet d'une brique, élaboration des points 4-5 de la RÈGLE OPÉRATIONNELLE ABSOLUE ci-dessus (pas un cycle parallèle) :
+
+1. **DÉVELOPPER** — une seule brique, sur sa branche de travail.
+2. **TESTER** — scénarios normaux, erreurs, accès interdits, cas limites.
+3. **CERTIFIER LES PREUVES** — résultats, sécurité, régressions, critères de sortie vérifiés et cités (jamais juste « les tests passent »).
+4. **CRÉER LA PR** — diff, preuves de test, risques restants. Jamais de PR sans que 1-3 soient faits et documentés.
+5. **VALIDER ET FUSIONNER** — uniquement sur GO explicite, et seulement si tous les contrôles CI sont verts.
+6. **VÉRIFIER L'INTÉGRATION** — après fusion, contrôler que la brique fonctionne avec les autres composants du vrai projet avant de marquer Niveau 4.
+
+La CLÔTURE (point 5 de la RÈGLE OPÉRATIONNELLE ABSOLUE) ne peut mentionner « Niveau 4 » que si l'étape 6 ci-dessus a été réellement faite et documentée ; sinon la brique reste documentée au niveau réellement atteint (le plus souvent Niveau 3 au moment du STOP — PR créée, en attente de GO de fusion).
+
 ## RÈGLE ANTI-REFACTORING INUTILE
 
 Avant toute création :

@@ -36,7 +36,56 @@ Un seul chantier actif à la fois ; il est indiqué dans ROADMAP.md (section "Ch
 
 ## Chantier actif
 
-_Aucun chantier actif — I18N-CHECKOUT-TRANSFER-01 et HOTEL-SEARCH-01 clos (2026-10-20, labo local, non commités/poussés à l'ouverture de ce statut). En attente des instructions de la Direction._
+_Aucun chantier actif — HOTEL-B2B-DOUBLE-BOOKING-LOCK-01 et INVENTORY-LOCK-TOCTOU-01 clos (2026-10-20, labo local, commit + push sur `lab-local-01a`). HOTEL-PRO-DOC-ACCESS-TEST-01 proposé en suite (cf. ci-dessous) — EN ATTENTE DE GO._
+
+---
+
+### INVENTORY-LOCK-TOCTOU-01 — CLOS / VALIDÉ EN LABO LOCAL (2026-10-20)
+
+**Découvert en vérifiant HOTEL-B2B-DOUBLE-BOOKING-LOCK-01** : le test existant « deux sessions concurrentes » de `lib/booking/__tests__/inventory.test.ts` faisait `await winner` PUIS `await loser` — séquentiel, jamais de vraie concurrence — et passait aussi bien avec que sans le défaut décrit ci-dessous, malgré son nom.
+
+**Défaut prouvé (TOCTOU — check-then-act)** : `acquireLock()` (`lib/booking/inventory.ts`) lisait la clé (`get`), puis, si absente, posait `SET NX EX` — **sans jamais vérifier le résultat du SET**. Preuve empirique par `Promise.all([acquireLock(A), acquireLock(B)])` sur la même clé : **les deux appels recevaient `ok:true`**. Redis lui-même reste atomique (`SET NX` renvoie bien `null` en cas de collision) ; c'est le code applicatif qui ignorait cette valeur de retour.
+
+**Sévérité** : défaut préexistant dans la primitive **partagée** — touche les 4 modules qui l'utilisent, pas seulement le B2B : `lib/booking/guest-actions.ts`, `lib/hotels-monde/guest-booking-actions.ts`, `lib/vols/guest-booking-actions.ts` (déjà en production) et le chemin B2B ajouté par HOTEL-B2B-DOUBLE-BOOKING-LOCK-01 (ci-dessous). Sans ce correctif, le verrou d'inventaire ne protégeait pas réellement contre un double appel fournisseur sous charge concurrente réelle.
+
+**Livrables :**
+
+- `lib/booking/inventory.ts` [FIX] — `acquireLock()` capture désormais le retour de `redis.set(..., {nx:true})` ; si `null` (collision réelle pendant la fenêtre get→set), retourne `{ok:false, reason:"conflict"}` au lieu de `{ok:true}`.
+- `lib/booking/__tests__/inventory.test.ts` [FIX] — le test « deux sessions concurrentes » remplacé par un vrai `Promise.all` (au lieu de deux `await` séquentiels).
+
+**Preuves locales (labo, pas de CI réelle) :**
+
+- Isolation `git stash` sur `inventory.ts` seul : le test `Promise.all` échoue (1/17, exactement ce test) contre le code pré-correctif, passe (17/17) avec le correctif — reproduction réelle, pas une assertion trivialement vraie.
+- Non-régression structurelle : recherche sur toute la suite — seuls 2 fichiers référencent `acquireLock`/`releaseLock`/`refreshLock` (`inventory.test.ts`, qui les exécute réellement, et `hotel-b2b-double-booking-lock-wiring.test.ts`, qui ne fait que lire le texte source d'`actions.ts`/`guest-actions.ts` sans jamais importer `inventory.ts`) — donc ce correctif ne peut mathématiquement affecter aucun autre test.
+- Suite complète (`pnpm test`) rejouée après ce correctif : 3045/3094 PASS, 47 échecs, 2 skip — total strictement identique au point de contrôle précédent (après le câblage B2B, avant ce correctif), cohérent avec une substitution neutre d'un test qui passait déjà par un autre qui passe aussi.
+
+**Aucune migration DB.**
+
+**NOT VERIFIED** : la preuve ci-dessus utilise le mock Redis en mémoire déjà établi par ce fichier de test (fidèle à la sémantique documentée de `SET NX`, mais sans aller jusqu'à un aller-retour réseau réel vers Upstash) — le comportement sous latence réseau réelle n'a pas été rejoué séparément ; le raisonnement (fenêtre de course plus large avec une vraie latence réseau, donc plus facile à déclencher, pas moins) n'a pas été vérifié empiriquement en conditions réelles.
+
+---
+
+### HOTEL-B2B-DOUBLE-BOOKING-LOCK-01 — CLOS / VALIDÉ EN LABO LOCAL (2026-10-20)
+
+**Contexte** : identifié par l'audit de certification complète du module hôtel (B2C/B2B/B2B2C/Partners) — `lib/booking/actions.ts::createReservationFromDraft` (chemin B2B) n'appelait jamais `acquireLock`/`releaseLock`, contrairement au chemin guest/B2C (`lib/booking/guest-actions.ts`) : deux requêtes B2B concurrentes sur la même offre myGo n'étaient pas bloquées avant l'appel fournisseur.
+
+**Livrables :**
+
+- `lib/booking/actions.ts` [FIX] — port exact du patron guest (+36 lignes) : `acquireLock({agencyId, sessionId, module:"hotel", itemId: draft.offerId})` avant `confirmHotelWithProvider`, `releaseInventoryLock()` sur les 5 sorties (échec fournisseur, `!myGoBooking`, conflit DB, succès avec `reservationId`, catch générique).
+- `lib/booking/__tests__/hotel-b2b-double-booking-lock-wiring.test.ts` [CREATE] — 7 tests statiques (patron `readFileSync`/`indexOf`, même convention que `mygo-hotel-commission-wiring.test.ts`) : ordre d'appel, libération sur chaque sortie, parité de clé avec le chemin guest.
+
+**Dépendance** : cette fiche câble correctement `acquireLock`, mais la garantie « double booking impossible » n'est complète qu'avec **INVENTORY-LOCK-TOCTOU-01** ci-dessus — sans lui, le verrou câblé ici pouvait laisser passer deux appelants concurrents malgré un câblage correct. Les deux chantiers se complètent et sont clos ensemble.
+
+**Preuves locales (labo, pas de CI réelle) :**
+
+- Isolation `git stash` sur `actions.ts` seul : 0/7 tests contre le code pré-correctif, 7/7 avec — reproduction réelle.
+- `tsc --noEmit` / `eslint` / `prettier --check` : propres.
+- Suite complète (`pnpm test`) : 3045/3094 PASS, 47 échecs (tous pré-existants, identiques nominalement au point de contrôle précédent), 2 skip.
+- Test visuel : authentification réelle (GoTrue) absente de ce labo — vérifié à la place : serveur dev recompile sans erreur, `curl /pro/hotels` → `307` vers `/pro/login?next=...` (comportement attendu, pas de 500).
+
+**Aucune migration DB.**
+
+**NOT VERIFIED** : clic-à-travers B2B authentifié réel (`/pro/booking/travelers` → `createReservationFromDraft`) — impossible dans ce labo sans GoTrue/Supabase Auth.
 
 ---
 

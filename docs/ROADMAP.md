@@ -40,6 +40,32 @@ _Aucun chantier actif — CAS-D-FIX-01 fusionné (2026-10-18). En attente des in
 
 ---
 
+### HOTEL-B2B-DOUBLE-BOOKING-LOCK-01 — NIVEAU 3 (BRIQUE VALIDÉE) — PR CRÉÉE, EN ATTENTE DE GO DE FUSION (2026-10-20)
+
+**Contexte** : identifié par l'audit de certification complète du module hôtel (B2C/B2B/B2B2C/Partners) — `lib/booking/actions.ts::createReservationFromDraft` (chemin B2B) n'appelait jamais `acquireLock`/`releaseLock`, contrairement au chemin guest/B2C (`lib/booking/guest-actions.ts`) : deux requêtes B2B concurrentes sur la même offre myGo n'étaient pas bloquées avant l'appel fournisseur.
+
+**Livrables :**
+
+- `lib/booking/actions.ts` [FIX] — port exact du patron guest (+36 lignes) : `acquireLock({agencyId, sessionId, module:"hotel", itemId: draft.offerId})` avant `confirmHotelWithProvider`, `releaseInventoryLock()` sur les 5 sorties (échec fournisseur, `!myGoBooking`, conflit DB, succès avec `reservationId`, catch générique).
+- `lib/booking/__tests__/hotel-b2b-double-booking-lock-wiring.test.ts` [CREATE] — 7 tests statiques (patron `readFileSync`/`indexOf`, même convention que `mygo-hotel-commission-wiring.test.ts`) : ordre d'appel, libération sur chaque sortie, parité de clé avec le chemin guest.
+
+**Dépendance** : cette fiche câble correctement `acquireLock`, mais la garantie « double booking impossible » n'est complète qu'avec **INVENTORY-LOCK-TOCTOU-01** (PR séparée, chantier compagnon) — sans elle, le verrou câblé ici pouvait laisser passer deux appelants concurrents malgré un câblage correct. Recommandé de fusionner les deux PR ensemble ou l'une après l'autre.
+
+**Preuves locales (labo, pas de CI réelle) :**
+
+- Isolation `git stash` sur `actions.ts` seul : 0/7 tests contre le code pré-correctif, 7/7 avec — reproduction réelle.
+- `tsc --noEmit` / `eslint` / `prettier --check` : propres.
+- Suite complète (`pnpm test`) : 3045/3094 PASS, 47 échecs (tous pré-existants), 2 skip.
+- Test visuel : authentification réelle (GoTrue) absente de ce labo — vérifié à la place : serveur dev recompile sans erreur, `curl /pro/hotels` → `307` vers `/pro/login?next=...` (comportement attendu, pas de 500).
+
+**Aucune migration DB.**
+
+**NOT VERIFIED** : clic-à-travers B2B authentifié réel (`/pro/booking/travelers` → `createReservationFromDraft`) — impossible dans ce labo sans GoTrue/Supabase Auth.
+
+**Niveau actuel : 3 (Brique validée).** Pas encore Niveau 4 — PR créée (ce commit), en attente de GO de fusion puis de vérification d'intégration post-merge.
+
+---
+
 ### MUTUELLE-BOOKING-01 — CLOS / FUSIONNÉ (2026-10-18)
 
 **Leg réservation B2B2C sur approbation directeur (module Mutuelle).**

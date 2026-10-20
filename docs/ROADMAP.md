@@ -40,6 +40,59 @@ _Aucun chantier actif — CAS-D-FIX-01 fusionné (2026-10-18). En attente des in
 
 ---
 
+### MUTUELLE-INVOICE-SETTLEMENT-01 × MUTUELLE-CONCURRENCY-COMPLETE-01 (réconciliation) — CLOS / FUSIONNÉ / DÉPLOYÉ EN PRODUCTION (2026-10-19)
+
+**Réconciliation de deux chantiers Mutuelle B2B2C développés indépendamment sur la même base, qui modifiaient `lib/mutuelle/requests-actions.ts` de façon incompatible.**
+
+- **MUTUELLE-INVOICE-SETTLEMENT-01** : une réservation Mutuelle approuvée génère désormais une facture `issued` (`amountPaid="0.00"`), jamais `paid` sans preuve de règlement réel. `confirmMutuelleInvoiceSettlement` transitionne explicitement `issued → paid` sur référence vérifiable (rôle staff gated, `audit_events` tracé) — ferme la trouvaille INVOICE-PAID-STATUS-UNVERIFIED-01 (facture auto-marquée payée sans preuve de paiement sur les 2 chemins Mutuelle).
+- **MUTUELLE-CONCURRENCY-COMPLETE-01 (CAS-B/CAS-C)** : verrou `pg_advisory_xact_lock` sur la génération de `publicRef` (CAS-B) ; génération de facture déplacée dans un `step.run` Inngest + cron de récupération indépendant (CAS-C) — garantit qu'une réservation confirmée n'est jamais durablement sans facture.
+- **Réconciliation** : le `step.run` et le cron de récupération appellent `generateIssuedInvoiceForReservation` (jamais `generateInvoiceForReservation`) — sans ce changement, la combinaison naïve des deux chantiers aurait réintroduit une facture `"paid"` générée automatiquement sans preuve de paiement.
+
+**Livrables (18 fichiers) :**
+
+- `lib/finance/invoice-actions.ts` [EXTEND] — nouvelle fonction `generateIssuedInvoiceForReservation`, séparée de `generateInvoiceForReservation` (14 autres appelants non touchés).
+- `lib/finance/mutuelle-invoice-settlement-actions.ts` [CREATE] — `confirmMutuelleInvoiceSettlement` / `confirmMutuelleInvoiceSettlementCore`, transition `issued → paid` staff gated.
+- `components/admin/confirm-mutuelle-invoice-settlement-button.tsx` [CREATE].
+- `app/(internal)/admin/accounting/invoices/page.tsx`, `app/(internal)/admin/accounting/page.tsx` [EXTEND] — affichage distinct `issued`/`paid`.
+- `lib/mutuelle/booking-actions.ts` [EXTEND] — verrou CAS-B.
+- `lib/mutuelle/requests-actions.ts`, `lib/inngest/client.ts`, `lib/inngest/functions/process-mutuelle-confirmed.ts`, `lib/inngest/functions/recover-mutuelle-missing-invoices.ts` [CREATE/EXTEND], `app/api/inngest/route.ts`, `lib/inngest/functions/index.ts` [EXTEND] — CAS-C, génération déplacée en step.run + cron de récupération.
+- 3 nouveaux tests live Postgres : `lib/finance/__tests__/mutuelle-invoice-settlement-concurrency-live.test.ts`, `lib/finance/__tests__/mutuelle-invoice-settlement-rls-live.test.ts`, `lib/inngest/functions/__tests__/recover-mutuelle-missing-invoices-live.test.ts` — enregistrés dans la liste explicite du job `financial-e2e` (`.github/workflows/ci.yml`).
+- `lib/mutuelle/__tests__/mutuelle-group-status-guard.test.ts`, `lib/inngest/functions/__tests__/process-mutuelle-confirmed-wiring.test.ts` [EXTEND].
+
+**Protections de facturation et de concurrence validées (preuve live Postgres + CI réelle, superutilisateur ET rôle `app_runtime` sous RLS effective) :**
+
+- Deux créations concurrentes de facture (`Promise.all`, même réservation) → jamais de doublon (contrainte `partner_invoices_reservation_uniq`).
+- Deux confirmations de règlement concurrentes → 1 seule transition, 1 seul `audit_events`.
+- Récupération après événement perdu simulé → facture `issued`, jamais `paid` automatiquement.
+- Chemin rapide (`step.run`) + cron en parallèle → jamais de double facturation.
+- Isolation RLS réelle sous `app_runtime` (pas seulement superutilisateur) : une agence tierce ne voit ni ne règle jamais la facture d'une autre agence ; `super_admin` voit les deux — comportement voulu.
+
+**Preuves de fusion :**
+
+- Branche : `mutuelle-combined-validation-01`
+- SHA head PR (après correctif formatage) : `b41326913fc1e31bb5a5547ab02cb51b304b929f`
+- Merge commit `main` : `4840e518b8c7111b555d89006130441ade7dc933`
+- PR : [#238](https://github.com/Hassen02020/EasyV4/pull/238) — fusionnée par Direction (`Hassen02020`) le 2026-10-19T22:56:58Z
+- CI run pre-merge (SHA `b413269`) : run **#663** → 8/8 ✅ (format/lint/typecheck/test/financial-e2e/build/playwright-a11y/lighthouse)
+- CI run post-merge (SHA `4840e51`) : run **#664** → 8/8 ✅ (mêmes contrôles)
+- `financial-e2e` (run #664) : 168/168 tests, 0 échec — dont les 7 nouveaux tests Mutuelle (concurrence × 2, RLS × 3, récupération × 2), tous `ok`, sous le rôle `app_runtime` réel.
+
+**Déploiement production :**
+
+- Vercel `easy2book-new` : "Status: Ready", "Source: main, 4840e51, Merge pull request #238...", domaine `easy2book-new.vercel.app`.
+- **Preuve fournie directement par la Direction (capture d'écran du tableau de bord Vercel)** — non vérifiée via l'API Vercel depuis cette session (connecteur bloqué, scope `easy2book` non autorisé pour ce jeton, erreur 403 persistante).
+
+**Aucune migration DB.** Réutilise `partner_invoices.status`/`notes` (colonnes déjà existantes).
+
+**Réserves ouvertes (NOT VERIFIED) :**
+
+- Déploiement production confirmé par capture d'écran fournie par la Direction, pas par une requête API Vercel effectuée directement depuis cette session.
+- Le wrapper `"use server"` `confirmMutuelleInvoiceSettlement` (résolution de session Supabase réelle) n'a jamais été exercé de bout en bout avec une vraie session — seule la logique cœur (`confirmMutuelleInvoiceSettlementCore`) a été testée directement, même limite que le reste du module Mutuelle.
+- Pas de revue humaine documentée sur la PR avant fusion (fusionnée directement par la Direction).
+- Pas d'export PDF de facture (hors périmètre, déjà noté ailleurs dans le projet).
+
+---
+
 ### MUTUELLE-BOOKING-01 — CLOS / FUSIONNÉ (2026-10-18)
 
 **Leg réservation B2B2C sur approbation directeur (module Mutuelle).**
@@ -82,8 +135,8 @@ traçabilité Mutuelle via `providerPayload.channel = "mutuelle_b2b2c"`.
 
 | ID        | Description                                                                                                          | Impact si déclenché                                                                       | Proposition technique                                                                                                                                   |
 | --------- | -------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| CAS-B     | `SELECT MAX(publicRef)` non-verrouillant → collision UNIQUE `(agencyId, publicRef)` sur approbations concurrent      | PG 23505 → rollback TX → demande reste `pending` → retry directeur OK (pas de corruption) | `pg_advisory_xact_lock(hashtext(agencyId + year))`                                                                                                      |
-| CAS-C     | `generateInvoiceForReservation` appelé post-commit (fire-and-forget) → crash process avant appel → facture manquante | Facture orpheline, récupérable manuellement                                               | Inngest `step.run` pour garantie d'exécution                                                                                                            |
+| ~~CAS-B~~ | ~~`SELECT MAX(publicRef)` non-verrouillant → collision UNIQUE `(agencyId, publicRef)` sur approbations concurrent~~  | ~~PG 23505 → rollback TX → demande reste `pending` → retry directeur OK (pas de corruption)~~ | **CORRIGÉ** — PR #238 (2026-10-19) : `pg_advisory_xact_lock(hashtext(agencyId + ":" + prefix))` dans `nextMutuellePublicRef`, prouvé live (2 transactions concurrentes) |
+| ~~CAS-C~~ | ~~`generateInvoiceForReservation` appelé post-commit (fire-and-forget) → crash process avant appel → facture manquante~~ | ~~Facture orpheline, récupérable manuellement~~ | **CORRIGÉ** — PR #238 (2026-10-19) : génération déplacée en `step.run` Inngest + cron `recoverMutuelleMissingInvoices` indépendant de l'événement, prouvé live et en CI réelle |
 | ~~CAS-D~~ | ~~`mutuelleGroups.status` non vérifié à l'approbation → groupe inactif/suspendu peut être approuvé~~                 | ~~Réservation créée pour groupe non actif~~                                               | **CORRIGÉ** — PR #236 (2026-10-18) : `SELECT mutuelleGroups FOR UPDATE` + garde `status !== "active"` avant toute écriture dans `reviewMutuelleRequest` |
 
 ---

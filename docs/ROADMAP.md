@@ -90,6 +90,41 @@ _Aucun chantier actif — CAS-D-FIX-01 fusionné (2026-10-18). En attente des in
 
 **NOT VERIFIED** : la preuve ci-dessus utilise le mock Redis en mémoire déjà établi par ce fichier de test (fidèle à la sémantique documentée de `SET NX`, mais sans aller jusqu'à un aller-retour réseau réel vers Upstash) — le comportement sous latence réseau réelle n'a pas été rejoué séparément.
 
+---
+
+### HOTEL-PRO-DOC-ACCESS-TEST-01 — NIVEAU 3 (BRIQUE VALIDÉE) — PR CRÉÉE, EN ATTENTE DE GO DE FUSION (2026-10-20)
+
+**Contexte** : dernier des 4 chantiers proposés par l'audit de certification complète du module hôtel — test-coverage gap identifié (pas un défaut de code) sur `/api/pro/reservations/[id]/{voucher,invoice}`, les deux routes de téléchargement voucher/facture de l'espace partenaire.
+
+**Audit (avant tout test)** : code relu directement —
+
+- `/api/pro/reservations/[id]/invoice` : double scoping réel — RLS (`withTenantContext`) **+** filtre explicite `eq(reservations.agencyId, profile.agency.id)` dans la requête (défense en profondeur, déjà documentée comme telle dans le fichier).
+- `/api/pro/reservations/[id]/voucher` → délègue à `renderReservationVoucher(tx, reservationId)` (`lib/booking/reservation-voucher-render.ts`), dont la doc de tête dit explicitement qu'elle ne refait aucun contrôle d'accès — repose uniquement sur la RLS posée par l'appelant.
+- RLS confirmée réelle sur `reservations` (`drizzle/manual/0001_rls_policies.sql:99`, policy générique `agency_id = current_agency_id() OR is_super_admin()`), pas juste `ENABLE` sans policy.
+- `lib/booking/__tests__/document-access-control.test.ts` (test existant) couvre les routes **guest** à token (`/api/booking/{voucher,invoice}/[ref]`) — scope différent (secret de token, pas isolation tenant), aucune REUSE possible.
+
+**Verdict : aucun défaut.** Code déjà correct. Classification : **CREATE (tests uniquement)**, zéro ligne de code de production modifiée.
+
+**Livrable :**
+
+- `lib/booking/__tests__/hotel-pro-doc-access-live.test.ts` [CREATE] — 5 tests live (deux agences réelles en base, `withTenantContext`, aucun mock de la primitive testée) :
+  1. Voucher — contrôle positif (agence A voit sa propre réservation).
+  2. Voucher — refus IDOR inter-agence (agence A → réservation agence B via `renderReservationVoucher`, la fonction réelle de production).
+  3. Facture — contrôle positif.
+  4. Facture — refus IDOR inter-agence (réplique exacte du where-clause de la route).
+  5. Facture — **RLS seule, sans le filtre explicite** de la route : isole la protection RLS elle-même.
+
+**Preuves locales (labo, pas de CI réelle) :**
+
+- 5/5 PASS contre Postgres réel avec RLS active.
+- **Sonde anti-vacuité** : le test 5 modifié temporairement (`isSuperAdmin: true` au lieu de `false`) bascule immédiatement en échec (`rows.length` passe de `0` à `1`) — preuve que la clause `is_super_admin()` de la policy RLS est réellement évaluée, pas un test qui passerait de toute façon. Sonde retirée ; fichier revérifié identique **byte à byte** à l'état d'avant sonde (`diff` vide) ; 5/5 restauré.
+- `tsc --noEmit` / `eslint` / `prettier --check` sur le nouveau fichier : propres.
+- Suite complète (`pnpm test`) rejouée après ajout : **3050/3099 PASS, 47 échecs, 2 skip** — exactement +5 pass/+5 total par rapport au point de contrôle précédent, les 47 échecs pré-existants strictement inchangés en nombre.
+
+**Aucune migration DB. Aucun code de production modifié** (seul fichier touché : le nouveau test).
+
+**NOT VERIFIED** : clic-à-travers HTTP réel sur les deux routes avec une vraie session Supabase — impossible dans ce labo sans GoTrue ; preuve apportée au niveau DB/RLS directement, même frontière que les routes, code de production non réimplémenté.
+
 **Niveau actuel : 3 (Brique validée).** Pas encore Niveau 4 — PR créée (ce commit), en attente de GO de fusion puis de vérification d'intégration post-merge.
 
 ---

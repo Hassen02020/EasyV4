@@ -36,7 +36,50 @@ Un seul chantier actif à la fois ; il est indiqué dans ROADMAP.md (section "Ch
 
 ## Chantier actif
 
-_Aucun chantier actif — CAS-D-FIX-01 fusionné (2026-10-18). En attente des instructions de la Direction._
+_Aucun chantier actif — I18N-CHECKOUT-TRANSFER-01 et HOTEL-SEARCH-01 clos (2026-10-20, labo local, non commités/poussés à l'ouverture de ce statut). En attente des instructions de la Direction._
+
+---
+
+### I18N-CHECKOUT-TRANSFER-01 — CLOS / VALIDÉ EN LABO LOCAL (2026-10-20)
+
+**Contexte** : défauts découverts pendant l'audit UX-PUBLIC-01 (expérience client public). Deux composants publics affichaient du texte français en dur, sans passer par `useTranslations` — un client EN/AR voyait du français aux moments critiques (échec de paiement, réservation de transfert).
+
+**Livrables :**
+
+- `app/(public)/[locale]/booking/checkout/error.tsx` [FIX] — remplacement du texte français en dur par `useTranslations("Booking")` ; 3 nouvelles clés (`checkoutErrorTitle`, `checkoutErrorDesc`, `retryButton`) ajoutées dans `messages/{fr,en,ar}.json`, réutilisation de 2 clés déjà existantes (`relaunchHotelSearch`, `backHome`).
+- `components/transfer/transfer-booking-form.tsx` [FIX] — composant confirmé réellement utilisé par la page publique `/transferts/resultats` (à la différence de `components/omra/omra-booking-form.tsx`, dont l'audit initial avait signalé le même défaut à tort : ce fichier n'est utilisé que par l'outil interne `/pro/sandbox`, jamais par le vrai parcours public Omra, qui utilise `omra-guest-booking-form.tsx`, déjà internationalisé). Remplacement intégral des libellés/titres français en dur par `useTranslations("Transferts")` ; réutilisation de 6 clés existantes, 31 nouvelles clés ajoutées (vraies traductions fr/en/ar, pas des copies).
+- `lib/i18n/__tests__/checkout-error-i18n.test.ts` [CREATE] — 2 tests : absence de texte français en dur + parité de traduction réelle fr/en/ar.
+- `lib/i18n/__tests__/transfer-booking-form-i18n.test.ts` [CREATE] — 2 tests, même méthode.
+
+**Preuves locales (labo, pas de CI réelle) :**
+
+- `tsc --noEmit` (projet entier) : propre.
+- `prettier --check .` (projet entier) : propre.
+- `node --test lib/i18n/__tests__/*.test.ts` : 4/4 PASS.
+- Vérifié en direct sur serveur `pnpm dev` local : `/fr`, `/en`, `/ar`, `/fr/transferts`, `/fr/transferts/resultats` → 200, pas de crash.
+- Suite complète du projet (`pnpm test`) rejouée après ce chantier : 3038/3087 PASS, 47 échecs — tous pré-existants (dérive de données du labo local, RLS/CRM "live"), aucun ne touche les fichiers de ce chantier.
+
+**Aucune migration DB.** Périmètre strictement séparé de `HOTEL-SEARCH-01` (vérifié par diff — aucun fichier en commun).
+
+**NOT VERIFIED** : comportement RTL visuel fin (débordement/alignement) sur les nouveaux textes arabes — seule la présence de vraies traductions a été vérifiée programmatiquement, pas un rendu visuel RTL dédié à ces 2 pages précises.
+
+---
+
+### HOTEL-SEARCH-01 — AUDITÉ / CAUSE RACINE ENVIRONNEMENTALE CONFIRMÉE / AUCUN CORRECTIF CODE (2026-10-20)
+
+**Symptôme initial** : `/fr/hotels/search` restait bloquée indéfiniment sur un squelette de chargement dans ce labo local, sous `pnpm dev`.
+
+**Cause racine confirmée par preuve reproductible** : défaillance d'hydratation React **spécifique à `pnpm dev` (Turbopack) dans ce bac à sable**, pas un défaut du code applicatif.
+
+- Page de test minimale créée (`useEffect` trivial, zéro dépendance au code myGo) : sous `pnpm dev`, l'effet ne se déclenche jamais côté client ; sous `pnpm build` + `pnpm start` (vrai build de production), l'effet se déclenche correctement.
+- Rejoué sur la vraie page `/fr/hotels/search` sous build de production : requête réseau réelle vers `/api/hotels/search-public`, réponse réelle (70 offres, mode "démo" car aucun identifiant myGo réel n'est configuré dans ce labo), filtres avec compteurs réels par facette, expansion "Tarifs & chambres" → bouton "Réserver" au niveau chambre, état vide géré proprement ("Aucun hôtel disponible... Essayez d'autres dates ou une autre destination.").
+- Explique également, rétrospectivement, un défaut constaté séparément lors de l'audit UX-PUBLIC-01 (les menus déroulants Devise/Langue du header ne s'ouvraient jamais sous `pnpm dev` dans ce labo) — même mécanisme (hydratation/effets non déclenchés en dev Turbopack dans ce bac à sable), pas deux bugs distincts.
+
+**Aucune modification de code appliquée** à `lib/mygo/`, `components/hotel-listings.tsx` ou `app/.../hotels/search/page.tsx` — aucun défaut précis et reproductible dans ce code n'a été démontré ; corriger à l'aveugle aurait été contraire à la règle anti-sur-correction.
+
+**NOT VERIFIED** : tri et pagination (page 2) sous build de production — sondes de test imprécises (sélecteurs n'ayant pas trouvé les bons éléments), ni succès ni échec démontré, angle mort à reprendre si besoin. Comportement réel sous Vercel (environnement de build différent de ce labo) non vérifié — seule la distinction `pnpm dev` vs `pnpm build`/`pnpm start` en local a été prouvée.
+
+**Nettoyage confirmé** : route de diagnostic temporaire (`app/(public)/[locale]/zzz-temp-probe/`) et tous les fichiers `.tmp-probe*.spec.ts` supprimés ; `git status --short` + recherche disque confirment l'absence de résidu (hors `.next/`, gitignoré) ; aucun marqueur `[DEBUG-TMP]` restant.
 
 ---
 

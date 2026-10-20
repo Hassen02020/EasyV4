@@ -2,6 +2,7 @@
 
 import { useEffect } from "react"
 import Link from "next/link"
+import { useTranslations } from "next-intl"
 import { AlertTriangle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 
@@ -12,6 +13,8 @@ export default function CheckoutError({
   error: Error & { digest?: string }
   reset: () => void
 }) {
+  const t = useTranslations("Booking")
+
   useEffect(() => {
     console.error("[booking/checkout/error.tsx]", error)
   }, [error])
@@ -23,21 +26,20 @@ export default function CheckoutError({
           <AlertTriangle className="text-destructive h-7 w-7" />
         </div>
         <h1 className="text-foreground mt-4 text-xl font-bold">
-          Une erreur s&apos;est produite lors du paiement
+          {t("checkoutErrorTitle")}
         </h1>
         <p className="text-muted-foreground mt-2 text-sm">
-          Votre réservation n&apos;a pas été confirmée. Réessayez ou relancez
-          une recherche.
+          {t("checkoutErrorDesc")}
         </p>
         <div className="mt-6 flex flex-wrap justify-center gap-3">
           <Button variant="outline" onClick={() => reset()}>
-            Réessayer
+            {t("retryButton")}
           </Button>
           <Button variant="outline" asChild>
-            <Link href="/hotels">Rechercher un hôtel</Link>
+            <Link href="/hotels">{t("relaunchHotelSearch")}</Link>
           </Button>
           <Button asChild>
-            <Link href="/">Retour à l&apos;accueil</Link>
+            <Link href="/">{t("backHome")}</Link>
           </Button>
         </div>
       </div>

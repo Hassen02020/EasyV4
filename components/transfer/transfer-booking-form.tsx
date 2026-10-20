@@ -14,6 +14,7 @@
 
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
+import { useTranslations } from "next-intl"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
@@ -93,13 +94,13 @@ interface TransferBookingFormProps {
   campaignId?: string
 }
 
-const VEHICLE_TYPES = [
-  { id: "sedan", name: "Sedan (4 places)", capacity: 4, icon: "🚗" },
-  { id: "van", name: "Van (8 places)", capacity: 8, icon: "🚐" },
-  { id: "minibus", name: "Minibus (16 places)", capacity: 16, icon: "🚌" },
-  { id: "bus", name: "Bus (30 places)", capacity: 30, icon: "🚌" },
-  { id: "luxury", name: "Luxury (4 places)", capacity: 4, icon: "🏎️" },
-]
+const VEHICLE_ICONS: Record<string, string> = {
+  sedan: "🚗",
+  van: "🚐",
+  minibus: "🚌",
+  bus: "🚌",
+  luxury: "🏎️",
+}
 
 /* -------------------------------------------------------------------------- */
 /* Component                                                                  */
@@ -111,6 +112,22 @@ export function TransferBookingForm({
   prefill,
   campaignId,
 }: TransferBookingFormProps) {
+  const t = useTranslations("Transferts")
+  const VEHICLE_TYPES = [
+    { id: "sedan", name: t("vehicleSedanOption"), icon: VEHICLE_ICONS.sedan },
+    { id: "van", name: t("vehicleVanOption"), icon: VEHICLE_ICONS.van },
+    {
+      id: "minibus",
+      name: t("vehicleMinibusOption"),
+      icon: VEHICLE_ICONS.minibus,
+    },
+    { id: "bus", name: t("vehicleBusOption"), icon: VEHICLE_ICONS.bus },
+    {
+      id: "luxury",
+      name: t("vehicleLuxuryOption"),
+      icon: VEHICLE_ICONS.luxury,
+    },
+  ]
   const router = useRouter()
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
@@ -164,9 +181,7 @@ export function TransferBookingForm({
       })
       if (!result) {
         setPricing(null)
-        setPricingError(
-          "Aucun tarif configuré pour cet itinéraire et ce véhicule.",
-        )
+        setPricingError(t("noPricingForRouteVehicle"))
         return
       }
       setPricing(result)
@@ -209,7 +224,7 @@ export function TransferBookingForm({
         )
       }
     } catch (err) {
-      setSubmitError(err instanceof Error ? err.message : "Erreur inconnue")
+      setSubmitError(err instanceof Error ? err.message : t("unknownError"))
     } finally {
       setIsSubmitting(false)
     }
@@ -219,11 +234,10 @@ export function TransferBookingForm({
     <div className="mx-auto max-w-4xl space-y-6 px-4 sm:px-6 lg:px-8">
       <div className="space-y-2">
         <h1 className="text-sidebar text-2xl font-bold sm:text-3xl">
-          Réservation de Transfert
+          {t("title")}
         </h1>
         <p className="text-muted-foreground text-sm sm:text-base">
-          Sélectionnez vos zones de départ/arrivée et obtenez un devis
-          instantané.
+          {t("bookingFormSubtitle")}
         </p>
       </div>
 
@@ -239,7 +253,7 @@ export function TransferBookingForm({
           <CardHeader className="bg-sidebar/5 rounded-t-lg">
             <CardTitle className="text-sidebar flex items-center gap-2">
               <MapPin className="h-5 w-5" />
-              Trajet
+              {t("yourTripKicker")}
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4 pt-6">
@@ -249,7 +263,7 @@ export function TransferBookingForm({
                   className="text-sidebar text-sm font-medium"
                   htmlFor="fromZoneId"
                 >
-                  Zone de départ
+                  {t("fromZoneLabel")}
                 </Label>
                 <Select
                   value={watchedFromZoneId}
@@ -259,12 +273,12 @@ export function TransferBookingForm({
                   }}
                 >
                   <SelectTrigger id="fromZoneId" className="rounded-lg">
-                    <SelectValue placeholder="Choisir une zone" />
+                    <SelectValue placeholder={t("selectZonePlaceholder")} />
                   </SelectTrigger>
                   <SelectContent>
                     {zones.length === 0 ? (
                       <SelectItem value="_" disabled>
-                        Aucune zone disponible
+                        {t("noZoneAvailable")}
                       </SelectItem>
                     ) : (
                       zones.map((zone) => (
@@ -282,7 +296,7 @@ export function TransferBookingForm({
                   className="text-sidebar text-sm font-medium"
                   htmlFor="toZoneId"
                 >
-                  Zone d&apos;arrivée
+                  {t("toZoneLabel")}
                 </Label>
                 <Select
                   value={watchedToZoneId}
@@ -292,7 +306,7 @@ export function TransferBookingForm({
                   }}
                 >
                   <SelectTrigger id="toZoneId" className="rounded-lg">
-                    <SelectValue placeholder="Choisir une zone" />
+                    <SelectValue placeholder={t("selectZonePlaceholder")} />
                   </SelectTrigger>
                   <SelectContent>
                     {zones
@@ -314,7 +328,7 @@ export function TransferBookingForm({
           <CardHeader className="bg-sidebar/5 rounded-t-lg">
             <CardTitle className="text-sidebar flex items-center gap-2">
               <Car className="h-5 w-5" />
-              Véhicule & Horaires
+              {t("vehicleScheduleSectionTitle")}
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4 pt-6">
@@ -324,7 +338,7 @@ export function TransferBookingForm({
                   className="text-sidebar text-sm font-medium"
                   htmlFor="vehicleType"
                 >
-                  Type de véhicule
+                  {t("vehicleTypeLabel")}
                 </Label>
                 <Select
                   value={watchedVehicleType}
@@ -357,7 +371,7 @@ export function TransferBookingForm({
                   className="text-sidebar text-sm font-medium"
                   htmlFor="pax"
                 >
-                  Nombre de passagers
+                  {t("passengersCountLabel")}
                 </Label>
                 <Input
                   id="pax"
@@ -376,7 +390,7 @@ export function TransferBookingForm({
                   className="text-sidebar text-sm font-medium"
                   htmlFor="pickupDate"
                 >
-                  Date de prise en charge
+                  {t("pickupDateLabel")}
                 </Label>
                 <Input
                   id="pickupDate"
@@ -395,7 +409,7 @@ export function TransferBookingForm({
                   className="text-sidebar text-sm font-medium"
                   htmlFor="pickupTime"
                 >
-                  Heure de prise en charge
+                  {t("pickupTimeLabel")}
                 </Label>
                 <Input
                   id="pickupTime"
@@ -410,8 +424,8 @@ export function TransferBookingForm({
                 {watchedPickupTime && (
                   <p className="text-muted-foreground text-xs">
                     {watchedPickupTime >= "21" || watchedPickupTime < "06"
-                      ? "⚠️ Tarif de nuit appliqué (+20%)"
-                      : "Tarif de jour"}
+                      ? t("nightRateApplied")
+                      : t("dayRate")}
                   </p>
                 )}
               </div>
@@ -423,7 +437,7 @@ export function TransferBookingForm({
                   className="text-sidebar text-sm font-medium"
                   htmlFor="luggageCount"
                 >
-                  Bagages (optionnel)
+                  {t("luggageCountLabel")}
                 </Label>
                 <Input
                   id="luggageCount"
@@ -441,7 +455,7 @@ export function TransferBookingForm({
                   className="text-sidebar text-sm font-medium"
                   htmlFor="flightNumber"
                 >
-                  Numéro de vol (optionnel)
+                  {t("flightNumberLabel")}
                 </Label>
                 <Input
                   id="flightNumber"
@@ -458,14 +472,14 @@ export function TransferBookingForm({
         <Card className="border-sidebar/10 rounded-lg border-2">
           <CardHeader className="bg-sidebar/5 rounded-t-lg">
             <CardTitle className="text-sidebar">
-              Informations du client
+              {t("customerInfoSectionTitle")}
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4 pt-6">
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label className="text-sidebar text-sm font-medium">
-                  Prénom *
+                  {t("firstNameLabel")}
                 </Label>
                 <Input
                   {...form.register("customer.firstName")}
@@ -485,7 +499,7 @@ export function TransferBookingForm({
 
               <div className="space-y-2">
                 <Label className="text-sidebar text-sm font-medium">
-                  Nom *
+                  {t("lastNameLabel")}
                 </Label>
                 <Input
                   {...form.register("customer.lastName")}
@@ -507,7 +521,7 @@ export function TransferBookingForm({
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label className="text-sidebar text-sm font-medium">
-                  Téléphone *
+                  {t("phoneLabel")}
                 </Label>
                 <Input
                   {...form.register("customer.phone")}
@@ -527,7 +541,7 @@ export function TransferBookingForm({
 
               <div className="space-y-2">
                 <Label className="text-sidebar text-sm font-medium">
-                  Email
+                  {t("emailLabel")}
                 </Label>
                 <Input
                   type="email"
@@ -540,7 +554,7 @@ export function TransferBookingForm({
 
             <div className="space-y-2">
               <Label className="text-sidebar text-sm font-medium">
-                CIN (optionnel)
+                {t("cinLabel")}
               </Label>
               <Input
                 {...form.register("customer.civicId")}
@@ -564,12 +578,14 @@ export function TransferBookingForm({
             <CardHeader className="bg-sidebar/10 rounded-t-lg">
               <CardTitle className="text-sidebar flex items-center gap-2">
                 <CreditCard className="h-5 w-5" />
-                Devis
+                {t("quoteCardTitle")}
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4 pt-6">
               <div className="flex items-center justify-between">
-                <span className="text-sm sm:text-base">Prix de base</span>
+                <span className="text-sm sm:text-base">
+                  {t("basePriceLabel")}
+                </span>
                 <span className="text-sidebar font-semibold">
                   {pricing.basePriceTnd.toFixed(3)} DT
                 </span>
@@ -577,7 +593,9 @@ export function TransferBookingForm({
               {pricing.nightSurchargeAmount > 0 && (
                 <div className="text-accent flex items-center justify-between">
                   <span className="text-sm sm:text-base">
-                    Majoration nuit ({pricing.nightSurchargePercent}%)
+                    {t("nightSurchargeLabel", {
+                      percent: pricing.nightSurchargePercent ?? 0,
+                    })}
                   </span>
                   <span className="font-semibold">
                     +{pricing.nightSurchargeAmount.toFixed(3)} DT
@@ -587,7 +605,9 @@ export function TransferBookingForm({
               {pricing.marginAmount && pricing.marginAmount > 0 && (
                 <div className="text-muted-foreground flex items-center justify-between">
                   <span className="text-sm sm:text-base">
-                    Marge agence ({pricing.marginPercent}%)
+                    {t("agencyMarginLabel", {
+                      percent: pricing.marginPercent ?? 0,
+                    })}
                   </span>
                   <span className="font-semibold">
                     +{pricing.marginAmount.toFixed(3)} DT
@@ -596,13 +616,15 @@ export function TransferBookingForm({
               )}
               <Separator className="bg-sidebar/20" />
               <div className="flex items-center justify-between text-lg sm:text-xl">
-                <span className="text-sidebar font-semibold">Total TTC</span>
+                <span className="text-sidebar font-semibold">
+                  {t("totalInclTax")}
+                </span>
                 <span className="text-accent font-bold">
                   {pricing.totalTnd.toFixed(3)} DT
                 </span>
               </div>
               <p className="text-muted-foreground text-sm">
-                Le montant sera débité de votre wallet Easy2Book.
+                {t("walletDebitNotice")}
               </p>
             </CardContent>
           </Card>
@@ -617,13 +639,15 @@ export function TransferBookingForm({
           {isSubmitting ? (
             <>
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              <span className="hidden sm:inline">Traitement en cours...</span>
-              <span className="sm:hidden">Traitement...</span>
+              <span className="hidden sm:inline">{t("processingLong")}</span>
+              <span className="sm:hidden">{t("processingShort")}</span>
             </>
           ) : (
             <>
-              <span className="hidden sm:inline">Confirmer la Réservation</span>
-              <span className="sm:hidden">Confirmer</span>
+              <span className="hidden sm:inline">
+                {t("confirmBookingLong")}
+              </span>
+              <span className="sm:hidden">{t("confirmBookingShort")}</span>
             </>
           )}
         </Button>

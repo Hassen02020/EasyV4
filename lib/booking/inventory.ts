@@ -203,12 +203,29 @@ export async function acquireLock(
     }
   }
 
-  // SET NX EX : atomique O(1) — pose le verrou si absent, ignore si déjà notre session
+  // SET NX EX : atomique O(1) — pose le verrou si absent, ignore si déjà notre session.
   if (current === null) {
-    await redis.set(itemKey, input.sessionId, {
+    const setResult = await redis.set(itemKey, input.sessionId, {
       ex: LOCK_TTL_SECONDS,
       nx: true,
     })
+    // INVENTORY-LOCK-TOCTOU-01 : entre notre get() ci-dessus et ce set(),
+    // un AUTRE appelant concurrent peut avoir posé la clé en premier — SET
+    // NX renvoie alors null (jamais "OK"). Ignorer ce résultat (comme le
+    // faisait ce code avant ce correctif) revient à retourner ok:true aux
+    // DEUX appelants concurrents malgré l'exclusivité réelle de Redis —
+    // prouvé empiriquement par Promise.all([acquireLock(A), acquireLock(B)])
+    // sur la même clé. Ne jamais prétendre avoir gagné un verrou que ce
+    // set() n'a pas réellement posé.
+    if (setResult === null) {
+      void metrics.incr("inventory.lock.race_conflict")
+      return {
+        ok: false,
+        reason: "conflict",
+        message:
+          "Cette offre est en cours de réservation par un autre utilisateur.",
+      }
+    }
   } else {
     // Renouvelle le TTL pour la même session
     await redis.expire(itemKey, LOCK_TTL_SECONDS)

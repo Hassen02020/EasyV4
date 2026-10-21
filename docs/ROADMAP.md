@@ -45,21 +45,25 @@ _HOTEL-GUEST-CREATE-LIVE-01 — Niveau 2 (Code testé), non commité, en attente
 **Contexte** : audit de reprise de validation globale (2026-10-20/21) a trouvé qu'aucun test, live ou mocké, n'appelait jamais `createGuestReservationFromDraft` (`lib/booking/guest-actions.ts:142`) — le cœur du produit B2C (création de réservation guest) n'avait jamais été exercé en exécution, seulement en lecture de code. Gap fermé par un test E2E Playwright réel (navigateur → vrai process Next.js), pas un mock de la fonction métier elle-même.
 
 **Fichiers (non commités sur `hotel-guest-create-live-01`, HEAD identique à `origin/main` = `f2aed11c`)** :
+
 - `e2e/b2c-hotel-guest-create-live.spec.ts` (nouveau) — parcours complet recherche → sélection chambre → voyageur → checkout cash → confirmation.
 - `lib/booking/inventory.ts` — bypass `INVENTORY_LOCK_DISABLED_TEST_ONLY` (voir ci-dessous).
 - `.env.example` — documentation du flag.
 
 **Deux conflits structurels réels découverts et contournés, pas de simples bugs de sélecteur** :
+
 1. `next start` force toujours `NODE_ENV=production`, qui déclenche la garde dure existante contre `MYGO_MODE=virtual` (`lib/mygo/config.ts::resolveMyGoMode`) → recherche hôtel en mode dégradé. **Conséquence retenue** : ce test tourne sous `pnpm dev`, jamais `pnpm build && pnpm start` — et `playwright.config.ts` lance `pnpm start` quand `CI` est défini, donc **ce test ne peut pas tourner dans le job CI standard tel quel** (documenté dans l'en-tête du fichier, pas caché).
 2. Aucun pont REST Upstash↔Redis disponible dans ce labo (Docker sans daemon) → `acquireLock` fail-closed systématique. Contourné par `INVENTORY_LOCK_DISABLED_TEST_ONLY=true` : magasin en mémoire process respectant le contrat `InventoryRedis`, jamais actif si `NODE_ENV==="production"` (vérifié à chaque appel, pas une `const` figée au chargement du module — correction appliquée après audit du 2026-10-21), log d'avertissement explicite à chaque usage. Ne remplace pas la preuve de concurrence réelle multi-process (déjà apportée par INVENTORY-LOCK-TOCTOU-01) — hors périmètre de ce bypass.
 
 **Preuves réelles (pas déduites du seul lancement de la commande)** :
+
 - `npx playwright test e2e/b2c-hotel-guest-create-live.spec.ts --project=chromium` → **PASS ×2 consécutifs** (8,1s puis 7,8s).
 - Vérification SQL directe (hors Playwright, indépendante) sur la base locale `easyv4_e2e` : 3 lignes `reservations` réelles (`TG-2026-000001/2/3`, `status=pending`, `module=hotel`), 3 `payments` (`method=cash`, `status=pending`), 3 `reservation_hotel`, 3 `audit_events` (`reservation.created`), 9 `economic_entitlements` (3 par réservation : supplier_cost/seller_margin/commission) — tout le chemin financier de `createGuestReservationFromDraft` exercé, pas seulement l'INSERT `reservations`.
 - `node --import tsx --test lib/booking/__tests__/inventory.test.ts` → 17/17, aucune régression après le bypass et après sa correction.
 - `pnpm test` complet (sans `DATABASE_URL`) → 2645 pass / 0 fail / 435 skip, aucune régression.
 
 **NOT TESTED / NOT VERIFIED, explicitement non refermés** :
+
 - Idempotence / double soumission concurrente, échec de confirmation fournisseur, changement de prix (CART-DRIFT-01) sur ce parcours, paiement carte échoué : **NOT TESTED** (un seul run à la fois, chemin heureux uniquement).
 - Génération de facture pour un paiement capturé : logique lue (gated par `isImmediatelyPaid`, jamais atteinte pour `cash`) mais **NOT VERIFIED empiriquement en base** sur ce chantier.
 

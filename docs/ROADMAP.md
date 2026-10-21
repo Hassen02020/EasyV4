@@ -36,11 +36,17 @@ Un seul chantier actif à la fois ; il est indiqué dans ROADMAP.md (section "Ch
 
 ## Chantier actif
 
-_HOTEL-GUEST-CREATE-LIVE-01 — Niveau 2 (Code testé), non commité, en attente de GO explicite pour commit/push. Voir fiche ci-dessous._
+_Aucun chantier actif — HOTEL-GUEST-CREATE-LIVE-01 fusionné et intégration vérifiée (2026-10-21, Niveau 4). En attente des instructions de la Direction._
 
 ---
 
-### HOTEL-GUEST-CREATE-LIVE-01 — NIVEAU 2 (CODE TESTÉ) — NON COMMITÉ (2026-10-21)
+### HOTEL-GUEST-CREATE-LIVE-01 — NIVEAU 4 (BRIQUE INTÉGRÉE) — FUSIONNÉ (2026-10-21)
+
+**Preuve de fusion** : PR #242, mergée par la Direction sur GitHub (`merged_by: Hassen02020`), commit de merge `7d5d047b14dc634b20faf5a7ea251a377e9b0633` sur `main`.
+
+**Preuve d'intégration** : CI GitHub réelle post-fusion sur `main` — run #677 (id `39598037343`), SHA `7d5d047`, `conclusion: success`. Avant la fusion, CI réelle sur la PR elle-même avait d'abord échoué (run #675, SHA `6cc69bb`, job `format` rouge — oubli de `prettier --check` sur `docs/ROADMAP.md`), corrigé (`65042f8`), puis run #676 8/8 vert avant que la Direction ne fusionne.
+
+**Historique complet ci-dessous, conservé tel que rédigé avant fusion (NIVEAU 2 → NIVEAU 4)** :
 
 **Contexte** : audit de reprise de validation globale (2026-10-20/21) a trouvé qu'aucun test, live ou mocké, n'appelait jamais `createGuestReservationFromDraft` (`lib/booking/guest-actions.ts:142`) — le cœur du produit B2C (création de réservation guest) n'avait jamais été exercé en exécution, seulement en lecture de code. Gap fermé par un test E2E Playwright réel (navigateur → vrai process Next.js), pas un mock de la fonction métier elle-même.
 
@@ -67,9 +73,11 @@ _HOTEL-GUEST-CREATE-LIVE-01 — Niveau 2 (Code testé), non commité, en attente
 - Idempotence / double soumission concurrente, échec de confirmation fournisseur, changement de prix (CART-DRIFT-01) sur ce parcours, paiement carte échoué : **NOT TESTED** (un seul run à la fois, chemin heureux uniquement).
 - Génération de facture pour un paiement capturé : logique lue (gated par `isImmediatelyPaid`, jamais atteinte pour `cash`) mais **NOT VERIFIED empiriquement en base** sur ce chantier.
 
-**Pourquoi Niveau 2, pas 3** : l'exécution et ses effets de bord sont prouvés, mais la revue de risques/régression croisée (RÈGLE DE CERTIFICATION, étape 3) et les scénarios d'erreur ci-dessus restent ouverts ; aucune PR, aucun commit.
+**Progression réelle des niveaux** : Niveau 2 (code testé, preuves SQL indépendantes) → Niveau 3 (revue de risques/sécurité du bypass faite, correction du risque `NODE_ENV` appliquée et re-vérifiée, 17/17 + 2645/0/435 confirmés sans régression, PR créée avec preuves) → **Niveau 4** (PR #242 fusionnée par la Direction, CI réelle post-fusion verte sur `main`, ci-dessus).
 
-**Critère de sortie restant** : push (GO séparé requis) → décision séparée sur l'ouverture d'une PR (sachant que la CI standard ne peut pas exécuter ce test tel quel, §ci-dessus) → éventuel chantier dédié pour les scénarios NOT TESTED.
+**NOT TESTED / NOT VERIFIED restent ouverts malgré le Niveau 4** — la fusion ne les referme pas : idempotence/double soumission, échec de confirmation fournisseur, changement de prix (CART-DRIFT-01), paiement carte échoué, facture pour paiement capturé (NOT VERIFIED empiriquement). Chantier dédié potentiel, NON exécuté — identification seulement (RÈGLE OPÉRATIONNELLE ABSOLUE, étape 5 : « identifier le prochain chantier potentiel, NE PAS l'exécuter »).
+
+**Limite structurelle permanente, pas fermée par ce chantier** : ce test ne peut pas tourner dans le job CI standard (`pnpm start` force `NODE_ENV=production`, incompatible avec `MYGO_MODE=virtual`) — reste une preuve de lab local invoquée manuellement, jamais un gate CI automatique.
 
 ---
 

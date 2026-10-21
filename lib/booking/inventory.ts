@@ -45,6 +45,117 @@ import { withSystemContext } from "@/lib/db/tenant-context"
 import { inventoryLocks, type NewInventoryLock } from "@/lib/db/schema"
 
 // ---------------------------------------------------------------------------
+// Bypass TEST-ONLY (HOTEL-GUEST-CREATE-LIVE-01) — jamais en production
+// ---------------------------------------------------------------------------
+
+/**
+ * Gap d'infra local, pas applicatif : ce lab n'a pas de pont REST
+ * Upstash↔Redis (`serverless-redis-http` nécessite Docker, dont le daemon
+ * n'est pas disponible dans ce bac à sable) — `getRedis()` renvoie donc
+ * toujours `null` ici, faisant échouer `acquireLock`/`refreshLock` en
+ * fail-closed à chaque test E2E Playwright réel (navigateur → vrai process
+ * serveur, aucune injection `redisOverride` possible comme en `node:test`).
+ *
+ * Remplace, UNIQUEMENT quand ce flag est actif, le fail-closed par un
+ * magasin en mémoire du process (TTL réel, SET NX réel) qui respecte le même
+ * contrat `InventoryRedis` que l'injection de test existante. Suffisant pour
+ * UN navigateur Playwright contre UN process `next dev` local — ne remplace
+ * jamais la preuve de concurrence réelle multi-process, déjà apportée
+ * ailleurs par INVENTORY-LOCK-TOCTOU-01 (node:test + redisOverride).
+ *
+ * Double garde, même patron que `MYGO_MODE=virtual`
+ * (lib/mygo/config.ts::resolveMyGoMode) et `cleanupAsSuperuser`
+ * (lib/db/test-helpers/superuser-cleanup.ts) : jamais actif si
+ * `NODE_ENV==="production"`, quelle que soit la valeur de la variable —
+ * défense en profondeur, pas une simple convention de nommage "_TEST_ONLY".
+ *
+ * Réévaluée à CHAQUE appel (fonction, pas une `const` figée au chargement du
+ * module) — exactement comme les deux précédents cités ci-dessus, qui lisent
+ * `process.env.NODE_ENV` à l'intérieur de leur propre corps de fonction. Une
+ * `const` de module aurait figé la valeur au premier `import` de ce fichier ;
+ * un process où `NODE_ENV` changerait après ce premier chargement (ex. un
+ * harnais de test qui bascule `NODE_ENV` entre fichiers sans redémarrer le
+ * process) aurait alors gardé la valeur obsolète — risque identifié en audit,
+ * corrigé ici avant tout autre usage.
+ */
+function isInventoryLockBypassTestOnly(): boolean {
+  return (
+    process.env.NODE_ENV !== "production" &&
+    process.env.INVENTORY_LOCK_DISABLED_TEST_ONLY === "true"
+  )
+}
+
+interface MemoryLockEntry {
+  value: string
+  expiresAt: number
+}
+const memoryLockMap = new Map<string, MemoryLockEntry>()
+
+function memoryLockGet(key: string): string | null {
+  const entry = memoryLockMap.get(key)
+  if (!entry) return null
+  if (Date.now() >= entry.expiresAt) {
+    memoryLockMap.delete(key)
+    return null
+  }
+  return entry.value
+}
+
+const memoryLockStore: InventoryRedis = {
+  async get<T>(key: string) {
+    return memoryLockGet(key) as T | null
+  },
+  async set(key, value, opts) {
+    if (opts?.nx && memoryLockGet(key) !== null) return null
+    memoryLockMap.set(key, {
+      value,
+      expiresAt: Date.now() + (opts?.ex ?? LOCK_TTL_SECONDS) * 1000,
+    })
+    return "OK"
+  },
+  async expire(key, seconds) {
+    const entry = memoryLockMap.get(key)
+    if (entry) entry.expiresAt = Date.now() + seconds * 1000
+    return 1
+  },
+  async del(key) {
+    memoryLockMap.delete(key)
+    return 1
+  },
+  async ttl(key) {
+    const entry = memoryLockMap.get(key)
+    if (!entry) return -2
+    const remainingSeconds = Math.ceil((entry.expiresAt - Date.now()) / 1000)
+    return remainingSeconds > 0 ? remainingSeconds : -2
+  },
+}
+
+/**
+ * Résout le client lock : override de test > Redis réel > bypass mémoire (si
+ * actif) > null (fail-closed). Type de retour volontairement large (pas
+ * `InventoryRedis` strict) : le client Upstash réel (`getRedis()`) a une
+ * signature `set()` plus riche (overloads `SetCommandOptions`) que le
+ * contrat minimal `InventoryRedis` — les deux s'utilisent de façon
+ * structurellement compatible aux points d'appel (`get`/`set`/`expire`/
+ * `del`/`ttl` avec les mêmes options `{ex,nx}`), seule une annotation stricte
+ * du retour déclenchait une erreur de type sans changer le comportement réel.
+ */
+function resolveInventoryRedis(
+  redisOverride?: InventoryRedis,
+): InventoryRedis | ReturnType<typeof getRedis> {
+  if (redisOverride) return redisOverride
+  const real = getRedis()
+  if (real) return real
+  if (isInventoryLockBypassTestOnly()) {
+    logger.warn(
+      "[inventory] BYPASS TEST-ONLY actif (INVENTORY_LOCK_DISABLED_TEST_ONLY) — verrou en mémoire process, AUCUNE protection multi-process réelle. Ne doit jamais apparaître en production.",
+    )
+    return memoryLockStore
+  }
+  return null
+}
+
+// ---------------------------------------------------------------------------
 // Constants
 // ---------------------------------------------------------------------------
 
@@ -158,7 +269,7 @@ export async function acquireLock(
   redisOverride?: InventoryRedis,
 ): Promise<LockResult> {
   const t0 = Date.now()
-  const redis = redisOverride ?? getRedis()
+  const redis = resolveInventoryRedis(redisOverride)
 
   // FAIL-CLOSED : sans Redis, aucune exclusivité réelle n'existe — ne
   // JAMAIS prétendre avoir posé un verrou. L'appelant (tunnel de
@@ -286,7 +397,7 @@ export async function releaseLock(
     input.itemId,
     input.sessionId,
   )
-  const redis = redisOverride ?? getRedis()
+  const redis = resolveInventoryRedis(redisOverride)
 
   if (redis) {
     // Ne supprime que si c'est bien notre session qui tient le verrou
@@ -332,7 +443,7 @@ export async function refreshLock(
   input: Omit<ReleaseLockInput, "reservationId">,
   redisOverride?: InventoryRedis,
 ): Promise<LockResult> {
-  const redis = redisOverride ?? getRedis()
+  const redis = resolveInventoryRedis(redisOverride)
 
   // FAIL-CLOSED : même garde qu'acquireLock — un keep-alive qui "réussit"
   // sans Redis masquerait la perte de toute exclusivité réelle.
@@ -413,7 +524,7 @@ export async function checkLock(
   input: Omit<ReleaseLockInput, "reservationId">,
   redisOverride?: InventoryRedis,
 ): Promise<{ held: boolean; expiresAt?: Date }> {
-  const redis = redisOverride ?? getRedis()
+  const redis = resolveInventoryRedis(redisOverride)
   const itemKey = buildItemKey(input.agencyId, input.module, input.itemId)
   const auditKey = buildAuditKey(
     input.agencyId,

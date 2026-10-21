@@ -36,7 +36,34 @@ Un seul chantier actif à la fois ; il est indiqué dans ROADMAP.md (section "Ch
 
 ## Chantier actif
 
-_Aucun chantier actif — HOTEL-GUEST-CREATE-LIVE-01 fusionné et intégration vérifiée (2026-10-21, Niveau 4). En attente des instructions de la Direction._
+_Aucun chantier actif — RLS-DEFENSE-IN-DEPTH-GAP-01 clos pour 3/5 tables (2026-10-21, Niveau 2 — Code testé ; pas encore commité/poussé, GO séparé requis). GUEST-CHECKOUT-SWEEP-01 reste clos. En attente des instructions de la Direction._
+
+---
+
+### RLS-DEFENSE-IN-DEPTH-GAP-01 — NIVEAU 2 (CODE TESTÉ), 3/5 TABLES (2026-10-21)
+
+**Mandat** : corriger les 3 gaps RLS confirmés sans ambiguïté (`mutuelle_catalog_items`, `supplier_nodes`, `loyalty_accounts`) après GO explicite. `wallets`/`wallet_transactions` **exclues de ce chantier** sur règle spéciale de la Direction (table financière, cycle séparé requis).
+
+**Root cause réel, différent par table** (confirmé en lisant les migrations existantes avant d'écrire quoi que ce soit, pas une supposition) :
+
+- `mutuelle_catalog_items` : la policy RLS correcte **existe déjà intégralement** dans `drizzle/manual/0063_mutuelle_catalog.sql` (ENABLE+FORCE+2 policies) — jamais rejouée dans ce labo local. Gap d'exécution de migration, pas de code manquant.
+- `loyalty_accounts` : même histoire — `drizzle/manual/0039_loyalty_rewards.sql` contient déjà la policy correcte (`loyalty_accounts_tenant_isolation`), référencée comme modèle par 3 migrations ultérieures (0040/0041/0052). Jamais rejouée dans ce labo.
+- `supplier_nodes` : différent — **aucune migration committée** n'active jamais `ENABLE ROW LEVEL SECURITY` sur cette table. `0076_flight_commission_supplier_rls.sql` (ajoute la policy) et `0124_rls_force_supplier_tables_01.sql` (ajoute FORCE) supposent tous les deux ENABLE déjà présent, sans qu'aucun fichier ne le prouve. Nouveau fichier `drizzle/manual/0138_supplier_nodes_enable_rls.sql` créé (une seule instruction, idempotente, portée strictement limitée au gap réel).
+
+**Appliqué en local uniquement** (`easyv4_e2e`, jamais en production) : les 3 tables ont maintenant `relrowsecurity=true`, `relforcerowsecurity=true`, policies actives — vérifié par `pg_class`/`pg_policies` après application.
+
+**Tests ciblés, sous `app_runtime` (RLS réelle, pas le superuser)** :
+
+- `lib/mutuelle/__tests__/catalog-isolation-certification.test.ts` : 6/6 PASS (les 3 qui échouaient avant le fix passent maintenant, groupe A continue de voir/gérer son propre catalogue).
+- `lib/vols/__tests__/rls-isolation.test.ts` : 12/12 PASS (item 9, `supplier_nodes`, confirmé).
+- `lib/loyalty/__tests__/rewards-core.test.ts` : 23/23 PASS (le test d'isolation qui échouait passe ; aucune régression sur ledger/expiry/redemption).
+- Vérifié qu'aucun des 5 autres fichiers de test `lib/mutuelle/__tests__/*` ne référence `mutuelleCatalogItems` — aucun risque de régression croisée.
+
+**NOT VERIFIED** : état réel de `supplier_nodes` en production (le commentaire de 0124 affirme ENABLE déjà présent en prod, mais aucun fichier committé ne le prouve — la nouvelle migration 0138 est sûre à appliquer dans les deux cas, idempotente).
+
+**Reste exclu de ce chantier, sur règle explicite** : `wallets`/`wallet_transactions` — cycle séparé requis (RÈGLE FINANCIÈRE).
+
+**État fichiers** : 1 nouveau fichier (`drizzle/manual/0138_supplier_nodes_enable_rls.sql`), committé nulle part — pas de commit/push sans GO séparé.
 
 ---
 

@@ -8,14 +8,14 @@ import Image from "next/image"
 import { notFound } from "next/navigation"
 import { getTranslations, getLocale } from "next-intl/server"
 import { getIntlLocale } from "@/lib/i18n-date"
-import { and, eq, isNotNull } from "drizzle-orm"
+import { and, eq, isNotNull, inArray } from "drizzle-orm"
 import { ArrowLeft, MapPin, Package2, ShieldCheck } from "lucide-react"
 import { HeaderWrapper as Header } from "@/components/header-wrapper"
 import { Footer } from "@/components/footer"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { withSystemContext } from "@/lib/db/tenant-context"
-import { products } from "@/lib/db/schema"
+import { products, supplierNodes } from "@/lib/db/schema"
 import { getDefaultAgencyId } from "@/lib/agencies/default-agency"
 import { getMarginsForAgency } from "@/lib/pro/server-context"
 import { applyMargin } from "@/lib/pro/pricing"
@@ -30,6 +30,16 @@ async function getNetworkProduct(id: string) {
     if (!agencyId) return null
     const margins = await getMarginsForAgency(agencyId, "", "direct")
     return await withSystemContext(async (db) => {
+      // NETWORK-ADMISSIBILITY-GAP-01 — même définition d'admissibilité que
+      // network_product_node_is_active() (migration 0083), déjà canonique
+      // côté écriture (lib/network/guest-booking-actions.ts).
+      const activeNodeRows = await db
+        .select({ id: supplierNodes.id })
+        .from(supplierNodes)
+        .where(eq(supplierNodes.onboardingStatus, "active"))
+      const activeNodeIds = activeNodeRows.map((n) => n.id)
+      if (activeNodeIds.length === 0) return null
+
       const [product] = await db
         .select()
         .from(products)
@@ -40,6 +50,7 @@ async function getNetworkProduct(id: string) {
             eq(products.status, "active"),
             isNotNull(products.supplierNodeId),
             isNotNull(products.costPrice),
+            inArray(products.supplierNodeId, activeNodeIds),
           ),
         )
         .limit(1)

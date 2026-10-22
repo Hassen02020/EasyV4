@@ -13,8 +13,8 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { CatalogPagination } from "@/components/catalog-pagination"
 import { withSystemContext } from "@/lib/db/tenant-context"
-import { products } from "@/lib/db/schema"
-import { and, eq, isNotNull, ilike, or, sql } from "drizzle-orm"
+import { products, supplierNodes } from "@/lib/db/schema"
+import { and, eq, isNotNull, ilike, or, sql, inArray } from "drizzle-orm"
 import { Input } from "@/components/ui/input"
 import { getDefaultAgencyId } from "@/lib/agencies/default-agency"
 import { getMarginsForAgency } from "@/lib/pro/server-context"
@@ -68,12 +68,26 @@ async function getNetworkProducts(
     const networkMarginRule = margins.network
 
     return await withSystemContext(async (db) => {
+      // NETWORK-ADMISSIBILITY-GAP-01 — un produit Network n'est admissible à
+      // l'affichage public QUE si son partenaire (supplier_nodes) est
+      // réellement actif, même définition que celle déjà canonique côté
+      // écriture (network_product_node_is_active(), migration 0083, appelée
+      // par lib/network/guest-booking-actions.ts avant toute réservation) —
+      // jamais une nouvelle règle d'admissibilité inventée pour l'affichage.
+      const activeNodeRows = await db
+        .select({ id: supplierNodes.id })
+        .from(supplierNodes)
+        .where(eq(supplierNodes.onboardingStatus, "active"))
+      const activeNodeIds = activeNodeRows.map((n) => n.id)
+      if (activeNodeIds.length === 0) return EMPTY_RESULT
+
       const trimmedQ = q?.trim()
       const conditions = [
         eq(products.agencyId, agencyId),
         eq(products.status, "active"),
         isNotNull(products.supplierNodeId),
         isNotNull(products.costPrice),
+        inArray(products.supplierNodeId, activeNodeIds),
         trimmedQ
           ? or(
               ilike(products.name, `%${trimmedQ}%`),

@@ -34,6 +34,28 @@ Un seul chantier actif à la fois ; il est indiqué dans ROADMAP.md (section "Ch
 
 ---
 
+## TAX-RULES-SUPERADMIN-01 — FISCAL SNAPSHOT — CLÔTURÉ LOT 1-4 (2026-10-22)
+
+**Objectif** : garantir que le montant présenté au client, le montant payé, la réservation
+enregistrée et la facture racontent exactement la même histoire financière.
+
+**LOT 1-4 — DONE** (commit `0a6bdd9`, branche `claude/easy2book-v6-modernization-7gyb5v`)
+
+- LOT 1 : `FiscalSnapshot` / `FiscalStatus` + 3 builders dans `lib/booking/pricing.ts`
+- LOT 2 : snapshot figé dans chaque INSERT réservation (hôtel B2B/B2C, package, activité,
+  voiture, transfert, vol) — taux provisoire 19% / `fiscalNote: "taux_provisoire_19_pct"` ;
+  cars/transferts/vols → `status: "pending"` (taux non déterminé, jamais inventé)
+- LOT 3 : colonne `reservations.fiscal_snapshot JSONB` — migration `0011_quiet_stark_industries.sql`
+- LOT 4 : `generateInvoiceForReservation` + `generateIssuedInvoiceForReservation` lisent le
+  snapshot (status="determined" → `subtotalTnd`/`vatTnd`) ; fallback historique/pending →
+  `totalTtc`/`0` — jamais un taux inventé
+- Tests : 2701 pass, 0 fail ; invariant INVOICE-WIRING-01 mis à jour (6 assertions)
+
+**LOT 5 — BLOQUÉ** : moteur super admin pour les règles fiscales réelles par catégorie.
+Dépendance : validation fiscale externe des taux tunisiens par module. Chantier séparé, GO séparé.
+
+---
+
 ## Chantier actif
 
 ### VAL-01 — VALIDATION PARCOURS COMMERCIAL — EN COURS (2026-10-22)

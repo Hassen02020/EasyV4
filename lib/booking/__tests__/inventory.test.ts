@@ -124,20 +124,37 @@ test("acquireLock : même session ré-acquiert son propre verrou (idempotent), T
 
 // --- Test 7 : deux sessions concurrentes sur LA MÊME offre → une seule gagne ---
 
-test("acquireLock : deux sessions concurrentes sur la même offre → une seule obtient ok:true, l'autre 'conflict'", async () => {
+/**
+ * INVENTORY-LOCK-TOCTOU-01 : ce test s'appelait déjà "deux sessions
+ * concurrentes" mais faisait `await winner` PUIS `await loser` — séquentiel,
+ * donc par construction la deuxième session relisait toujours un état déjà
+ * posé par la première. Il passait aussi bien avec que sans le correctif
+ * ci-dessous — preuve que son nom promettait une concurrence qu'il ne
+ * testait pas. Démontré par Promise.all AVANT ce correctif : les deux
+ * appels recevaient ok:true (le get() des deux lisait current===null avant
+ * que l'un des deux set() n'ait eu le temps d'aboutir), parce qu'acquireLock
+ * ignorait alors le résultat du SET NX. Promise.all force la vraie
+ * interleaving que deux requêtes HTTP concurrentes produiraient en
+ * production.
+ */
+test("acquireLock : deux sessions concurrentes (Promise.all) sur la même offre → une seule obtient ok:true, l'autre 'conflict'", async () => {
   const { redis } = makeMockRedis()
-  const winner = await acquireLock(
-    { ...baseInput, sessionId: "session-a" },
-    redis,
-  )
-  const loser = await acquireLock(
-    { ...baseInput, sessionId: "session-b" },
-    redis,
-  )
+  const [a, b] = await Promise.all([
+    acquireLock({ ...baseInput, sessionId: "session-a" }, redis),
+    acquireLock({ ...baseInput, sessionId: "session-b" }, redis),
+  ])
 
-  assert.equal(winner.ok, true)
-  assert.equal(loser.ok, false)
-  if (!loser.ok) assert.equal(loser.reason, "conflict")
+  const results = [a, b]
+  const winners = results.filter((r) => r.ok)
+  const losers = results.filter((r) => !r.ok)
+
+  assert.equal(
+    winners.length,
+    1,
+    "exactement un des deux appels concurrents doit obtenir ok:true",
+  )
+  assert.equal(losers.length, 1)
+  assert.ok(losers[0]!.ok === false && losers[0]!.reason === "conflict")
 })
 
 // --- Test 2 : verrou expiré → nouvelle acquisition possible ---------------

@@ -74,6 +74,11 @@ const STATUS_COLORS: Record<string, string> = {
   pending: "bg-amber-100 text-amber-800",
   proforma: "bg-amber-100 text-amber-800",
   validee: "bg-emerald-100 text-emerald-800",
+  // MUTUELLE-INVOICE-SETTLEMENT-01 — "issued" (émise, non réglée) ne doit
+  // jamais partager la couleur neutre par défaut avec "paid" : les deux
+  // tombaient sur bg-muted sans distinction avant cet ajout.
+  paid: "bg-emerald-100 text-emerald-800",
+  issued: "bg-amber-100 text-amber-800",
 }
 
 export default async function AccountingPage() {

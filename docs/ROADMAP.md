@@ -112,6 +112,423 @@ d'une TX → réservation pending → retry directeur (pas de corruption, mais U
 
 ---
 
+### CAS-B-PUBLIC-REF-LOCK-01 — CLÔTURÉ (2026-10-22)
+
+Extension de `pg_advisory_xact_lock` (déjà en production dans Mutuelle,
+`MUTUELLE-CONCURRENCY-COMPLETE-01`) aux 6 fonctions `nextPublicRef()` restantes :
+`TG-` (hôtels B2B/B2C + Network + Vols), `OM-` (Omra), `CR-` (Cars B2B + B2C),
+`TR-` (Transfers B2B + B2C). 18/18 tests d'invariant statiques verts, Prettier OK,
+TypeScript clean. Aucune migration DB.
+
+**Fichiers** : `lib/booking/actions.ts`, `lib/omra/booking-actions.ts`,
+`lib/cars/actions.ts`, `lib/cars/guest-booking-actions.ts`,
+`lib/transfers/actions.ts`, `lib/transfers/guest-booking-actions.ts`,
+`lib/booking/__tests__/public-ref-concurrency.test.ts` (nouveau).
+
+**Preuves de fusion** :
+
+- Branche : `claude/easy2book-v6-modernization-7gyb5v`
+- SHA head fusionné : `071bede`
+- Merge commit `main` : `dd0ed31d10fea39adf67930abf9124ae1362a613d4`
+- PR : #249 — fusionnée par Direction (`Hassen02020`) le 2026-10-22T21:06:53+01:00
+- 7 fichiers, 107 insertions
+
+**NOT VERIFIED** : déploiement production (après déploiement Vercel `easy2book-new`
+suite aux 3 merges du 2026-10-22).
+
+---
+
+### NETWORK-CROSSSELL-01 — CLÔTURÉ (2026-10-22)
+
+**Objectif** : exposer les activités Network (`products.type='activity'`) en cross-sell sur les fiches destination, attraction et hôtel.
+
+**Dépendance résolue** : NETWORK-ADMISSIBILITY-GAP-01 (PR #246) fusionnée avant ce chantier (voir section ci-dessous).
+
+**Commits** :
+
+- `07fd340` — feat(network): implémentation complète (8 fichiers, 190 insertions, 9 suppressions)
+- `666529c` — fix(format): prettier sur `network-cross-sell.test.ts` (format CI)
+
+**Fichiers modifiés** :
+
+- `lib/destinations/cross-sell.ts` — bug fix ILIKE wildcards + nouvelle fonction `getCrossSellNetworkActivities`
+- `lib/destinations/__tests__/network-cross-sell.test.ts` — 5 tests unitaires (5/5 ✓)
+- `lib/network/nearby-activities-action.ts` — Server Action wrapper (nouveau)
+- `app/(public)/[locale]/attractions/[slug]/page.tsx` — Promise.all catalog+network
+- `app/(public)/[locale]/destinations/[slug]/page.tsx` — idem
+- `app/(public)/[locale]/hotels/[id]/page.tsx` — useEffect + NearbyActivities (display-only)
+- `components/attractions/nearby-activities.tsx` — `href` override
+- `components/destinations/destination-cross-sell.tsx` — `href` override
+
+**Règles vérifiées** :
+
+- Admissibilité : `supplierNodes.onboardingStatus = 'active'` ✓ + `products.status = 'active'` ✓ + `isNotNull(supplierNodeId)` ✓ + `isNotNull(costPrice)` ✓
+- Prix : `getMarginsForAgency + applyMargin` (jamais un taux inventé — règle CURRENCY-DIM-01a) ✓
+- Sécurité réservation hôtel : `guest-booking-actions.ts` et `product-booking-actions.ts` NON touchés — garde `network_product_node_is_active()` intacte ✓
+
+**CI** : typecheck ✓ | lint ✓ | test ✓ | build ✓ | financial-e2e ✓ | playwright-a11y ✓ | format ✓
+
+**Preuves de fusion** :
+
+- Branche : `claude/network-crosssell-01`
+- SHA head fusionné : `666529c`
+- Merge commit `main` : `f218d9ed28a00b9f7ce69fcd7e725745d2895e52`
+- PR : #247 — fusionnée par Direction (`Hassen02020`) le 2026-10-22T21:06:12+01:00
+
+**NOT VERIFIED** : parcours navigateur réel (nécessite DB + partenaire Network actif avec produit activité) — à valider par la Direction post-merge.
+
+---
+
+### NETWORK-ADMISSIBILITY-GAP-01 — NIVEAU 4 (BRIQUE INTÉGRÉE) — FUSIONNÉ (2026-10-22)
+
+**Objectif** : vérifier le statut réel du partenaire (`supplier_nodes.onboarding_status = 'active'`) sur les 3 pages publiques Network avant d'afficher ou permettre la réservation d'un produit.
+
+**Contexte** : le chemin financier (`guest-booking-actions.ts` via `network_product_node_is_active()`) était déjà protégé — gap uniquement sur les 3 pages de lecture publique.
+
+**Fichiers modifiés (3)** :
+
+- `app/(public)/[locale]/network/page.tsx`
+- `app/(public)/[locale]/network/[id]/page.tsx`
+- `app/(public)/[locale]/network/[id]/book/page.tsx`
+
+**Aucune migration DB.**
+
+**Preuves de fusion** :
+
+- Branche : `network-admissibility-gap-01`
+- SHA head fusionné : `fa8c48c58b0c6e919f1f19f5b54be7513d46f9b3`
+- Merge commit `main` : `567d49a8d9f89239442f636bcba9101448281037`
+- PR : #246 — fusionnée par Direction (`Hassen02020`) le 2026-10-22T18:40:24Z
+- 45 insertions / 6 suppressions
+
+---
+
+### HOTEL-GUEST-CREATE-LIVE-01 — NIVEAU 4 (BRIQUE INTÉGRÉE) — FUSIONNÉ (2026-10-21)
+
+**Preuve de fusion** : PR #242, mergée par la Direction sur GitHub (`merged_by: Hassen02020`), commit de merge `7d5d047b14dc634b20faf5a7ea251a377e9b0633` sur `main`.
+
+**Preuve d'intégration** : CI GitHub réelle post-fusion sur `main` — run #677 (id `39598037343`), SHA `7d5d047`, `conclusion: success`. Avant la fusion, CI réelle sur la PR elle-même avait d'abord échoué (run #675, SHA `6cc69bb`, job `format` rouge — oubli de `prettier --check` sur `docs/ROADMAP.md`), corrigé (`65042f8`), puis run #676 8/8 vert avant que la Direction ne fusionne.
+
+**Historique complet ci-dessous, conservé tel que rédigé avant fusion (NIVEAU 2 → NIVEAU 4)** :
+
+**Contexte** : audit de reprise de validation globale (2026-10-20/21) a trouvé qu'aucun test, live ou mocké, n'appelait jamais `createGuestReservationFromDraft` (`lib/booking/guest-actions.ts:142`) — le cœur du produit B2C (création de réservation guest) n'avait jamais été exercé en exécution, seulement en lecture de code. Gap fermé par un test E2E Playwright réel (navigateur → vrai process Next.js), pas un mock de la fonction métier elle-même.
+
+**Fichiers (non commités sur `hotel-guest-create-live-01`, HEAD identique à `origin/main` = `f2aed11c`)** :
+
+- `e2e/b2c-hotel-guest-create-live.spec.ts` (nouveau) — parcours complet recherche → sélection chambre → voyageur → checkout cash → confirmation.
+- `lib/booking/inventory.ts` — bypass `INVENTORY_LOCK_DISABLED_TEST_ONLY` (voir ci-dessous).
+- `.env.example` — documentation du flag.
+
+**Deux conflits structurels réels découverts et contournés, pas de simples bugs de sélecteur** :
+
+1. `next start` force toujours `NODE_ENV=production`, qui déclenche la garde dure existante contre `MYGO_MODE=virtual` (`lib/mygo/config.ts::resolveMyGoMode`) → recherche hôtel en mode dégradé. **Conséquence retenue** : ce test tourne sous `pnpm dev`, jamais `pnpm build && pnpm start` — et `playwright.config.ts` lance `pnpm start` quand `CI` est défini, donc **ce test ne peut pas tourner dans le job CI standard tel quel** (documenté dans l'en-tête du fichier, pas caché).
+2. Aucun pont REST Upstash↔Redis disponible dans ce labo (Docker sans daemon) → `acquireLock` fail-closed systématique. Contourné par `INVENTORY_LOCK_DISABLED_TEST_ONLY=true` : magasin en mémoire process respectant le contrat `InventoryRedis`, jamais actif si `NODE_ENV==="production"` (vérifié à chaque appel, pas une `const` figée au chargement du module — correction appliquée après audit du 2026-10-21), log d'avertissement explicite à chaque usage. Ne remplace pas la preuve de concurrence réelle multi-process (déjà apportée par INVENTORY-LOCK-TOCTOU-01) — hors périmètre de ce bypass.
+
+**Preuves réelles (pas déduites du seul lancement de la commande)** :
+
+- `npx playwright test e2e/b2c-hotel-guest-create-live.spec.ts --project=chromium` → **PASS ×2 consécutifs** (8,1s puis 7,8s).
+- Vérification SQL directe (hors Playwright, indépendante) sur la base locale `easyv4_e2e` : 3 lignes `reservations` réelles (`TG-2026-000001/2/3`, `status=pending`, `module=hotel`), 3 `payments` (`method=cash`, `status=pending`), 3 `reservation_hotel`, 3 `audit_events` (`reservation.created`), 9 `economic_entitlements` (3 par réservation : supplier_cost/seller_margin/commission) — tout le chemin financier de `createGuestReservationFromDraft` exercé, pas seulement l'INSERT `reservations`.
+- `node --import tsx --test lib/booking/__tests__/inventory.test.ts` → 17/17, aucune régression après le bypass et après sa correction.
+- `pnpm test` complet (sans `DATABASE_URL`) → 2645 pass / 0 fail / 435 skip, aucune régression.
+
+**NOT TESTED / NOT VERIFIED, explicitement non refermés** :
+
+- Idempotence / double soumission concurrente, échec de confirmation fournisseur, changement de prix (CART-DRIFT-01) sur ce parcours, paiement carte échoué : **NOT TESTED** (un seul run à la fois, chemin heureux uniquement).
+- Génération de facture pour un paiement capturé : logique lue (gated par `isImmediatelyPaid`, jamais atteinte pour `cash`) mais **NOT VERIFIED empiriquement en base** sur ce chantier.
+
+**Progression réelle des niveaux** : Niveau 2 (code testé, preuves SQL indépendantes) → Niveau 3 (revue de risques/sécurité du bypass faite, correction du risque `NODE_ENV` appliquée et re-vérifiée, 17/17 + 2645/0/435 confirmés sans régression, PR créée avec preuves) → **Niveau 4** (PR #242 fusionnée par la Direction, CI réelle post-fusion verte sur `main`, ci-dessus).
+
+**NOT TESTED / NOT VERIFIED restent ouverts malgré le Niveau 4** — la fusion ne les referme pas : idempotence/double soumission, échec de confirmation fournisseur, changement de prix (CART-DRIFT-01), paiement carte échoué, facture pour paiement capturé (NOT VERIFIED empiriquement). Chantier dédié potentiel, NON exécuté — identification seulement (RÈGLE OPÉRATIONNELLE ABSOLUE, étape 5 : « identifier le prochain chantier potentiel, NE PAS l'exécuter »).
+
+**Limite structurelle permanente, pas fermée par ce chantier** : ce test ne peut pas tourner dans le job CI standard (`pnpm start` force `NODE_ENV=production`, incompatible avec `MYGO_MODE=virtual`) — reste une preuve de lab local invoquée manuellement, jamais un gate CI automatique.
+
+---
+
+### HOTEL-B2B-DOUBLE-BOOKING-LOCK-01 — NIVEAU 4 (BRIQUE INTÉGRÉE) — FUSIONNÉ (2026-10-20)
+
+**Contexte** : identifié par l'audit de certification complète du module hôtel (B2C/B2B/B2B2C/Partners) — `lib/booking/actions.ts::createReservationFromDraft` (chemin B2B) n'appelait jamais `acquireLock`/`releaseLock`, contrairement au chemin guest/B2C (`lib/booking/guest-actions.ts`) : deux requêtes B2B concurrentes sur la même offre myGo n'étaient pas bloquées avant l'appel fournisseur.
+
+**Livrables :**
+
+- `lib/booking/actions.ts` [FIX] — port exact du patron guest (+36 lignes) : `acquireLock({agencyId, sessionId, module:"hotel", itemId: draft.offerId})` avant `confirmHotelWithProvider`, `releaseInventoryLock()` sur les 5 sorties (échec fournisseur, `!myGoBooking`, conflit DB, succès avec `reservationId`, catch générique).
+- `lib/booking/__tests__/hotel-b2b-double-booking-lock-wiring.test.ts` [CREATE] — 7 tests statiques (patron `readFileSync`/`indexOf`, même convention que `mygo-hotel-commission-wiring.test.ts`) : ordre d'appel, libération sur chaque sortie, parité de clé avec le chemin guest.
+
+**Dépendance** : cette fiche câble correctement `acquireLock`, mais la garantie « double booking impossible » n'est complète qu'avec **INVENTORY-LOCK-TOCTOU-01** (PR séparée, chantier compagnon) — sans elle, le verrou câblé ici pouvait laisser passer deux appelants concurrents malgré un câblage correct. Recommandé de fusionner les deux PR ensemble ou l'une après l'autre.
+
+**Preuves locales (labo, pas de CI réelle) :**
+
+- Isolation `git stash` sur `actions.ts` seul : 0/7 tests contre le code pré-correctif, 7/7 avec — reproduction réelle.
+- `tsc --noEmit` / `eslint` / `prettier --check` : propres.
+- Suite complète (`pnpm test`) : 3045/3094 PASS, 47 échecs (tous pré-existants), 2 skip.
+- Test visuel : authentification réelle (GoTrue) absente de ce labo — vérifié à la place : serveur dev recompile sans erreur, `curl /pro/hotels` → `307` vers `/pro/login?next=...` (comportement attendu, pas de 500).
+
+**Aucune migration DB.**
+
+**NOT VERIFIED** : clic-à-travers B2B authentifié réel (`/pro/booking/travelers` → `createReservationFromDraft`) — impossible dans ce labo sans GoTrue/Supabase Auth.
+
+**Preuves de fusion :**
+
+- Branche : `pr-hotel-b2b-double-booking-lock-01`
+- SHA head fusionné : `28f66d435b028d103f05931cfc6e2ce7f3d39c4d`
+- Merge commit `main` : `c5aae48208452f1f7503312cca10c09fbd3cc119`
+- PR : #239 — fusionnée par Direction (`Hassen02020`) le 2026-10-20T20:08:15Z
+- CI run pré-fusion (SHA `28f66d4`) : run #665 (id `39484962777`) → 8/8 ✅ (format/lint/typecheck/test/financial-e2e/build/playwright-a11y/lighthouse)
+
+**Preuves d'intégration (Niveau 4) :**
+
+- CI GitHub réelle post-fusion complète (les 3 chantiers combinés), commit `3b70cb1` (push vers `main`), run #673 (id `39494449917`) : `success`.
+- Build local (`pnpm build`) sur `main` intégré (`3b70cb1`) : propre, exit 0, routes `/pro/hotels`, `/pro/hotels/[id]`, `/pro/reservations/[id]`, `/pro/booking/travelers` toutes compilées.
+- Suite complète locale (`pnpm test`) sur `main` intégré : 3046/3095 PASS, 47 échecs (identiques, zéro nouvelle régression), 2 skip. Écart de 4 tests vs le point de contrôle `lab-local-01a` expliqué : `lib/i18n/__tests__/` (chantier I18N-CHECKOUT-TRANSFER-01) n'a jamais eu sa propre PR, reste hors scope de cette intégration.
+
+---
+
+### INVENTORY-LOCK-TOCTOU-01 — NIVEAU 4 (BRIQUE INTÉGRÉE) — FUSIONNÉ (2026-10-20)
+
+**Découvert en vérifiant HOTEL-B2B-DOUBLE-BOOKING-LOCK-01** (chantier compagnon, PR séparée) : le test existant « deux sessions concurrentes » de `lib/booking/__tests__/inventory.test.ts` faisait `await winner` PUIS `await loser` — séquentiel, jamais de vraie concurrence — et passait aussi bien avec que sans le défaut décrit ci-dessous, malgré son nom.
+
+**Défaut prouvé (TOCTOU — check-then-act)** : `acquireLock()` (`lib/booking/inventory.ts`) lisait la clé (`get`), puis, si absente, posait `SET NX EX` — **sans jamais vérifier le résultat du SET**. Preuve empirique par `Promise.all([acquireLock(A), acquireLock(B)])` sur la même clé : **les deux appels recevaient `ok:true`**. Redis lui-même reste atomique (`SET NX` renvoie bien `null` en cas de collision) ; c'est le code applicatif qui ignorait cette valeur de retour.
+
+**Sévérité** : défaut préexistant dans la primitive **partagée** — touche les 4 modules qui l'utilisent, pas seulement le B2B : `lib/booking/guest-actions.ts`, `lib/hotels-monde/guest-booking-actions.ts`, `lib/vols/guest-booking-actions.ts` (déjà en production) et le chemin B2B ajouté par HOTEL-B2B-DOUBLE-BOOKING-LOCK-01. Sans ce correctif, le verrou d'inventaire ne protégeait pas réellement contre un double appel fournisseur sous charge concurrente réelle.
+
+**Livrables :**
+
+- `lib/booking/inventory.ts` [FIX] — `acquireLock()` capture désormais le retour de `redis.set(..., {nx:true})` ; si `null` (collision réelle pendant la fenêtre get→set), retourne `{ok:false, reason:"conflict"}` au lieu de `{ok:true}`.
+- `lib/booking/__tests__/inventory.test.ts` [FIX] — le test « deux sessions concurrentes » remplacé par un vrai `Promise.all` (au lieu de deux `await` séquentiels).
+
+**Preuves locales (labo, pas de CI réelle) :**
+
+- Isolation `git stash` sur `inventory.ts` seul : le test `Promise.all` échoue (1/17, exactement ce test) contre le code pré-correctif, passe (17/17) avec le correctif — reproduction réelle, pas une assertion trivialement vraie.
+- Non-régression structurelle : recherche sur toute la suite — seuls 2 fichiers référencent `acquireLock`/`releaseLock`/`refreshLock` (`inventory.test.ts`, qui les exécute réellement, et `hotel-b2b-double-booking-lock-wiring.test.ts` de la PR compagnon, qui ne fait que lire le texte source sans jamais importer `inventory.ts`) — donc ce correctif ne peut mathématiquement affecter aucun autre test.
+- Suite complète (`pnpm test`) rejouée après ce correctif : 3045/3094 PASS, 47 échecs, 2 skip — identique au point de contrôle précédent (après le câblage B2B, avant ce correctif).
+- `tsc --noEmit` / `eslint` / `prettier --check` : propres.
+
+**Aucune migration DB.**
+
+**Dépendance** : complète la garantie « double booking impossible » de **HOTEL-B2B-DOUBLE-BOOKING-LOCK-01** (PR séparée) — sans ce correctif, le verrou câblé par cette PR compagnon pouvait laisser passer deux appelants concurrents malgré un câblage correct. Les deux PR se complètent ; recommandé de les fusionner ensemble ou l'une après l'autre.
+
+**NOT VERIFIED** : la preuve ci-dessus utilise le mock Redis en mémoire déjà établi par ce fichier de test (fidèle à la sémantique documentée de `SET NX`, mais sans aller jusqu'à un aller-retour réseau réel vers Upstash) — le comportement sous latence réseau réelle n'a pas été rejoué séparément.
+
+**Preuves de fusion :**
+
+- Branche : `pr-inventory-lock-toctou-01`
+- SHA head fusionné : `9d86b9d9684b3ce3c6571b62e8e2dd5e289a9147` (rebasée une fois sur `main` post-#239 avant fusion)
+- Merge commit `main` : `4915550205d7b11cf58df5c1fdd6008d63c58c3d`
+- PR : #240 — fusionnée par Direction (`Hassen02020`) le 2026-10-20T20:32:16Z
+- CI run pré-fusion (SHA `9d86b9d`) : run #669 (id `39491761299`) → 10/10 ✅
+
+**Preuves d'intégration (Niveau 4) :**
+
+- CI GitHub réelle post-fusion complète (les 3 chantiers combinés), commit `3b70cb1` (push vers `main`), run #673 (id `39494449917`) : `success`.
+- Build local (`pnpm build`) sur `main` intégré (`3b70cb1`) : propre, exit 0.
+- Suite complète locale (`pnpm test`) sur `main` intégré : 3046/3095 PASS, 47 échecs (identiques, zéro nouvelle régression), 2 skip. Écart de 4 tests vs le point de contrôle `lab-local-01a` expliqué (chantier I18N-CHECKOUT-TRANSFER-01, jamais mis en PR, hors scope).
+
+---
+
+### HOTEL-PRO-DOC-ACCESS-TEST-01 — NIVEAU 4 (BRIQUE INTÉGRÉE) — FUSIONNÉ (2026-10-20)
+
+**Contexte** : dernier des 4 chantiers proposés par l'audit de certification complète du module hôtel — test-coverage gap identifié (pas un défaut de code) sur `/api/pro/reservations/[id]/{voucher,invoice}`, les deux routes de téléchargement voucher/facture de l'espace partenaire.
+
+**Audit (avant tout test)** : code relu directement —
+
+- `/api/pro/reservations/[id]/invoice` : double scoping réel — RLS (`withTenantContext`) **+** filtre explicite `eq(reservations.agencyId, profile.agency.id)` dans la requête (défense en profondeur, déjà documentée comme telle dans le fichier).
+- `/api/pro/reservations/[id]/voucher` → délègue à `renderReservationVoucher(tx, reservationId)` (`lib/booking/reservation-voucher-render.ts`), dont la doc de tête dit explicitement qu'elle ne refait aucun contrôle d'accès — repose uniquement sur la RLS posée par l'appelant.
+- RLS confirmée réelle sur `reservations` (`drizzle/manual/0001_rls_policies.sql:99`, policy générique `agency_id = current_agency_id() OR is_super_admin()`), pas juste `ENABLE` sans policy.
+- `lib/booking/__tests__/document-access-control.test.ts` (test existant) couvre les routes **guest** à token (`/api/booking/{voucher,invoice}/[ref]`) — scope différent (secret de token, pas isolation tenant), aucune REUSE possible.
+
+**Verdict : aucun défaut.** Code déjà correct. Classification : **CREATE (tests uniquement)**, zéro ligne de code de production modifiée.
+
+**Livrable :**
+
+- `lib/booking/__tests__/hotel-pro-doc-access-live.test.ts` [CREATE] — 5 tests live (deux agences réelles en base, `withTenantContext`, aucun mock de la primitive testée) :
+  1. Voucher — contrôle positif (agence A voit sa propre réservation).
+  2. Voucher — refus IDOR inter-agence (agence A → réservation agence B via `renderReservationVoucher`, la fonction réelle de production).
+  3. Facture — contrôle positif.
+  4. Facture — refus IDOR inter-agence (réplique exacte du where-clause de la route).
+  5. Facture — **RLS seule, sans le filtre explicite** de la route : isole la protection RLS elle-même.
+
+**Preuves locales (labo, pas de CI réelle) :**
+
+- 5/5 PASS contre Postgres réel avec RLS active.
+- **Sonde anti-vacuité** : le test 5 modifié temporairement (`isSuperAdmin: true` au lieu de `false`) bascule immédiatement en échec (`rows.length` passe de `0` à `1`) — preuve que la clause `is_super_admin()` de la policy RLS est réellement évaluée, pas un test qui passerait de toute façon. Sonde retirée ; fichier revérifié identique **byte à byte** à l'état d'avant sonde (`diff` vide) ; 5/5 restauré.
+- `tsc --noEmit` / `eslint` / `prettier --check` sur le nouveau fichier : propres.
+- Suite complète (`pnpm test`) rejouée après ajout : **3050/3099 PASS, 47 échecs, 2 skip** — exactement +5 pass/+5 total par rapport au point de contrôle précédent, les 47 échecs pré-existants strictement inchangés en nombre.
+
+**Aucune migration DB. Aucun code de production modifié** (seul fichier touché : le nouveau test).
+
+**NOT VERIFIED** : clic-à-travers HTTP réel sur les deux routes avec une vraie session Supabase — impossible dans ce labo sans GoTrue ; preuve apportée au niveau DB/RLS directement, même frontière que les routes, code de production non réimplémenté.
+
+**Preuves de fusion :**
+
+- Branche : `pr-hotel-pro-doc-access-test-01`
+- SHA head fusionné : `8d9d9c70e2979c4caa32d95cb1ad4b4e08507461` (rebasée deux fois sur `main`, post-#239 puis post-#240, avant fusion)
+- Merge commit `main` : `3b70cb108982a017ad3d9c1b009ca0e8dd33d2b2`
+- PR : #241 — fusionnée par Direction (`Hassen02020`) le 2026-10-20T20:43:40Z
+- CI run pré-fusion (SHA `8d9d9c7`) : run #672 (id `39493220465`) → 10/10 ✅
+
+**Preuves d'intégration (Niveau 4) :**
+
+- CI GitHub réelle post-fusion complète (les 3 chantiers combinés), commit `3b70cb1` (push vers `main`), run #673 (id `39494449917`) : `success`.
+- Build local (`pnpm build`) sur `main` intégré (`3b70cb1`) : propre, exit 0.
+- Suite complète locale (`pnpm test`) sur `main` intégré : 3046/3095 PASS, 47 échecs (identiques, zéro nouvelle régression), 2 skip. Écart de 4 tests vs le point de contrôle `lab-local-01a` expliqué (chantier I18N-CHECKOUT-TRANSFER-01, jamais mis en PR, hors scope).
+
+**Niveau actuel : 4 (Brique intégrée).** Fusionnée dans `main`, comportement vérifié après intégration avec les 2 autres chantiers de cette série (CI réelle + build + suite complète locale, tous propres).
+
+---
+
+### MUTUELLE-BOOKING-01 — CLOS / FUSIONNÉ (2026-10-18)
+
+**Leg réservation B2B2C sur approbation directeur (module Mutuelle).**
+
+Ferme le gap `Mutuelle | PARTIEL` identifié par CARTO-TECH-01 : lorsqu'un directeur
+approuve une demande membre, une réservation `confirmed` est créée immédiatement dans
+la même transaction DB, avec la chaîne financière complète.
+
+**Livrables :**
+
+- `lib/mutuelle/booking-actions.ts` [CREATE] — helper `createMutuelleBookingInTx()`
+  appelé dans la transaction `reviewMutuelleRequest` :
+  `salePriceTnd = basePriceTnd × (1 + markupPercent/100)`, ref `MUT-YYYY-NNNNNN`,
+  `recordReservationFinancials` + `creditPlatformCommission` (commissionPercent=0),
+  `providerPayload.channel = "mutuelle_b2b2c"`, audit `reservation.mutuelle_booking.created`.
+- `lib/mutuelle/requests-actions.ts` [EXTEND] — `reviewInputSchema` étendu (`basePriceTnd`
+  requis sur `approved`), résultat `{ reservationId?, publicRef? }`, appel
+  `createMutuelleBookingInTx` dans la transaction, fire-and-forget post-commit :
+  `generateInvoiceForReservation` + `sendEvent("booking/mutuelle.confirmed")`.
+- `lib/inngest/client.ts` [EXTEND] — type `"booking/mutuelle.confirmed"` dans `Events`.
+- `lib/inngest/functions/process-mutuelle-confirmed.ts` [CREATE] — handler Inngest email récap.
+- `lib/inngest/functions/index.ts` [EXTEND] — export `processMutuelleConfirmed`.
+- `lib/mutuelle/__tests__/mutuelle-booking-invariants.test.ts` [CREATE] — 16 invariants statiques.
+- `lib/mutuelle/__tests__/mutuelle-concurrency.test.ts` [CREATE] — 13 tests statiques,
+  4 scénarios de concurrence (CAS A/B/C/D).
+
+**Preuves de fusion :**
+
+- Branche : `claude/mutuelle-booking-01`
+- SHA head fusionné : `ab13e52210e1a1bd320147628c9023484ebbdec5`
+- Merge commit `main` : `ae215629bfe8e80921b50a1c68b972a63c6434d0`
+- PR : #235 — fusionnée par Direction (`Hassen02020`) le 2026-10-18T20:11:21Z
+- CI run pre-merge (SHA `ab13e52`) : run #654 → tous contrôles ✅ (format/lint/typecheck/test/financial-e2e/build/playwright-a11y/lighthouse)
+- CI run post-merge (SHA `ae215629`, run #656) : 8/8 ✅ (format/lint/typecheck/test/financial-e2e/build/playwright-a11y/lighthouse)
+
+**Aucune migration DB.** Réservation via schéma `reservations` existant,
+traçabilité Mutuelle via `providerPayload.channel = "mutuelle_b2b2c"`.
+
+**3 risques résiduels documentés (non corrigés — GO Direction séparé requis pour chacun) :**
+
+| ID        | Description                                                                                                          | Impact si déclenché                                                                       | Proposition technique                                                                                                                                   |
+| --------- | -------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| CAS-B     | `SELECT MAX(publicRef)` non-verrouillant → collision UNIQUE `(agencyId, publicRef)` sur approbations concurrent      | PG 23505 → rollback TX → demande reste `pending` → retry directeur OK (pas de corruption) | `pg_advisory_xact_lock(hashtext(agencyId + year))`                                                                                                      |
+| CAS-C     | `generateInvoiceForReservation` appelé post-commit (fire-and-forget) → crash process avant appel → facture manquante | Facture orpheline, récupérable manuellement                                               | Inngest `step.run` pour garantie d'exécution                                                                                                            |
+| ~~CAS-D~~ | ~~`mutuelleGroups.status` non vérifié à l'approbation → groupe inactif/suspendu peut être approuvé~~                 | ~~Réservation créée pour groupe non actif~~                                               | **CORRIGÉ** — PR #236 (2026-10-18) : `SELECT mutuelleGroups FOR UPDATE` + garde `status !== "active"` avant toute écriture dans `reviewMutuelleRequest` |
+
+---
+
+### CAS-D-FIX-01 — CLOS / FUSIONNÉ (2026-10-18)
+
+**Garde statut groupe Mutuelle avant toute écriture dans `reviewMutuelleRequest`.**
+
+Défaut : `UPDATE mutuelleRequests` s'exécutait AVANT le `SELECT mutuelleGroups` (sans `FOR UPDATE`, sans garde statut) → approbation possible sur un groupe suspendu.
+
+Correction : insertion de `SELECT mutuelleGroups FOR UPDATE` + garde `if (status !== "active") return { ok: false }` entre le verrou de la demande et la première écriture métier. SELECT redondant de la branche `approved` supprimé.
+
+**Preuves de fusion :**
+
+- Branche : `claude/cas-d-fix-01`
+- SHA head fusionné : `1af33eea8a2586caa2e92ca39ee70e760a6a73e0`
+- Merge commit `main` : `3761d0a` (PR #236, fusionnée par Direction `Hassen02020` le 2026-10-18T22:30:59Z)
+- CI run pre-merge : 9/10 ✅ (`format` ❌ sur `docs/ROADMAP.md` — pré-existant, hors diff PR, 0 ligne de diff entre branche et main)
+- Tests unitaires vitest : 5/5 PASS (T-D7a/b/c/d/e) — 100 % statiques, aucune DB
+- Tests concurrence existants : 13/13 PASS (aucune régression)
+- Test PostgreSQL live (55P03) : **SKIP** — non exécuté, aucune DB locale disponible
+
+**Aucune migration DB.** Schéma `mutuelleGroups.status` (`varchar(16).notNull().default("active")`) inchangé.
+
+**NOT VERIFIED :** validation de la sérialisation `FOR UPDATE` réelle (SQLSTATE 55P03) — test live disponible dans `lib/mutuelle/__tests__/mutuelle-group-for-update-concurrency.live.test.ts`, nécessite `ALLOW_LIVE_DB_TESTS=true` + Supabase CLI local.
+
+---
+
+### LOCAL-FULL-E2E-01 — CLOS / READY FOR MERGE (2026-10-18)
+
+Stack local E2E complet — répétition générale des 18 specs Playwright en
+environnement isolé (Supabase CLI + GoTrue + Virtual suppliers + PAYMENT_MODE=virtual).
+
+**Livrables :**
+
+- `scripts/seed-base-infra.ts` : fix P0 — `futureDate()` utilisait une base fixe
+  `2026-09-11` générant des dates déjà passées. Corrigé en `new Date()` dynamique.
+  Dates affectées : session activité (futureDate(20)), départ package (futureDate(30/36)),
+  deadline réservation (futureDate(35)).
+- `scripts/create-e2e-gotrue-users.ts` : crée les 2 utilisateurs GoTrue avec UUIDs
+  fixes (11111111-... admin, 66666666-... partner) via `supabase.auth.admin.createUser`.
+  Idempotent (ignore "already exists").
+- `.env.test.example` : template minimal pour l'environnement E2E local avec
+  PAYMENT_MODE=virtual, MYGO_MODE=virtual, MEDIA_STORAGE_BACKEND=local.
+- `scripts/run-e2e-local.sh` : orchestrateur complet (supabase start → db:push →
+  seed-base-infra → create-e2e-gotrue-users → pnpm dev → playwright test 18 specs).
+
+**Prérequis Direction pour exécution complète :**
+
+- Docker + Supabase CLI installés sur la machine de test
+- `.env.test` créé depuis `.env.test.example`
+- Pour hôtels monde : `EXCHANGE_RATE_API_KEY` (sinon bloqué fail-closed)
+
+**Statut specs E2E :**
+
+- 6 specs runnable sans auth (a11y, header/footer, hotel-search, mobile-overflow,
+  b2c-guest-checkout, omra-packages-storefront)
+- 12 specs runnable avec GoTrue (all dashboard-operations-\*, auth, journey-builder)
+- 0 spec nécessitant Inngest réel (PAYMENT_MODE=virtual couvre tous les flows)
+
+TypeScript clean. Branche : `claude/local-full-e2e-01` | PR #233.
+
+---
+
+### ENV-PRODUCTION-01 — AUDIT LIVRÉ / ACTION DIRECTION REQUISE (2026-10-18)
+
+Audit complet des variables d'environnement production Vercel `easy2book-new`.
+
+Résultat : 11 groupes de variables documentés dans `docs/env-production-audit.md`.
+
+**Priorités immédiates (Direction → Vercel dashboard) :**
+
+1. Vérifier DATABASE_URL, SUPABASE_SERVICE_ROLE_KEY
+2. `INNGEST_SIGNING_KEY` + `INNGEST_EVENT_KEY` → débloque tous les workflows
+3. `RESEND_API_KEY` → débloque emails clients
+4. `EXCHANGE_RATE_API_KEY` → débloque hôtels monde devise étrangère
+5. `PAYMENT_PROVIDER=paymee` + `PAYMEE_API_KEY` + `PAYMEE_ENVIRONMENT=production`
+6. Rotation des secrets par défaut : `PRICE_TOKEN_SECRET`, `SUPPLIER_CREDENTIALS_ENCRYPTION_KEY`, `CRON_SECRET`
+
+**Blocage MCP** : lecture/écriture env vars Vercel bloquée (403 scope `easy2book`).
+Direction agit directement : Vercel → easy2book-new → Settings → Environment Variables.
+
+Branche : `claude/env-production-01` | Fichier livré : `docs/env-production-audit.md` | PR #232.
+
+NOT VERIFIED : valeurs actuellement posées en production (lecture bloquée).
+
+---
+
+### NETWORK-B2C-01 — CLOS / READY FOR MERGE (2026-10-18)
+
+**Objectif** : Portail B2C public pour la réservation de produits Network par les
+clients finaux (guest checkout sans compte).
+
+**Fichiers créés / modifiés :**
+
+- `lib/network/schemas.ts` : Zod schema `networkGuestBookingSchema` + type `NetworkGuestBookingInput`.
+- `lib/network/guest-booking-actions.ts` : Server action `createGuestNetworkBooking` — filtre produit actif (`status='active'`, `supplierNodeId IS NOT NULL`), guard `CART-DRIFT-01`, transaction complète (`recordReservationFinancials` + `creditPlatformCommission` + `earnPendingPoints` + `recordReservationTransition` + `generateInvoiceForReservation`), `sendEvent("booking/network.confirmed")` fire-and-forget, ref publique `NET-YYYY-NNNNNN`.
+- `lib/network/__tests__/product-booking-actions-invariants.test.ts` : 13 tests statiques d'invariants.
+- `app/(public)/[locale]/network/page.tsx` : Liste paginée des produits Network avec recherche.
+- `app/(public)/[locale]/network/[id]/page.tsx` : Page détail produit + sidebar réservation.
+- `app/(public)/[locale]/network/[id]/book/page.tsx` : Page formulaire guest checkout.
+- `components/network/network-guest-booking-form.tsx` : Formulaire client (quantité, contact, paiement card/transfer/cash), CART-DRIFT-01 UX.
+- `lib/inngest/client.ts` : Event type `booking/network.confirmed`.
+- `messages/{fr,en,ar}.json` : 31 clés namespace "Network".
+
+**Tests** : 13/13 nouveaux green, 2626/2626 suite globale, TypeScript 0 erreur.
+**Branche** : `claude/network-b2c-01` — PR #234.
+
+---
+
 ### SENDEVENT-ACTIVITY-B2B-01 — CLÔTURÉ (2026-10-17)
 
 Gap P1 identifié par LAUNCH-E2E-AUDIT-01 : `createActivityBooking` (B2B) ne

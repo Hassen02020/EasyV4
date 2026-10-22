@@ -24,6 +24,7 @@ import { applyHotelCommercialEngine } from "@/lib/hotels/commercial-engine"
 import { recordReservationFinancials } from "@/lib/finance/reservation-financials"
 import { recordReservationTransition } from "@/lib/admin/reservation-status-history"
 import { creditPlatformCommission } from "@/lib/finance/platform-commission"
+import { acquireLock, releaseLock } from "@/lib/booking/inventory"
 import { sendEvent } from "@/lib/inngest/client"
 import { createServerSupabase } from "@/lib/supabase/server"
 import { getCurrentPartnerProfile } from "@/lib/auth/partner-profile"
@@ -401,6 +402,36 @@ export async function createReservationFromDraft(input: {
   )
   if (existingByKey) return existingByKey
 
+  // --- Verrou d'inventaire (HOTEL-B2B-DOUBLE-BOOKING-LOCK-01) ---
+  // Même garde que le chemin guest/B2C (lib/booking/guest-actions.ts) :
+  // sans ce verrou, deux requêtes B2B concurrentes pour LA MÊME offre
+  // (deux onglets, deux agents de la même agence, un double-clic non
+  // couvert par la clé d'idempotence car les deux soumissions diffèrent
+  // légèrement) appelleraient myGo deux fois pour la même chambre —
+  // `reservations_guest_idempotency_uniq` protège uniquement contre un
+  // retry IDENTIQUE, jamais contre deux tentatives concurrentes distinctes.
+  const lockSessionId = crypto.randomUUID()
+  const lockResult = await acquireLock({
+    agencyId,
+    sessionId: lockSessionId,
+    module: "hotel",
+    itemId: draft.offerId,
+  })
+  if (!lockResult.ok) {
+    return { ok: false, error: lockResult.message }
+  }
+  // Libéré sur CHAQUE sortie de fonction à partir d'ici (échec fournisseur,
+  // conflit DB, succès, erreur générique) — même discipline que le chemin
+  // guest (lib/booking/guest-actions.ts::releaseInventoryLock).
+  const releaseInventoryLock = (reservationId?: string) =>
+    releaseLock({
+      agencyId,
+      sessionId: lockSessionId,
+      module: "hotel",
+      itemId: draft.offerId,
+      reservationId,
+    })
+
   // --- Confirmation fournisseur (myGo) AVANT toute écriture DB / débit wallet ---
   // Si le draft porte des métadonnées myGo (recherche hôtel réelle) et que le
   // fournisseur refuse (prix/dispo changés, token expiré…), on s'arrête ici :
@@ -412,6 +443,7 @@ export async function createReservationFromDraft(input: {
     myGoAccess,
   )
   if (providerConfirmation.attempted && !providerConfirmation.ok) {
+    await releaseInventoryLock()
     return { ok: false, error: providerConfirmation.error }
   }
   const myGoBooking = providerConfirmation.attempted
@@ -448,6 +480,7 @@ export async function createReservationFromDraft(input: {
   // forgé, qu'il cible "hotel" sans métadonnées ou n'importe quel autre
   // module.
   if (!myGoBooking) {
+    await releaseInventoryLock()
     return {
       ok: false,
       error:
@@ -852,6 +885,7 @@ export async function createReservationFromDraft(input: {
            * n'a aucun impact financier/paiement côté Easy2Book. */
         }
       }
+      await releaseInventoryLock()
       const winner = await findReservationByCheckoutIdempotencyKey(
         agencyId,
         idempotencyKey,
@@ -897,6 +931,7 @@ export async function createReservationFromDraft(input: {
 
     // Facture générée via step.run("generate-invoice") dans processConfirmedBooking
     // (CAS-C) — garantie Inngest, idempotente, pas de fire-and-forget ici.
+    await releaseInventoryLock(result.reservationId)
     return {
       ok: true,
       reservationId: result.reservationId,
@@ -904,6 +939,7 @@ export async function createReservationFromDraft(input: {
       guestAccessToken: result.guestAccessToken,
     }
   } catch (err) {
+    await releaseInventoryLock()
     // --- Échec APRÈS confirmation myGo (écriture DB, débit wallet insuffisant…) ---
     // À ce stade la réservation existe réellement chez le fournisseur. Sans
     // compensation on se retrouverait avec "réservation myGo confirmée MAIS

@@ -35,7 +35,7 @@ export function NearbyActivities({
         {activities.map((activity) => (
           <Link
             key={activity.id}
-            href={`/attractions/${activity.slug}`}
+            href={activity.href ?? `/attractions/${activity.slug}`}
             className="bg-background flex gap-3 rounded-lg border p-3 transition-colors hover:border-teal-300"
           >
             <div className="bg-muted relative h-16 w-20 shrink-0 overflow-hidden rounded-md">

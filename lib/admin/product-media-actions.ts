@@ -22,6 +22,7 @@ import {
   omraPackages,
   catalogPackages,
   catalogActivities,
+  products,
   auditEvents,
   type ProductMediaVariants,
 } from "@/lib/db/schema"
@@ -55,6 +56,7 @@ const MODULE_TABLE = {
   omra: omraPackages,
   package: catalogPackages,
   activity: catalogActivities,
+  network: products,
 } as const
 
 async function assertProductOwnership(

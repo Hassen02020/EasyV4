@@ -36,7 +36,71 @@ Un seul chantier actif à la fois ; il est indiqué dans ROADMAP.md (section "Ch
 
 ## Chantier actif
 
-_Aucun chantier actif — HOTEL-GUEST-CREATE-LIVE-01 fusionné et intégration vérifiée (2026-10-21, Niveau 4). En attente des instructions de la Direction._
+_NETWORK-CROSSSELL-01 — PR #247 OUVERTE (commit `666529c`, 2026-10-22) — TESTED / READY FOR PRODUCTION — AWAITING MERGE. En attente du merge Direction puis clôture._
+
+---
+
+### NETWORK-CROSSSELL-01 — TESTED / READY FOR PRODUCTION — PR #247 OUVERTE (2026-10-22)
+
+**Objectif** : exposer les activités Network (`products.type='activity'`) en cross-sell sur les fiches destination, attraction et hôtel.
+
+**Dépendance résolue** : NETWORK-ADMISSIBILITY-GAP-01 (PR #246) fusionnée avant ce chantier (voir section ci-dessous).
+
+**Commits** :
+
+- `07fd340` — feat(network): implémentation complète (8 fichiers, 190 insertions, 9 suppressions)
+- `666529c` — fix(format): prettier sur `network-cross-sell.test.ts` (format CI)
+
+**Fichiers modifiés** :
+
+- `lib/destinations/cross-sell.ts` — bug fix ILIKE wildcards + nouvelle fonction `getCrossSellNetworkActivities`
+- `lib/destinations/__tests__/network-cross-sell.test.ts` — 5 tests unitaires (5/5 ✓)
+- `lib/network/nearby-activities-action.ts` — Server Action wrapper (nouveau)
+- `app/(public)/[locale]/attractions/[slug]/page.tsx` — Promise.all catalog+network
+- `app/(public)/[locale]/destinations/[slug]/page.tsx` — idem
+- `app/(public)/[locale]/hotels/[id]/page.tsx` — useEffect + NearbyActivities (display-only)
+- `components/attractions/nearby-activities.tsx` — `href` override
+- `components/destinations/destination-cross-sell.tsx` — `href` override
+
+**Règles vérifiées** :
+
+- Admissibilité : `supplierNodes.onboardingStatus = 'active'` ✓ + `products.status = 'active'` ✓ + `isNotNull(supplierNodeId)` ✓ + `isNotNull(costPrice)` ✓
+- Prix : `getMarginsForAgency + applyMargin` (jamais un taux inventé — règle CURRENCY-DIM-01a) ✓
+- Sécurité réservation hôtel : `guest-booking-actions.ts` et `product-booking-actions.ts` NON touchés — garde `network_product_node_is_active()` intacte ✓
+
+**CI sur commit `666529c`** (en cours au moment de la mise à jour ROADMAP) :
+
+- typecheck ✓ | lint ✓ | test ✓ | build ✓ | financial-e2e ✓ | playwright-a11y ✓
+- format : ✓ (corrigé par `666529c`)
+
+**Branche** : `claude/network-crosssell-01`
+**PR** : #247 — https://github.com/Hassen02020/EasyV4/pull/247
+
+**NOT VERIFIED** : parcours navigateur réel (nécessite DB + partenaire Network actif avec produit activité) — à valider par la Direction post-merge.
+
+---
+
+### NETWORK-ADMISSIBILITY-GAP-01 — NIVEAU 4 (BRIQUE INTÉGRÉE) — FUSIONNÉ (2026-10-22)
+
+**Objectif** : vérifier le statut réel du partenaire (`supplier_nodes.onboarding_status = 'active'`) sur les 3 pages publiques Network avant d'afficher ou permettre la réservation d'un produit.
+
+**Contexte** : le chemin financier (`guest-booking-actions.ts` via `network_product_node_is_active()`) était déjà protégé — gap uniquement sur les 3 pages de lecture publique.
+
+**Fichiers modifiés (3)** :
+
+- `app/(public)/[locale]/network/page.tsx`
+- `app/(public)/[locale]/network/[id]/page.tsx`
+- `app/(public)/[locale]/network/[id]/book/page.tsx`
+
+**Aucune migration DB.**
+
+**Preuves de fusion** :
+
+- Branche : `network-admissibility-gap-01`
+- SHA head fusionné : `fa8c48c58b0c6e919f1f19f5b54be7513d46f9b3`
+- Merge commit `main` : `567d49a8d9f89239442f636bcba9101448281037`
+- PR : #246 — fusionnée par Direction (`Hassen02020`) le 2026-10-22T18:40:24Z
+- 45 insertions / 6 suppressions
 
 ---
 

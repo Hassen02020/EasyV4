@@ -101,6 +101,10 @@ async function nextPublicRef(
 ): Promise<string> {
   const year = new Date().getFullYear()
   const prefix = `OM-${year}-`
+  // CAS-B — sérialise les nextPublicRef() concurrents de la même (agencyId, année)
+  await db.execute(
+    sql`SELECT pg_advisory_xact_lock(hashtext(${agencyId + ":" + prefix}))`,
+  )
   const [row] = await db
     .select({
       maxRef: sql<string | null>`MAX(${reservations.publicRef})`,

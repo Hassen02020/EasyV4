@@ -225,8 +225,10 @@ export async function nextPublicRef(
 ): Promise<string> {
   const year = new Date().getFullYear()
   const prefix = `TG-${year}-`
-  // MAX() sur les refs du préfixe courant — atomique dans la transaction parente
-  // élimine la race condition du scan-50-lignes précédent
+  // CAS-B — sérialise les nextPublicRef() concurrents de la même (agencyId, année)
+  await (db as ReturnType<typeof getDb>).execute(
+    sql`SELECT pg_advisory_xact_lock(hashtext(${agencyId + ":" + prefix}))`,
+  )
   const [row] = await (db as ReturnType<typeof getDb>)
     .select({
       maxRef: sql<string | null>`MAX(${reservations.publicRef})`,

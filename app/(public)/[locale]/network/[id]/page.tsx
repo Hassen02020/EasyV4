@@ -4,6 +4,7 @@
  */
 
 import { Link } from "@/i18n/navigation"
+import Image from "next/image"
 import { notFound } from "next/navigation"
 import { getTranslations, getLocale } from "next-intl/server"
 import { getIntlLocale } from "@/lib/i18n-date"
@@ -19,6 +20,7 @@ import { getDefaultAgencyId } from "@/lib/agencies/default-agency"
 import { getMarginsForAgency } from "@/lib/pro/server-context"
 import { applyMargin } from "@/lib/pro/pricing"
 import { buildLanguageAlternates } from "@/lib/seo/alternate-languages"
+import { getCoverMediaForProducts } from "@/lib/media/query"
 
 export const dynamic = "force-dynamic"
 
@@ -46,7 +48,15 @@ async function getNetworkProduct(id: string) {
         Number(product.costPrice),
         margins.network,
       )
-      return { product, salePriceTnd, agencyId }
+      // NETWORK-MEDIA-01 — même mécanisme que Omra/Packages (mission §23/§24).
+      const coverByProduct = await getCoverMediaForProducts(
+        db,
+        agencyId,
+        "network",
+        [product.id],
+      )
+      const coverMediaUrl = coverByProduct.get(product.id)?.largeUrl ?? null
+      return { product, salePriceTnd, agencyId, coverMediaUrl }
     })
   } catch {
     return null
@@ -79,7 +89,7 @@ export default async function NetworkProductPage({
   const data = await getNetworkProduct(id)
   if (!data) notFound()
 
-  const { product, salePriceTnd } = data
+  const { product, salePriceTnd, coverMediaUrl } = data
   const t = await getTranslations("Network")
   const intlLocale = getIntlLocale(locale)
 
@@ -100,8 +110,20 @@ export default async function NetworkProductPage({
             {/* Main content */}
             <div className="lg:col-span-2">
               {/* Hero placeholder */}
-              <div className="mb-6 flex h-48 items-center justify-center rounded-xl bg-gradient-to-br from-sky-800 to-sky-600">
-                <Package2 className="h-16 w-16 text-white/30" />
+              <div className="bg-muted relative mb-6 h-48 w-full overflow-hidden rounded-xl">
+                {coverMediaUrl ? (
+                  <Image
+                    src={coverMediaUrl}
+                    alt={product.name}
+                    fill
+                    className="object-cover"
+                    sizes="(max-width: 1024px) 100vw, 66vw"
+                  />
+                ) : (
+                  <div className="flex h-full items-center justify-center bg-gradient-to-br from-sky-800 to-sky-600">
+                    <Package2 className="h-16 w-16 text-white/30" />
+                  </div>
+                )}
               </div>
 
               <div className="mb-2 flex flex-wrap gap-2">

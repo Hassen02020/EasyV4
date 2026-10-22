@@ -40,16 +40,22 @@ _Aucun chantier actif — en attente de GO._
 
 ---
 
-### CAS-C — INVOICE STEP.RUN — DONE (mergé 2026-10-22)
+### CAS-C — INVOICE STEP.RUN — DONE (mergé + déployé 2026-10-22)
 
-PR #251 mergée sur `main`. Branche `claude/easy2book-v6-modernization-7gyb5v`.
+PR #251 mergée sur `main`. Déployé : `dpl_F3hTKpCs3LyeGh5fKaEs8d1EQHy6`, `state=READY`,
+`target=production`, `githubCommitSha=ac51dbfbd77900119afe4442fe9718832d8cabdc` sur `easy2book-new`.
 
 `generateInvoiceForReservation` déplacé depuis les appels fire-and-forget post-commit
 dans les actions serveur vers `step.run("generate-invoice")` dans chaque fonction Inngest
 concernée. Garantie d'exécution (checkpoint persistant, retry automatique, idempotence DB).
 20/20 tests d'invariant statiques verts. TypeScript clean.
 
-NOT VERIFIED : déploiement production Vercel (à confirmer après déploiement `easy2book-new`).
+**Vérifications post-déploiement (2026-10-22)** :
+- Déploiement : CONFIRMED — `dpl_F3hTKpCs3LyeGh5fKaEs8d1EQHy6`, SHA = HEAD(main).
+- Non-régression : 264 failures vs 284 avant CAS-C — aucune régression introduite (failures pré-existantes).
+- Références publiques (CAS-B) : 18/18 invariants verts — `pg_advisory_xact_lock` en place sur tous les modules.
+- Admissibilité réseau : `network_product_node_is_active()` vérifié avant toute réservation, 13/13 tests verts.
+- Activités à proximité : `getCrossSellNetworkActivities()` filtre `status="active"` à la source, 5/5 tests verts, câblé sur hôtel/destination/fiche.
 
 ---
 

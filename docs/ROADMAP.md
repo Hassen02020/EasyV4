@@ -69,7 +69,22 @@ Gap fermé : `generateInvoiceForReservation` était couverte uniquement par des 
 - E5-01-03 : retry → `ok:true`, `alreadyExisted:true`, pas de doublon (idempotence 23505 réelle).
 Ajouté au job `financial-e2e` CI dans `.github/workflows/ci.yml`.
 
-**E1-01 / E4-02** : chantier séparé — proposition à venir.
+#### E1-01 / E4-02 — DONE (2026-10-22)
+
+Gap fermé : `b2c-hotel-guest-create-live.spec.ts` ne pouvait tourner en CI (dépendance à
+`pnpm dev` + `MYGO_MODE=virtual`, incompatible avec `pnpm start` qui force `NODE_ENV=production`).
+- Créé `playwright.config.dev.ts` : `webServer.command = "pnpm dev"`, `workers=1`, `retries CI=1`.
+- Ajouté job `e2e-guest` dans `.github/workflows/ci.yml` : PostgreSQL CI, `db:push`, Playwright
+  chromium, `MYGO_MODE=virtual`, lance `b2c-hotel-guest-create-live.spec.ts --config playwright.config.dev.ts`.
+
+#### FLIGHTS-INVOICE-GAP — DONE (2026-10-22)
+
+Gap fermé : `process-flight-confirmed.ts` était le seul handler Inngest post-CAS-C sans appel
+`generateInvoiceForReservation` — le module vols était exclu du checkpoint de facturation.
+- Ajouté `import { generateInvoiceForReservation }` et `step` aux params.
+- Ajouté `step.run("generate-invoice", ...)` en fin de handler (même patron que car/transfer/omra/hotel).
+- Ajouté `process-flight-confirmed.ts` dans `invoice-step-invariants.test.ts` → 23/23 verts (ex 20/20).
+- `process-flight-confirmed-wiring.test.ts` : 13/13 toujours verts.
 
 ---
 
@@ -108,10 +123,11 @@ crash ; idempotence garantie par la contrainte `partner_invoices_reservation_uni
 - `booking/package.confirmed` → `process-package-confirmed.ts`
 - `booking/transfer.confirmed` → `process-transfer-confirmed.ts`
 - `booking/car.confirmed` → `process-car-confirmed.ts` (sendEvent reordonné avant invoice)
+- `booking/flight.confirmed` → `process-flight-confirmed.ts` (FLIGHTS-INVOICE-GAP, 2026-10-22)
 
 **Hors scope** : Packages B2B, Network guest, Transfers guest, Paiement manuel.
 
-**Tests** : `lib/inngest/functions/__tests__/invoice-step-invariants.test.ts` — 20/20.
+**Tests** : `lib/inngest/functions/__tests__/invoice-step-invariants.test.ts` — 23/23 (ex 20 — +3 flights).
 **Build** : TypeScript clean. Aucune migration DB.
 
 ---

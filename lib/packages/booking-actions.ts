@@ -41,7 +41,12 @@ import {
   auditEvents,
 } from "@/lib/db/schema"
 import { getDefaultAgencyId } from "@/lib/agencies/default-agency"
-import { computePriceBreakdown, priceDrifted } from "@/lib/booking/pricing"
+import {
+  computePriceBreakdown,
+  priceDrifted,
+  buildFiscalSnapshotFromTtc,
+  buildFiscalSnapshot,
+} from "@/lib/booking/pricing"
 import { generateInvoiceForReservation } from "@/lib/finance/invoice-actions"
 import { getPaymentProvider } from "@/lib/payment/provider"
 import { withGuestIdempotency } from "@/lib/booking/guest-idempotency"
@@ -371,6 +376,13 @@ async function runCreateGuestPackageBooking(
             tndAmount: String(totalTnd),
             depositAmount: String(totalTnd),
             depositPaid: "0",
+            fiscalSnapshot: buildFiscalSnapshotFromTtc(
+              totalTnd,
+              19,
+              "package",
+              null,
+              "taux_provisoire_19_pct",
+            ),
             providerPayload: {
               packageId: booking.packageId,
               departureId: booking.departureId,
@@ -697,6 +709,13 @@ export async function createPackageBooking(
             tndAmount: String(totalTnd),
             depositAmount: String(totalTnd),
             depositPaid: "0",
+            fiscalSnapshot: buildFiscalSnapshot(
+              breakdown,
+              19,
+              "package",
+              null,
+              "taux_provisoire_19_pct",
+            ),
             providerPayload: {
               packageId: booking.packageId,
               departureId: booking.departureId,

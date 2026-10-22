@@ -15,7 +15,7 @@ import {
 } from "@/lib/db/schema"
 import type { BookingDraft, TravelerInput } from "./schemas"
 import { bookingDraftSchema, travelerSchemaWithIdRule } from "./schemas"
-import { computePriceBreakdown } from "./pricing"
+import { computePriceBreakdown, buildFiscalSnapshot } from "./pricing"
 import { decodeDraft } from "./draft-store"
 import { debitPartnerCredit } from "@/lib/pro/booking-actions"
 import { getMarginsForAgency } from "@/lib/pro/server-context"
@@ -617,6 +617,13 @@ export async function createReservationFromDraft(input: {
                 depositAmount: String(breakdown.depositTnd),
                 depositPaid: "0",
                 guestIdempotencyKey: idempotencyKey,
+                fiscalSnapshot: buildFiscalSnapshot(
+                  breakdown,
+                  19,
+                  "hotel",
+                  null,
+                  "taux_provisoire_19_pct",
+                ),
                 providerPayload: {
                   offerId: draft.offerId,
                   offerLabel: draft.offerLabel,

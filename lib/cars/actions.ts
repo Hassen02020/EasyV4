@@ -33,6 +33,7 @@ import {
 } from "@/lib/db/schema"
 import { debitPartnerCredit } from "@/lib/pro/booking-actions"
 import { calculateCarPrice } from "./pricing"
+import { buildPendingFiscalSnapshot } from "@/lib/booking/pricing"
 import { recordReservationFinancials } from "@/lib/finance/reservation-financials"
 import { creditPlatformCommission } from "@/lib/finance/platform-commission"
 import { recordReservationTransition } from "@/lib/admin/reservation-status-history"
@@ -271,6 +272,11 @@ export async function createCarBooking(
           tndAmount: String(totalTnd),
           depositAmount: String(totalTnd),
           depositPaid: "0",
+          fiscalSnapshot: buildPendingFiscalSnapshot(
+            totalTnd,
+            "car_rental",
+            "taux_non_déterminé",
+          ),
           providerPayload: {
             categoryId: input.categoryId,
             categoryName: category?.name,

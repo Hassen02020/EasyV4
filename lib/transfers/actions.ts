@@ -28,6 +28,7 @@ import {
 } from "@/lib/db/schema"
 import { debitPartnerCredit } from "@/lib/pro/booking-actions"
 import { calculateTransferPrice } from "./pricing"
+import { buildPendingFiscalSnapshot } from "@/lib/booking/pricing"
 import { sendEvent } from "@/lib/inngest/client"
 import { recordReservationFinancials } from "@/lib/finance/reservation-financials"
 import { creditPlatformCommission } from "@/lib/finance/platform-commission"
@@ -203,6 +204,11 @@ export async function createTransferBooking(
           tndAmount: String(totalTnd),
           depositAmount: String(totalTnd),
           depositPaid: "0",
+          fiscalSnapshot: buildPendingFiscalSnapshot(
+            totalTnd,
+            "transfer",
+            "taux_non_déterminé",
+          ),
           providerPayload: {
             fromZoneId: input.fromZoneId,
             toZoneId: input.toZoneId,

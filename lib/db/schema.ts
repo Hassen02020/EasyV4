@@ -569,6 +569,8 @@ export const reservations = pgTable(
     notes: text("notes"),
     /** Données brutes du fournisseur (myGo BookingDetail, GDS, etc.). */
     providerPayload: jsonb("provider_payload"),
+    /** Snapshot fiscal figé à la réservation (TAX-RULES-SUPERADMIN-01). */
+    fiscalSnapshot: jsonb("fiscal_snapshot"),
     createdByUserId: uuid("created_by_user_id"),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()

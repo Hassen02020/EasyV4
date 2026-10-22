@@ -32,7 +32,11 @@ import {
   auditEvents,
 } from "@/lib/db/schema"
 import { getDefaultAgencyId } from "@/lib/agencies/default-agency"
-import { computePriceBreakdown, priceDrifted } from "@/lib/booking/pricing"
+import {
+  computePriceBreakdown,
+  priceDrifted,
+  buildFiscalSnapshotFromTtc,
+} from "@/lib/booking/pricing"
 import { generateInvoiceForReservation } from "@/lib/finance/invoice-actions"
 import { getPaymentProvider } from "@/lib/payment/provider"
 import { withGuestIdempotency } from "@/lib/booking/guest-idempotency"
@@ -358,6 +362,13 @@ async function runCreateGuestActivityBooking(
             tndAmount: String(totalTnd),
             depositAmount: String(totalTnd),
             depositPaid: "0",
+            fiscalSnapshot: buildFiscalSnapshotFromTtc(
+              totalTnd,
+              19,
+              "activity",
+              null,
+              "taux_provisoire_19_pct",
+            ),
             providerPayload: {
               activityId: booking.activityId,
               sessionId: booking.sessionId,

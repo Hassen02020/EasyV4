@@ -29,6 +29,7 @@ import {
 } from "@/lib/db/schema/flights"
 import { getDefaultAgencyId } from "@/lib/agencies/default-agency"
 import { nextPublicRef } from "@/lib/booking/actions"
+import { buildPendingFiscalSnapshot } from "@/lib/booking/pricing"
 import { resolveCheckoutPromoCore } from "@/lib/crm/promo-checkout-core"
 import { applyPromoDiscountCore } from "@/lib/finance/promo-discount-core"
 import type { CanonicalItinerary } from "./canonical"
@@ -301,6 +302,11 @@ export async function createFlightBookingRequest(
           originalCurrency: snap.sellingCurrency ?? "TND",
           originalAmount: finalSellingAmount,
           tndAmount: finalSellingAmount,
+          fiscalSnapshot: buildPendingFiscalSnapshot(
+            parseFloat(finalSellingAmount),
+            "flight",
+            "taux_non_déterminé",
+          ),
           providerPayload: {
             offerLabel:
               origin && destination ? `Vol ${origin} → ${destination}` : "Vol",

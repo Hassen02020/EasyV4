@@ -57,7 +57,7 @@ import {
   travelerSchemaWithIdRule,
   paymentMethodSchema,
 } from "./schemas"
-import { computePriceBreakdown, priceDrifted } from "./pricing"
+import { computePriceBreakdown, priceDrifted, buildFiscalSnapshot } from "./pricing"
 import { confirmHotelWithProvider, nextPublicRef } from "./actions"
 import { authoritativeUnitPrice } from "./hotel-provider-booking"
 import { getDefaultAgencyId } from "@/lib/agencies/default-agency"
@@ -616,6 +616,13 @@ async function runCreateGuestReservation(
                 depositPaid: "0",
                 paymentExpiresAt: paymentExpiresAt ?? undefined,
                 guestIdempotencyKey: idempotencyKey,
+                fiscalSnapshot: buildFiscalSnapshot(
+                  breakdown,
+                  19,
+                  "hotel",
+                  null,
+                  "taux_provisoire_19_pct",
+                ),
                 providerPayload: {
                   offerId: draft.offerId,
                   offerLabel: draft.offerLabel,

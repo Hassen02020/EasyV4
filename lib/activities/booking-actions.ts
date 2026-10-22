@@ -44,7 +44,7 @@ import { generateInvoiceForReservation } from "@/lib/finance/invoice-actions"
 import { recordReservationTransition } from "@/lib/admin/reservation-status-history"
 import { recordReservationFinancials } from "@/lib/finance/reservation-financials"
 import { creditPlatformCommission } from "@/lib/finance/platform-commission"
-import { computePriceBreakdown } from "@/lib/booking/pricing"
+import { computePriceBreakdown, buildFiscalSnapshot } from "@/lib/booking/pricing"
 import {
   activityPartnerBookingSchema,
   validateChildAgesAgainstTariffRules,
@@ -192,6 +192,13 @@ export async function createActivityBooking(
             tndAmount: String(totalTnd),
             depositAmount: String(totalTnd),
             depositPaid: "0",
+            fiscalSnapshot: buildFiscalSnapshot(
+              breakdown,
+              19,
+              "activity",
+              null,
+              "taux_provisoire_19_pct",
+            ),
             providerPayload: {
               activityId: booking.activityId,
               sessionId: booking.sessionId,

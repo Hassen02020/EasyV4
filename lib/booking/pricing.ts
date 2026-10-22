@@ -145,3 +145,99 @@ export function formatMoney(amount: number, currency = "TND"): string {
     maximumFractionDigits: 2,
   })} ${currency}`
 }
+
+// ---------------------------------------------------------------------------
+// Snapshot fiscal — figé au moment de la réservation, jamais recalculé.
+// ---------------------------------------------------------------------------
+
+export type FiscalStatus = "determined" | "exempt" | "out_of_scope" | "pending"
+
+export type FiscalSnapshot = {
+  status: FiscalStatus
+  country: string | null
+  serviceCategory: string | null
+  vatRate: number | null
+  taxBasis: "HT" | "TTC" | null
+  subtotalTnd: number | null
+  vatTnd: number | null
+  totalTnd: number
+  rounding: "round2"
+  taxRuleRef: string | null
+  capturedAt: string
+  fiscalNote: string | null
+}
+
+/** Snapshot à partir d'un PriceBreakdown (base HT connue). */
+export function buildFiscalSnapshot(
+  breakdown: PriceBreakdown,
+  vatRate: number,
+  serviceCategory: string,
+  taxRuleRef: string | null,
+  fiscalNote: string | null = null,
+): FiscalSnapshot {
+  return {
+    status: "determined",
+    country: "TN",
+    serviceCategory,
+    vatRate,
+    taxBasis: "HT",
+    subtotalTnd: breakdown.subtotalTnd,
+    vatTnd: breakdown.vatTnd,
+    totalTnd: breakdown.totalTnd,
+    rounding: "round2",
+    taxRuleRef,
+    capturedAt: new Date().toISOString(),
+    fiscalNote,
+  }
+}
+
+/**
+ * Snapshot à partir d'un TTC connu (promo B2C — HT/TVA déduits).
+ * Garantit que subtotalTnd + vatTnd === totalTnd (arrondi centimes).
+ */
+export function buildFiscalSnapshotFromTtc(
+  totalTnd: number,
+  vatRate: number,
+  serviceCategory: string,
+  taxRuleRef: string | null,
+  fiscalNote: string | null = null,
+): FiscalSnapshot {
+  const subtotalTnd = round2(totalTnd / (1 + vatRate / 100))
+  const vatTnd = round2(totalTnd - subtotalTnd)
+  return {
+    status: "determined",
+    country: "TN",
+    serviceCategory,
+    vatRate,
+    taxBasis: "TTC",
+    subtotalTnd,
+    vatTnd,
+    totalTnd,
+    rounding: "round2",
+    taxRuleRef,
+    capturedAt: new Date().toISOString(),
+    fiscalNote,
+  }
+}
+
+/** Snapshot en attente — voitures, transferts, vols (taux non encore déterminé). */
+export function buildPendingFiscalSnapshot(
+  totalTnd: number,
+  serviceCategory: string,
+  fiscalNote: string,
+): FiscalSnapshot {
+  return {
+    status: "pending",
+    country: "TN",
+    serviceCategory,
+    vatRate: null,
+    taxBasis: null,
+    subtotalTnd: null,
+    vatTnd: null,
+    totalTnd,
+    rounding: "round2",
+    taxRuleRef: null,
+    capturedAt: new Date().toISOString(),
+    fiscalNote,
+  }
+}

@@ -21,7 +21,6 @@ import { debitPartnerCredit } from "@/lib/pro/booking-actions"
 import { getMarginsForAgency } from "@/lib/pro/server-context"
 import { applyMargin } from "@/lib/pro/pricing"
 import { applyHotelCommercialEngine } from "@/lib/hotels/commercial-engine"
-import { generateInvoiceForReservation } from "@/lib/finance/invoice-actions"
 import { recordReservationFinancials } from "@/lib/finance/reservation-financials"
 import { recordReservationTransition } from "@/lib/admin/reservation-status-history"
 import { creditPlatformCommission } from "@/lib/finance/platform-commission"
@@ -896,28 +895,8 @@ export async function createReservationFromDraft(input: {
       })
     }
 
-    // --- Facture (hors transaction) --- La réservation et le débit sont déjà
-    // commités : un échec de facturation ne doit jamais invalider une
-    // réservation payée. Régénérable plus tard (idempotent) si besoin.
-    try {
-      const invoiceResult = await generateInvoiceForReservation({
-        agencyId: result.agencyId,
-        reservationId: result.reservationId,
-        actorUserId: authUserId,
-      })
-      if (!invoiceResult.ok) {
-        console.error(
-          "[booking] génération facture échouée",
-          invoiceResult.error,
-        )
-      }
-    } catch (err) {
-      console.error(
-        "[booking] génération facture échouée",
-        err instanceof Error ? err.message : String(err),
-      )
-    }
-
+    // Facture générée via step.run("generate-invoice") dans processConfirmedBooking
+    // (CAS-C) — garantie Inngest, idempotente, pas de fire-and-forget ici.
     return {
       ok: true,
       reservationId: result.reservationId,

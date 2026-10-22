@@ -13,6 +13,7 @@
 import { inngest, type Events } from "../client"
 import { renderVoucherPdf } from "@/lib/pdf/voucher-hotel"
 import { sendVoucherEmail } from "@/lib/email/send-voucher"
+import { generateInvoiceForReservation } from "@/lib/finance/invoice-actions"
 import { withSystemContext } from "@/lib/db/tenant-context"
 import {
   auditEvents,
@@ -98,8 +99,10 @@ export const processConfirmedBooking = inngest.createFunction(
   },
   async ({
     event,
+    step,
   }: {
     event: { data: Events["booking/confirmed"]["data"] }
+    step: { run: <T>(name: string, fn: () => Promise<T>) => Promise<T> }
   }) => {
     const {
       reservationId,
@@ -161,6 +164,26 @@ export const processConfirmedBooking = inngest.createFunction(
     )
 
     await recordVoucherEmailSent(agencyId, reservationId, publicRef)
+
+    // CAS-C — génération facture garantie : déplacée depuis l'appel
+    // fire-and-forget post-commit dans les actions (booking/actions.ts,
+    // guest-actions.ts). step.run persiste le checkpoint côté Inngest ;
+    // un retry après crash ne crée pas de doublon (idempotence DB).
+    await step.run("generate-invoice", async () => {
+      const result = await generateInvoiceForReservation({
+        agencyId,
+        reservationId,
+        actorUserId: "",
+      })
+      if (!result.ok) {
+        console.error("[process-confirmed-booking] génération facture échouée", {
+          reservationId,
+          publicRef,
+          error: result.error,
+        })
+      }
+      return result
+    })
 
     return { success: true, reservationId, publicRef }
   },

@@ -12,8 +12,7 @@
  *   - Historisation comptable (audit)
  *
  * Ne crée PAS de deuxième moteur de wallet/débit/réservation générique —
- * réutilise `debitPartnerCredit`, `reservations`, `payments`,
- * `generateInvoiceForReservation` tels quels.
+ * réutilise `debitPartnerCredit`, `reservations`, `payments` tels quels.
  */
 
 "use server"
@@ -34,7 +33,6 @@ import {
 } from "@/lib/db/schema"
 import { debitPartnerCredit } from "@/lib/pro/booking-actions"
 import { calculateCarPrice } from "./pricing"
-import { generateInvoiceForReservation } from "@/lib/finance/invoice-actions"
 import { recordReservationFinancials } from "@/lib/finance/reservation-financials"
 import { creditPlatformCommission } from "@/lib/finance/platform-commission"
 import { recordReservationTransition } from "@/lib/admin/reservation-status-history"
@@ -474,26 +472,9 @@ export async function createCarBooking(
       return { ok: false, error: outcome.error }
     }
 
-    // --- Facture (hors transaction) --- Réservation + débit déjà commités ;
-    // un échec de facturation ne doit jamais invalider une réservation payée.
-    try {
-      const invoiceResult = await generateInvoiceForReservation({
-        agencyId: outcome.result.agencyId,
-        reservationId: outcome.result.reservationId,
-        actorUserId: outcome.result.createdByUserId,
-      })
-      if (!invoiceResult.ok) {
-        console.error("[cars] génération facture échouée", invoiceResult.error)
-      }
-    } catch (err) {
-      console.error(
-        "[cars] génération facture échouée",
-        err instanceof Error ? err.message : String(err),
-      )
-    }
-
     // CAR-VOUCHER-01 — envoi email + PDF en arrière-plan (Inngest, fire-and-forget).
-    // Pas de await : un échec d'envoi ne doit jamais bloquer la confirmation B2B.
+    // CAS-C : sendEvent en premier pour que step.run("generate-invoice") dans
+    // processCarConfirmed prenne le relais si le process tombe avant la facturation.
     sendEvent("booking/car.confirmed", {
       reservationId: outcome.result.reservationId,
       publicRef: outcome.result.publicRef,

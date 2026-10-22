@@ -23,6 +23,7 @@ import { and, eq } from "drizzle-orm"
 import { makeOnFailure } from "@/lib/inngest/on-failure"
 import { pgErrorCode } from "@/lib/db/pg-error"
 import { Resend } from "resend"
+import { generateInvoiceForReservation } from "@/lib/finance/invoice-actions"
 
 const ACTION_CAR_VOUCHER_SENT = "notification.car_voucher_email.sent"
 
@@ -88,8 +89,10 @@ export const processCarConfirmed = inngest.createFunction(
   },
   async ({
     event,
+    step,
   }: {
     event: { data: Events["booking/car.confirmed"]["data"] }
+    step: { run: <T>(name: string, fn: () => Promise<T>) => Promise<T> }
   }) => {
     const d = event.data
 
@@ -201,6 +204,23 @@ export const processCarConfirmed = inngest.createFunction(
     )
 
     await recordCarVoucherSent(d.agencyId, d.reservationId, d.publicRef)
+
+    // CAS-C — facture garantie via step.run (déplacée depuis cars/actions.ts).
+    await step.run("generate-invoice", async () => {
+      const result = await generateInvoiceForReservation({
+        agencyId: d.agencyId,
+        reservationId: d.reservationId,
+        actorUserId: "",
+      })
+      if (!result.ok) {
+        console.error("[process-car-confirmed] génération facture échouée", {
+          reservationId: d.reservationId,
+          publicRef: d.publicRef,
+          error: result.error,
+        })
+      }
+      return result
+    })
 
     return {
       success: true,

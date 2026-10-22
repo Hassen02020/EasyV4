@@ -22,6 +22,7 @@ import { withSystemContext } from "@/lib/db/tenant-context"
 import { reservationTransfer } from "@/lib/db/schema"
 import { eq } from "drizzle-orm"
 import { makeOnFailure } from "@/lib/inngest/on-failure"
+import { generateInvoiceForReservation } from "@/lib/finance/invoice-actions"
 
 export const processTransferConfirmed = inngest.createFunction(
   {
@@ -137,6 +138,26 @@ export const processTransferConfirmed = inngest.createFunction(
       )
 
       return { sent: true, sid: result?.sid }
+    })
+
+    // CAS-C — facture garantie via step.run (déplacée depuis transfers/actions.ts).
+    await step.run("generate-invoice", async () => {
+      const result = await generateInvoiceForReservation({
+        agencyId: d.agencyId,
+        reservationId: d.reservationId,
+        actorUserId: "",
+      })
+      if (!result.ok) {
+        console.error(
+          "[process-transfer-confirmed] génération facture échouée",
+          {
+            reservationId: d.reservationId,
+            publicRef: d.publicRef,
+            error: result.error,
+          },
+        )
+      }
+      return result
     })
 
     return { reservationId: d.reservationId }

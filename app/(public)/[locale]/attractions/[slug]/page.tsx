@@ -34,7 +34,10 @@ import { ProductReviewsSection } from "@/components/reviews/product-reviews-sect
 import { ProductMediaGallery } from "@/components/products/product-media-gallery"
 import { getProductMedia } from "@/lib/media/query"
 import { buildLanguageAlternates } from "@/lib/seo/alternate-languages"
-import { getCrossSellActivities } from "@/lib/destinations/cross-sell"
+import {
+  getCrossSellActivities,
+  getCrossSellNetworkActivities,
+} from "@/lib/destinations/cross-sell"
 import { NearbyActivities } from "@/components/attractions/nearby-activities"
 
 function formatDate(d: string | Date | null, intlLocale: string): string {
@@ -150,8 +153,11 @@ export default async function ActivityDetailPage({
   const intlLocale = getIntlLocale(locale)
 
   const nearbyActivities = activity.location
-    ? (await getCrossSellActivities(activity.location)).filter(
-        (a) => a.id !== activity.id,
+    ? await Promise.all([
+        getCrossSellActivities(activity.location),
+        getCrossSellNetworkActivities(activity.location),
+      ]).then(([catalog, network]) =>
+        [...catalog, ...network].filter((a) => a.id !== activity.id),
       )
     : []
 

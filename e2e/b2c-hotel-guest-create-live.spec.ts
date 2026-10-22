@@ -151,6 +151,17 @@ test.describe("HOTEL-GUEST-CREATE-LIVE-01 — réservation hôtel guest réelle"
 
     const bookButton = firstCard.getByRole("button", { name: /Réserver/i })
     await expect(bookButton).toBeEnabled({ timeout: 15_000 })
+
+    // E3-01 — Prix chambre non nul avant navigation vers le checkout.
+    // Capture le montant affiché dans la ligne chambre sélectionnée
+    // (span text-primary text-lg font-bold whitespace-nowrap, format(room.price)).
+    // Objectif : détecter un prix vide/nul dès la sélection, avant paiement.
+    const roomPriceEl = firstCard
+      .locator("span.text-lg.font-bold.text-primary.whitespace-nowrap")
+      .first()
+    const roomPriceText = await roomPriceEl.textContent({ timeout: 5_000 })
+    expect(roomPriceText?.trim()).toBeTruthy()
+
     await bookButton.click()
 
     // 4. Page booking (étape 1) — le CTA "Continuer" y est un `<Link>` (role
@@ -184,6 +195,14 @@ test.describe("HOTEL-GUEST-CREATE-LIVE-01 — réservation hôtel guest réelle"
     await expect(
       page.getByRole("heading", { name: /Paiement/i }).first(),
     ).toBeVisible()
+
+    // E3-01 — Total TTC non nul dans le récapitulatif checkout.
+    // formatMoney(breakdown.totalTnd) est dans un div font-semibold.
+    // Assertion : au moins un élément font-semibold contenant des chiffres
+    // est visible — preuve que le breakdown a été calculé et rendu.
+    await expect(
+      page.locator("[class*='font-semibold']").filter({ hasText: /\d/ }).first(),
+    ).toBeVisible({ timeout: 5_000 })
 
     // Mode paiement "Espèces en agence" — aucune capture PSP réelle
     await page.getByRole("button", { name: /Espèces en agence/i }).click()

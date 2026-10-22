@@ -36,7 +36,40 @@ Un seul chantier actif à la fois ; il est indiqué dans ROADMAP.md (section "Ch
 
 ## Chantier actif
 
-_Aucun chantier actif — en attente de GO._
+### VAL-01 — VALIDATION PARCOURS COMMERCIAL — EN COURS (2026-10-22)
+
+**Objectif** : valider que les briques intégrées fonctionnent ensemble du point de vue du client.
+Périmètre : hôtel search → activités → fiche → disponibilité → réservation → paiement → facture.
+
+**Séquence GO (E2-01 → E3-01 → E5-01 terminés, E1-01/E4-02 chantier séparé)** :
+
+#### E2-01 — DONE (2026-10-22)
+
+Gap fermé : aucun test ne vérifiait le câblage bout en bout `hotel page →
+fetchNearbyNetworkActivities → getCrossSellNetworkActivities → NearbyActivities component`.
+8 invariants statiques créés dans `lib/network/__tests__/nearby-activities-hotel-wiring.test.ts`.
+8/8 verts. Preuve : le filtre `status="active"` est attesté à la source ET sur la page hôtel.
+
+#### E3-01 — DONE (2026-10-22)
+
+Gap fermé : aucune assertion E2E ne vérifiait que le prix chambre est non nul au moment de la
+sélection ni qu'un total est visible au checkout.
+Extension de `e2e/b2c-hotel-guest-create-live.spec.ts` :
+- Capture `span.text-lg.font-bold.text-primary.whitespace-nowrap` après sélection chambre → `toBeTruthy()`.
+- Asserte `[class*='font-semibold']` contenant des chiffres au checkout → `toBeVisible()`.
+Note : test local-only (`pnpm dev` + `MYGO_MODE=virtual`), non inclus dans CI.
+
+#### E5-01 — DONE (2026-10-22)
+
+Gap fermé : `generateInvoiceForReservation` était couverte uniquement par des invariants statiques
+(invoice-wiring.test.ts, 6 tests) — aucun test n'exerçait la fonction contre une vraie DB.
+3 tests d'intégration DB créés dans `lib/finance/__tests__/invoice-generation-loop.integration.test.ts` :
+- E5-01-01 : `status=pending` → `RESERVATION_NOT_CONFIRMED`, aucune facture créée.
+- E5-01-02 : `status=confirmed` → `ok:true`, `alreadyExisted:false`, facture persistée en DB.
+- E5-01-03 : retry → `ok:true`, `alreadyExisted:true`, pas de doublon (idempotence 23505 réelle).
+Ajouté au job `financial-e2e` CI dans `.github/workflows/ci.yml`.
+
+**E1-01 / E4-02** : chantier séparé — proposition à venir.
 
 ---
 

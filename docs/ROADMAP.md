@@ -36,6 +36,43 @@ Un seul chantier actif à la fois ; il est indiqué dans ROADMAP.md (section "Ch
 
 ## Chantier actif
 
+### CAS-C — INVOICE STEP.RUN — PR OUVERTE — TESTED / READY FOR PRODUCTION — AWAITING MERGE
+
+Branche `claude/easy2book-v6-modernization-7gyb5v` — commit `2fe5bce` — 2026-10-22.
+
+`generateInvoiceForReservation` déplacé depuis les appels fire-and-forget post-commit
+dans les actions serveur vers `step.run("generate-invoice")` dans chaque fonction Inngest
+concernée. Garantie d'exécution (checkpoint persistant, retry automatique, idempotence DB).
+20/20 tests d'invariant statiques verts. TypeScript clean.
+
+NOT VERIFIED : déploiement production.
+
+---
+
+### CAS-C — DÉTAIL CHANTIER (2026-10-22)
+
+**Problème** : `generateInvoiceForReservation` appelé en fire-and-forget post-commit
+dans chaque action → crash process entre commit DB et appel → facture manquante.
+Récupérable manuellement, mais risque systémique.
+
+**Fix** : déplacement dans `step.run("generate-invoice")` dans les fonctions Inngest
+correspondantes. `step.run` persiste un checkpoint côté Inngest ; retry automatique si
+crash ; idempotence garantie par la contrainte `partner_invoices_reservation_uniq`.
+
+**Modules couverts** :
+- `booking/confirmed` → `process-confirmed-booking.ts` (hôtel B2B + B2C)
+- `booking/omra.confirmed` → `process-omra-confirmed.ts`
+- `booking/package.confirmed` → `process-package-confirmed.ts`
+- `booking/transfer.confirmed` → `process-transfer-confirmed.ts`
+- `booking/car.confirmed` → `process-car-confirmed.ts` (sendEvent reordonné avant invoice)
+
+**Hors scope** : Packages B2B, Network guest, Transfers guest, Paiement manuel.
+
+**Tests** : `lib/inngest/functions/__tests__/invoice-step-invariants.test.ts` — 20/20.
+**Build** : TypeScript clean. Aucune migration DB.
+
+---
+
 ### CAS-B-PUBLIC-REF-LOCK-01 — PR #249 OUVERTE — TESTED / READY FOR PRODUCTION — AWAITING MERGE
 
 Branche `claude/easy2book-v6-modernization-7gyb5v` — commit `ca8e284` — 2026-10-22.

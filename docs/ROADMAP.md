@@ -36,11 +36,37 @@ Un seul chantier actif à la fois ; il est indiqué dans ROADMAP.md (section "Ch
 
 ## Chantier actif
 
-_NETWORK-CROSSSELL-01 — PR #247 OUVERTE (commit `666529c`, 2026-10-22) — TESTED / READY FOR PRODUCTION — AWAITING MERGE. En attente du merge Direction puis clôture._
+_Aucun. En attente du prochain GO Direction._
 
 ---
 
-### NETWORK-CROSSSELL-01 — TESTED / READY FOR PRODUCTION — PR #247 OUVERTE (2026-10-22)
+### CAS-B-PUBLIC-REF-LOCK-01 — CLÔTURÉ (2026-10-22)
+
+Extension de `pg_advisory_xact_lock` (déjà en production dans Mutuelle,
+`MUTUELLE-CONCURRENCY-COMPLETE-01`) aux 6 fonctions `nextPublicRef()` restantes :
+`TG-` (hôtels B2B/B2C + Network + Vols), `OM-` (Omra), `CR-` (Cars B2B + B2C),
+`TR-` (Transfers B2B + B2C). 18/18 tests d'invariant statiques verts, Prettier OK,
+TypeScript clean. Aucune migration DB.
+
+**Fichiers** : `lib/booking/actions.ts`, `lib/omra/booking-actions.ts`,
+`lib/cars/actions.ts`, `lib/cars/guest-booking-actions.ts`,
+`lib/transfers/actions.ts`, `lib/transfers/guest-booking-actions.ts`,
+`lib/booking/__tests__/public-ref-concurrency.test.ts` (nouveau).
+
+**Preuves de fusion** :
+
+- Branche : `claude/easy2book-v6-modernization-7gyb5v`
+- SHA head fusionné : `071bede`
+- Merge commit `main` : `dd0ed31d10fea39adf67930abf9124ae1362a613d4`
+- PR : #249 — fusionnée par Direction (`Hassen02020`) le 2026-10-22T21:06:53+01:00
+- 7 fichiers, 107 insertions
+
+**NOT VERIFIED** : déploiement production (après déploiement Vercel `easy2book-new`
+suite aux 3 merges du 2026-10-22).
+
+---
+
+### NETWORK-CROSSSELL-01 — CLÔTURÉ (2026-10-22)
 
 **Objectif** : exposer les activités Network (`products.type='activity'`) en cross-sell sur les fiches destination, attraction et hôtel.
 
@@ -68,13 +94,14 @@ _NETWORK-CROSSSELL-01 — PR #247 OUVERTE (commit `666529c`, 2026-10-22) — TES
 - Prix : `getMarginsForAgency + applyMargin` (jamais un taux inventé — règle CURRENCY-DIM-01a) ✓
 - Sécurité réservation hôtel : `guest-booking-actions.ts` et `product-booking-actions.ts` NON touchés — garde `network_product_node_is_active()` intacte ✓
 
-**CI sur commit `666529c`** (en cours au moment de la mise à jour ROADMAP) :
+**CI** : typecheck ✓ | lint ✓ | test ✓ | build ✓ | financial-e2e ✓ | playwright-a11y ✓ | format ✓
 
-- typecheck ✓ | lint ✓ | test ✓ | build ✓ | financial-e2e ✓ | playwright-a11y ✓
-- format : ✓ (corrigé par `666529c`)
+**Preuves de fusion** :
 
-**Branche** : `claude/network-crosssell-01`
-**PR** : #247 — https://github.com/Hassen02020/EasyV4/pull/247
+- Branche : `claude/network-crosssell-01`
+- SHA head fusionné : `666529c`
+- Merge commit `main` : `f218d9ed28a00b9f7ce69fcd7e725745d2895e52`
+- PR : #247 — fusionnée par Direction (`Hassen02020`) le 2026-10-22T21:06:12+01:00
 
 **NOT VERIFIED** : parcours navigateur réel (nécessite DB + partenaire Network actif avec produit activité) — à valider par la Direction post-merge.
 

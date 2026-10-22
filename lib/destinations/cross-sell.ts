@@ -16,18 +16,35 @@
  * fonction ici ne les concerne.
  */
 
-import { and, eq, gte, ilike, inArray, arrayContains, sql } from "drizzle-orm"
-import { withPublicAgencyContext } from "@/lib/db/tenant-context"
+import {
+  and,
+  eq,
+  gte,
+  ilike,
+  inArray,
+  isNotNull,
+  or,
+  arrayContains,
+  sql,
+} from "drizzle-orm"
+import {
+  withPublicAgencyContext,
+  withSystemContext,
+} from "@/lib/db/tenant-context"
 import {
   catalogPackages,
   catalogPackageDepartures,
   catalogActivities,
   catalogActivitySessions,
+  products,
+  supplierNodes,
 } from "@/lib/db/schema"
 import { getDefaultAgencyId } from "@/lib/agencies/default-agency"
 import { getCoverMediaForProducts } from "@/lib/media/query"
 import { PACKAGE_DESTINATION_SEARCH_TERMS } from "@/lib/destinations/package-search-terms"
 import { listReviewSummariesForProductsCore } from "@/lib/reviews/reviews-core"
+import { getMarginsForAgency } from "@/lib/pro/server-context"
+import { applyMargin } from "@/lib/pro/pricing"
 
 export { PACKAGE_DESTINATION_SEARCH_TERMS }
 
@@ -127,6 +144,8 @@ export async function getCrossSellPackages(
 export interface CrossSellActivity {
   id: string
   slug: string
+  /** Overrides the default /attractions/[slug] link — used for Network products (/network/[id]). */
+  href?: string
   title: string
   coverUrl: string | null
   durationMinutes: number | null
@@ -150,7 +169,7 @@ export async function getCrossSellActivities(
             eq(catalogActivities.status, "published"),
             eq(catalogActivities.agencyId, agencyId),
             arrayContains(catalogActivities.channels, ["b2c"]),
-            ilike(catalogActivities.location, destinationName),
+            ilike(catalogActivities.location, `%${destinationName}%`),
           ),
         )
         .orderBy(catalogActivities.title)
@@ -206,6 +225,71 @@ export async function getCrossSellActivities(
           (reviewByActivity[a.id]?.average ?? 0),
       )
       return mapped
+    })
+  } catch {
+    return []
+  }
+}
+
+/**
+ * Produits Network (type='activity', status='active') dont la ville ou la
+ * destination correspond au nom de la destination courante.
+ *
+ * Source séparée de getCrossSellActivities (catalog OTA) : les produits
+ * Network viennent de `products` + `supplier_nodes` via withSystemContext,
+ * jamais de catalog_activities. Les deux sources renvoient la même interface
+ * CrossSellActivity — les appelants les concatènent.
+ *
+ * Admissibilité : supplier_nodes.onboardingStatus = 'active' —
+ * même garde que NETWORK-ADMISSIBILITY-GAP-01 (PR #246), câblée ici
+ * indépendamment (pas de dépendance au merge de la PR).
+ *
+ * Prix : getMarginsForAgency + applyMargin (module "network") —
+ * jamais un taux de repli inventé (règle permanente CURRENCY-DIM-01a).
+ */
+export async function getCrossSellNetworkActivities(
+  cityOrDestination: string,
+): Promise<CrossSellActivity[]> {
+  if (!cityOrDestination.trim()) return []
+  try {
+    const agencyId = await getDefaultAgencyId()
+    if (!agencyId) return []
+    const margins = await getMarginsForAgency(agencyId, "", "direct")
+    const networkMarginRule = margins.network
+    return await withSystemContext(async (db) => {
+      const pattern = `%${cityOrDestination.trim()}%`
+      const rows = await db
+        .select()
+        .from(products)
+        .innerJoin(supplierNodes, eq(products.supplierNodeId, supplierNodes.id))
+        .where(
+          and(
+            eq(products.agencyId, agencyId),
+            eq(products.type, "activity"),
+            eq(products.status, "active"),
+            isNotNull(products.supplierNodeId),
+            isNotNull(products.costPrice),
+            eq(supplierNodes.onboardingStatus, "active"),
+            or(
+              ilike(products.city, pattern),
+              ilike(products.destination, pattern),
+            ),
+          ),
+        )
+        .orderBy(products.name)
+        .limit(6)
+      if (rows.length === 0) return []
+      return rows.map((r) => ({
+        id: r.products.id,
+        slug: r.products.id,
+        href: `/network/${r.products.id}`,
+        title: r.products.name,
+        coverUrl: null,
+        durationMinutes: null,
+        priceFromTnd: r.products.costPrice
+          ? applyMargin(Number(r.products.costPrice), networkMarginRule)
+          : null,
+      }))
     })
   } catch {
     return []

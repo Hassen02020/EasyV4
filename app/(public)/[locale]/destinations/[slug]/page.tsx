@@ -41,6 +41,7 @@ import {
 import {
   getCrossSellPackages,
   getCrossSellActivities,
+  getCrossSellNetworkActivities,
 } from "@/lib/destinations/cross-sell"
 import { DestinationCrossSell } from "@/components/destinations/destination-cross-sell"
 import { buildLanguageAlternates } from "@/lib/seo/alternate-languages"
@@ -135,7 +136,10 @@ export default async function DestinationDetailPage({
     destination.type === "city"
       ? await Promise.all([
           getCrossSellPackages(destination.slug),
-          getCrossSellActivities(destination.name),
+          Promise.all([
+            getCrossSellActivities(destination.name),
+            getCrossSellNetworkActivities(destination.name),
+          ]).then(([catalog, network]) => [...catalog, ...network]),
         ])
       : [[], []]
 

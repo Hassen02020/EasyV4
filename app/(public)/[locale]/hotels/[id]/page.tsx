@@ -52,6 +52,9 @@ import { encodeDraft } from "@/lib/booking/draft-store"
 import { useCurrency } from "@/components/currency-context"
 import { ProductReviewsSectionClient } from "@/components/reviews/product-reviews-section-client"
 import { LeadCaptureForm } from "@/components/leads/lead-capture-form"
+import { NearbyActivities } from "@/components/attractions/nearby-activities"
+import { fetchNearbyNetworkActivities } from "@/lib/network/nearby-activities-action"
+import type { CrossSellActivity } from "@/lib/destinations/cross-sell"
 
 const PLACEHOLDER_IMG = "/images/hotels-banner.svg"
 
@@ -313,6 +316,25 @@ function HotelDetailContent({ id }: { id: string }) {
       : altState.loadedKey !== altRequestKey
         ? "loading"
         : altState.status
+
+  // NETWORK-CROSSSELL-01 — activités Network à proximité (city = cityName
+  // de la fiche hôtel myGo). Appelées via Server Action (page 100% client,
+  // impossible d'importer server-only directement).
+  const [nearbyNetworkActivities, setNearbyNetworkActivities] = useState<
+    CrossSellActivity[]
+  >([])
+
+  const cityName = state.data?.cityName
+  useEffect(() => {
+    if (!cityName) return
+    let active = true
+    fetchNearbyNetworkActivities(cityName).then((acts) => {
+      if (active) setNearbyNetworkActivities(acts)
+    })
+    return () => {
+      active = false
+    }
+  }, [cityName])
 
   const hotel = state.data
   const images = useMemo(() => {
@@ -977,6 +999,8 @@ function HotelDetailContent({ id }: { id: string }) {
             </div>
           </aside>
         </div>
+
+        <NearbyActivities activities={nearbyNetworkActivities} />
 
         <ProductReviewsSectionClient
           module="hotel"

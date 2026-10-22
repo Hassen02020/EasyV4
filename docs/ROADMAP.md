@@ -430,7 +430,7 @@ clients finaux (guest checkout sans compte).
 
 ---
 
-### SENDEVENT-ACTIVITY-B2B-01 — CLOS / READY FOR MERGE (2026-10-17)
+### SENDEVENT-ACTIVITY-B2B-01 — CLÔTURÉ (2026-10-17)
 
 Gap P1 identifié par LAUNCH-E2E-AUDIT-01 : `createActivityBooking` (B2B) ne
 déclenchait pas `sendEvent("booking/activity.confirmed")` → aucun email client
@@ -444,8 +444,26 @@ Changements :
 - `lib/activities/__tests__/activity-b2b-wiring.test.ts` : 12 tests statiques.
 
 Tests : 12/12 nouveaux green, 2613/2613 suite globale, TypeScript clean.
-Commit : `1be49d5` — PR #230.
+Commit : `1be49d5` — **PR #230, merge commit `f709e1d`, mergé 2026-10-17T23:03:07Z par Direction, CI 10/10 ✅**.
 Prérequis infrastructure : ENV-INNGEST-01 + ENV-RESEND-01 (Direction, inchangés).
+
+---
+
+### ACTIVITY-B2C-FRONTEND-01 — CLÔTURÉ (2026-10-18)
+
+Création des 4 pages publiques B2C Attractions (listing, détail, booking, loading)
+manquantes malgré l'infrastructure complète (server action + form + Inngest handler).
+
+Changements :
+
+- `app/(public)/[locale]/activities/page.tsx` : listing paginé, prix "à partir de" depuis sessions réelles, cover media, filtre `arrayContains(channels, ["b2c"])`.
+- `app/(public)/[locale]/activities/loading.tsx` : skeleton `ModulePageSkeleton`.
+- `app/(public)/[locale]/activities/[slug]/page.tsx` : détail complet (galerie, sessions, inclusions/exclusions, sidebar prix + CTA, SEO `generateMetadata`, alternates i18n).
+- `app/(public)/[locale]/activities/[slug]/book/page.tsx` : guest checkout → `ActivityGuestBookingForm`, propagation `?campaign=<uuid>` (CAMPAIGN-LINK-01), `BookingSteps current={2}`.
+- `lib/activities/__tests__/activity-b2c-pages-wiring.test.ts` : 13 invariants ACTIVITY-B2C-PAGES-01..13.
+
+Tests : CI 10/10 ✅ (format, lint, typecheck, test, financial-e2e, build, playwright-a11y, lighthouse, Vercel Preview, Supabase Preview).
+**PR #231, merge commit `5fd9b1f`, mergé 2026-10-18T13:23:36Z par Direction**.
 
 ---
 

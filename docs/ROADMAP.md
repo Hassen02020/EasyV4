@@ -36,7 +36,42 @@ Un seul chantier actif à la fois ; il est indiqué dans ROADMAP.md (section "Ch
 
 ## Chantier actif
 
-_Aucun. En attente du prochain GO Direction._
+### CAS-B-PUBLIC-REF-LOCK-01 — PR #249 OUVERTE — TESTED / READY FOR PRODUCTION — AWAITING MERGE
+
+Branche `claude/easy2book-v6-modernization-7gyb5v` — commit `ca8e284` — 2026-10-22.
+
+Extension de `pg_advisory_xact_lock` (déjà en production dans Mutuelle,
+`MUTUELLE-CONCURRENCY-COMPLETE-01`) aux 6 fonctions `nextPublicRef()` restantes :
+`TG-` (hôtels B2B/B2C + Network + Vols), `OM-` (Omra), `CR-` (Cars B2B + B2C),
+`TR-` (Transfers B2B + B2C). 18/18 tests d'invariant statiques verts, Prettier OK,
+TypeScript clean. Aucune migration DB.
+
+NOT VERIFIED : déploiement production (après merge PR #249 + déploiement Vercel `easy2book-new`).
+
+---
+
+### CAS-B-PUBLIC-REF-LOCK-01 — DÉTAIL CHANTIER (2026-10-22)
+
+**Problème** : `SELECT MAX(publicRef)` non-verrouillant → deux TX concurrentes lisent
+le même MAX avant commit → collision `reservations_public_ref_uniq` (PG 23505) → rollback
+d'une TX → réservation pending → retry directeur (pas de corruption, mais UX dégradée).
+
+**Fix** : `await tx.execute(sql\`SELECT pg_advisory_xact_lock(hashtext(${agencyId + ":" + prefix}))\`)`avant chaque`SELECT MAX` — identique au pattern Mutuelle déjà en production.
+
+**Fichiers** :
+
+- `lib/booking/actions.ts` — `nextPublicRef()` central (TG-)
+- `lib/omra/booking-actions.ts` — local (OM-)
+- `lib/cars/actions.ts` — local (CR-)
+- `lib/cars/guest-booking-actions.ts` — local (CR-)
+- `lib/transfers/actions.ts` — local (TR-)
+- `lib/transfers/guest-booking-actions.ts` — local (TR-)
+- `lib/booking/__tests__/public-ref-concurrency.test.ts` — 18 invariants CAS-B (nouveau)
+
+**Tests** : 18/18 verts (présence verrou, ordre avant MAX, scope `agencyId + ":" + prefix`).
+**Build** : TypeScript clean, Prettier OK, aucune migration DB.
+**Règle** : `EXTEND` — pattern copié depuis Mutuelle, aucune invention.
+**PR** : https://github.com/Hassen02020/EasyV4/pull/249 — CI en cours.
 
 ---
 

@@ -36,16 +36,20 @@ Un seul chantier actif à la fois ; il est indiqué dans ROADMAP.md (section "Ch
 
 ## Chantier actif
 
-### CAS-C — INVOICE STEP.RUN — PR OUVERTE — TESTED / READY FOR PRODUCTION — AWAITING MERGE
+_Aucun chantier actif — en attente de GO._
 
-Branche `claude/easy2book-v6-modernization-7gyb5v` — commit `2fe5bce` — 2026-10-22.
+---
+
+### CAS-C — INVOICE STEP.RUN — DONE (mergé 2026-10-22)
+
+PR #251 mergée sur `main`. Branche `claude/easy2book-v6-modernization-7gyb5v`.
 
 `generateInvoiceForReservation` déplacé depuis les appels fire-and-forget post-commit
 dans les actions serveur vers `step.run("generate-invoice")` dans chaque fonction Inngest
 concernée. Garantie d'exécution (checkpoint persistant, retry automatique, idempotence DB).
 20/20 tests d'invariant statiques verts. TypeScript clean.
 
-NOT VERIFIED : déploiement production.
+NOT VERIFIED : déploiement production Vercel (à confirmer après déploiement `easy2book-new`).
 
 ---
 

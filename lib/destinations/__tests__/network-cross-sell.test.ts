@@ -30,10 +30,7 @@ describe("buildNetworkActivityPattern", () => {
   })
 
   it("trims surrounding whitespace before wrapping", () => {
-    assert.strictEqual(
-      buildNetworkActivityPattern("  Djerba  "),
-      "%Djerba%",
-    )
+    assert.strictEqual(buildNetworkActivityPattern("  Djerba  "), "%Djerba%")
   })
 
   it("preserves internal spaces (multi-word city names)", () => {

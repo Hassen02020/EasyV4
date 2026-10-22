@@ -34,7 +34,6 @@ import {
   withTenantContext,
 } from "@/lib/db/tenant-context"
 import { sendEvent } from "@/lib/inngest/client"
-import { generateInvoiceForReservation } from "@/lib/finance/invoice-actions"
 import { recordReservationTransition } from "@/lib/admin/reservation-status-history"
 import { recordReservationFinancials } from "@/lib/finance/reservation-financials"
 import { creditPlatformCommission } from "@/lib/finance/platform-commission"
@@ -500,24 +499,8 @@ export async function createOmraBooking(
       })
     }
 
-    // --- Facture (hors transaction) --- Réservation + débit déjà commités ;
-    // un échec de facturation ne doit jamais invalider une réservation payée.
-    try {
-      const invoiceResult = await generateInvoiceForReservation({
-        agencyId: result.agencyId,
-        reservationId: result.reservationId,
-        actorUserId: createdByUserId,
-      })
-      if (!invoiceResult.ok) {
-        console.error("[omra] génération facture échouée", invoiceResult.error)
-      }
-    } catch (err) {
-      console.error(
-        "[omra] génération facture échouée",
-        err instanceof Error ? err.message : String(err),
-      )
-    }
-
+    // Facture générée via step.run("generate-invoice") dans processOmraConfirmed
+    // (CAS-C) — garantie Inngest, idempotente, pas de fire-and-forget ici.
     return {
       ok: true,
       reservationId: result.reservationId,

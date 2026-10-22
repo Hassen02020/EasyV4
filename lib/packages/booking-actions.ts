@@ -539,27 +539,8 @@ async function runCreateGuestPackageBooking(
       })
     }
 
-    if (result.status === "confirmed") {
-      try {
-        const invoiceResult = await generateInvoiceForReservation({
-          agencyId,
-          reservationId: result.reservationId,
-          actorUserId: "",
-        })
-        if (!invoiceResult.ok) {
-          console.error(
-            "[package-guest] génération facture échouée",
-            invoiceResult.error,
-          )
-        }
-      } catch (err) {
-        console.error(
-          "[package-guest] génération facture échouée",
-          err instanceof Error ? err.message : String(err),
-        )
-      }
-    }
-
+    // Facture générée via step.run("generate-invoice") dans processPackageConfirmed
+    // (CAS-C) — garantie Inngest pour le chemin guest (status "confirmed" immédiat).
     return {
       ok: true,
       reservationId: result.reservationId,

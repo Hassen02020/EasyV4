@@ -66,7 +66,6 @@ import { applyMargin } from "@/lib/pro/pricing"
 import { applyHotelCommercialEngine } from "@/lib/hotels/commercial-engine"
 import { resolveCheckoutPromoCore } from "@/lib/crm/promo-checkout-core"
 import { applyPromoDiscountCore } from "@/lib/finance/promo-discount-core"
-import { generateInvoiceForReservation } from "@/lib/finance/invoice-actions"
 import { debitCustomerWallet } from "@/lib/finance/customer-wallet"
 import { recordReservationFinancials } from "@/lib/finance/reservation-financials"
 import { creditPlatformCommission } from "@/lib/finance/platform-commission"
@@ -964,28 +963,10 @@ async function runCreateGuestReservation(
       })
     }
 
-    // Facture uniquement pour un règlement réellement capturé maintenant —
-    // jamais pour une réservation `pending` non payée (voir Phase 12 §12).
-    if (result.isImmediatelyPaid) {
-      try {
-        const invoiceResult = await generateInvoiceForReservation({
-          agencyId,
-          reservationId: result.reservationId,
-          actorUserId: "",
-        })
-        if (!invoiceResult.ok) {
-          console.error(
-            "[guest-booking] génération facture échouée",
-            invoiceResult.error,
-          )
-        }
-      } catch (err) {
-        console.error(
-          "[guest-booking] génération facture échouée",
-          err instanceof Error ? err.message : String(err),
-        )
-      }
-    }
+    // Facture générée via step.run("generate-invoice") dans processConfirmedBooking
+    // (CAS-C) — garantie Inngest, uniquement pour les réservations immédiatement
+    // payées (sendEvent("booking/confirmed") conditionné par result.isImmediatelyPaid
+    // juste au-dessus — ligne ~946).
 
     // Réservation réellement créée (et confirmée fournisseur) — le verrou
     // passe en "confirmed" plutôt que "released", tracé jusqu'à la résa finale.

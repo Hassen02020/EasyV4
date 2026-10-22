@@ -9,6 +9,7 @@
 import { inngest, type Events } from "@/lib/inngest/client"
 import { Resend } from "resend"
 import { makeOnFailure } from "@/lib/inngest/on-failure"
+import { generateInvoiceForReservation } from "@/lib/finance/invoice-actions"
 
 export const processOmraConfirmed = inngest.createFunction(
   {
@@ -56,6 +57,23 @@ export const processOmraConfirmed = inngest.createFunction(
         return { sent: false, error: error.message }
       }
       return { sent: true }
+    })
+
+    // CAS-C — facture garantie via step.run (déplacée depuis omra/booking-actions.ts).
+    await step.run("generate-invoice", async () => {
+      const result = await generateInvoiceForReservation({
+        agencyId: d.agencyId,
+        reservationId: d.reservationId,
+        actorUserId: "",
+      })
+      if (!result.ok) {
+        console.error("[process-omra-confirmed] génération facture échouée", {
+          reservationId: d.reservationId,
+          publicRef: d.publicRef,
+          error: result.error,
+        })
+      }
+      return result
     })
 
     return { reservationId: d.reservationId }

@@ -29,7 +29,6 @@ import {
 import { debitPartnerCredit } from "@/lib/pro/booking-actions"
 import { calculateTransferPrice } from "./pricing"
 import { sendEvent } from "@/lib/inngest/client"
-import { generateInvoiceForReservation } from "@/lib/finance/invoice-actions"
 import { recordReservationFinancials } from "@/lib/finance/reservation-financials"
 import { creditPlatformCommission } from "@/lib/finance/platform-commission"
 import { recordReservationTransition } from "@/lib/admin/reservation-status-history"
@@ -426,27 +425,8 @@ export async function createTransferBooking(
       })
     }
 
-    // --- Facture (hors transaction) --- Réservation + débit déjà commités ;
-    // un échec de facturation ne doit jamais invalider une réservation payée.
-    try {
-      const invoiceResult = await generateInvoiceForReservation({
-        agencyId: outcome.result.agencyId,
-        reservationId: outcome.result.reservationId,
-        actorUserId: outcome.result.createdByUserId,
-      })
-      if (!invoiceResult.ok) {
-        console.error(
-          "[transfers] génération facture échouée",
-          invoiceResult.error,
-        )
-      }
-    } catch (err) {
-      console.error(
-        "[transfers] génération facture échouée",
-        err instanceof Error ? err.message : String(err),
-      )
-    }
-
+    // Facture générée via step.run("generate-invoice") dans processTransferConfirmed
+    // (CAS-C) — garantie Inngest, idempotente, pas de fire-and-forget ici.
     return {
       ok: true,
       reservationId: outcome.result.reservationId,

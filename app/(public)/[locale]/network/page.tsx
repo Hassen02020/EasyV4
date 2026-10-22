@@ -5,6 +5,7 @@
  */
 
 import { Link } from "@/i18n/navigation"
+import Image from "next/image"
 import { getTranslations, getLocale } from "next-intl/server"
 import { HeaderWrapper as Header } from "@/components/header-wrapper"
 import { Footer } from "@/components/footer"
@@ -20,6 +21,7 @@ import { getMarginsForAgency } from "@/lib/pro/server-context"
 import { applyMargin } from "@/lib/pro/pricing"
 import { buildLanguageAlternates } from "@/lib/seo/alternate-languages"
 import { paginateOffset } from "@/lib/admin/pagination"
+import { getCoverMediaForProducts } from "@/lib/media/query"
 import { Package2, MapPin, ChevronRight } from "lucide-react"
 import { ModuleHero } from "@/components/module-hero"
 import { getIntlLocale } from "@/lib/i18n-date"
@@ -37,6 +39,7 @@ export const metadata = {
 
 type NetworkProduct = typeof products.$inferSelect & {
   salePriceTnd: number | null
+  coverMediaUrl: string | null
 }
 
 interface NetworkPageResult {
@@ -98,12 +101,22 @@ async function getNetworkProducts(
         },
       })
 
+      // NETWORK-MEDIA-01 — même mécanisme que Omra/Packages (mission §23/§24),
+      // réutilisé tel quel pour ce module (zéro nouveau code de résolution).
+      const coverByProduct = await getCoverMediaForProducts(
+        db,
+        agencyId,
+        "network",
+        rows.map((p) => p.id),
+      )
+
       return {
         items: rows.map((p) => ({
           ...p,
           salePriceTnd: p.costPrice
             ? applyMargin(Number(p.costPrice), networkMarginRule)
             : null,
+          coverMediaUrl: coverByProduct.get(p.id)?.cardUrl ?? null,
         })),
         totalCount: meta.totalCount ?? 0,
         currentPage: meta.currentPage,
@@ -185,8 +198,20 @@ export default async function NetworkPage({
                   href={`/network/${p.id}`}
                   className="group bg-card overflow-hidden rounded-xl border transition-shadow hover:shadow-lg"
                 >
-                  <div className="flex h-32 items-center justify-center bg-gradient-to-br from-sky-800 to-sky-600">
-                    <Package2 className="h-10 w-10 text-white/30" />
+                  <div className="bg-muted relative h-32 w-full">
+                    {p.coverMediaUrl ? (
+                      <Image
+                        src={p.coverMediaUrl}
+                        alt={p.name}
+                        fill
+                        className="object-cover"
+                        sizes="(max-width: 768px) 100vw, 33vw"
+                      />
+                    ) : (
+                      <div className="flex h-full items-center justify-center bg-gradient-to-br from-sky-800 to-sky-600">
+                        <Package2 className="h-10 w-10 text-white/30" />
+                      </div>
+                    )}
                   </div>
                   <div className="p-4">
                     {p.destination && (

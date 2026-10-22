@@ -11,11 +11,12 @@
  * de doublon.
  *
  * Modules couverts :
- *   booking/confirmed      → process-confirmed-booking.ts  (hôtel B2B + B2C)
- *   booking/omra.confirmed → process-omra-confirmed.ts
- *   booking/package.conf.  → process-package-confirmed.ts
- *   booking/transfer.conf. → process-transfer-confirmed.ts
- *   booking/car.confirmed  → process-car-confirmed.ts
+ *   booking/confirmed        → process-confirmed-booking.ts  (hôtel B2B + B2C)
+ *   booking/omra.confirmed   → process-omra-confirmed.ts
+ *   booking/package.conf.    → process-package-confirmed.ts
+ *   booking/transfer.conf.   → process-transfer-confirmed.ts
+ *   booking/car.confirmed    → process-car-confirmed.ts
+ *   booking/flight.confirmed → process-flight-confirmed.ts  (FLIGHTS-INVOICE-GAP)
  *
  * Référence pattern : process-mutuelle-confirmed.ts (déjà corrigé avant CAS-C).
  */
@@ -43,6 +44,10 @@ const FUNCTIONS: Record<string, string> = {
   ),
   "lib/inngest/functions/process-car-confirmed.ts": readFileSync(
     join(process.cwd(), "lib/inngest/functions/process-car-confirmed.ts"),
+    "utf8",
+  ),
+  "lib/inngest/functions/process-flight-confirmed.ts": readFileSync(
+    join(process.cwd(), "lib/inngest/functions/process-flight-confirmed.ts"),
     "utf8",
   ),
 }

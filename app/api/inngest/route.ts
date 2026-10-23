@@ -29,6 +29,9 @@ import {
   processActivityConfirmed,
   processCarConfirmed,
   deliverCampaign,
+  // INNGEST-WALLET-CREDITED-WIRING-01 — même gap : exportée depuis index.ts
+  // mais jamais enregistrée ; aucun email B2C après recharge wallet Paymee.
+  processWalletCustomerCredited,
 } from "@/lib/inngest/functions"
 
 export const { GET, POST, PUT } = serve({
@@ -51,5 +54,6 @@ export const { GET, POST, PUT } = serve({
     processActivityConfirmed,
     processCarConfirmed,
     deliverCampaign,
+    processWalletCustomerCredited,
   ],
 })

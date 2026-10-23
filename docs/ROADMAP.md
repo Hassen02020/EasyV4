@@ -136,6 +136,24 @@ Error("FISCAL_RULE_NOT_FOUND")` si aucune règle active
 
 ## Chantier actif
 
+### FISCAL-OMRA-01 — CLÔTURÉ (2026-10-23)
+
+**Objectif** : connecter les deux chemins de réservation omra au moteur de règles fiscales.
+— B2B (`booking-actions.ts`) : `buildPendingFiscalSnapshot` hardcodé → `getActiveFiscalRuleInTx` + `buildFiscalSnapshotFromTtc` (fail-closed).
+— B2C (`guest-booking-actions.ts`) : `fiscalSnapshot` absent de l'INSERT (NULL) → engine-connected.
+
+**Fichiers** :
+- `lib/omra/booking-actions.ts` — import + appel fail-closed `(TN, omra)` + guard `FISCAL_RULE_NOT_FOUND` + snapshot dans INSERT
+- `lib/omra/guest-booking-actions.ts` — idem (gap identique à hotels-monde avant FISCAL-MONDE-01)
+- `lib/omra/__tests__/fiscal-wiring.test.ts` — 15 invariants statiques (7 B2B + 8 B2C incluant absence buildPendingFiscalSnapshot)
+- `lib/finance/__tests__/fiscal-rules.test.ts` — T8 mis à jour (engine-connected vs pending hardcodé)
+
+**Résultats** : 15/15 invariants verts. `pnpm test` : 2760 pass / 0 fail. TypeScript 0 erreurs.
+**Non-régression** : règle `(TN, *, 19 %)` couvre `omra` via wildcard 4-passes — `FISCAL_RULE_NOT_FOUND` impossible en prod.
+**Commit** : `456bb87` · Branche : `claude/easy2book-v6-modernization-7gyb5v` · PR : #254
+
+---
+
 ### RLS-FISCAL-RULES-01 — CLÔTURÉ (2026-10-23)
 
 **Objectif** : activer RLS sur `fiscal_rules` + corriger le garde de `listFiscalRules`

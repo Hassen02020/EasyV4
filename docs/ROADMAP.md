@@ -136,6 +136,19 @@ Error("FISCAL_RULE_NOT_FOUND")` si aucune règle active
 
 ## Chantier actif
 
+### INNGEST-WALLET-CREDITED-WIRING-01 — CLÔTURÉ (2026-10-23)
+
+**Objectif** : enregistrer `processWalletCustomerCredited` dans `app/api/inngest/route.ts`. La fonction était exportée depuis `lib/inngest/functions/index.ts` depuis la création de B2C-WALLET-EMAIL-01, mais jamais présente dans le tableau `functions[]`. Inngest cloud l'ignorait silencieusement — aucun email de confirmation n'était envoyé aux clients B2C après une recharge wallet via Paymee.
+
+**Changements** :
+
+- `app/api/inngest/route.ts` [EXTEND] — +1 import `processWalletCustomerCredited`, +1 entrée dans `functions[]`
+- `lib/finance/__tests__/b2c-wallet-email-wiring.test.ts` [EXTEND] — +2 invariants (11, 12) vérifiant l'import et la présence dans `functions[]` de `route.ts`
+
+**Preuves** : 12/12 invariants B2C-WALLET-EMAIL-01 verts, typecheck 0 erreur, lint 0 erreur, commit `6ed54ac`, branche `claude/easy2book-v6-modernization-7gyb5v`.
+
+---
+
 ### INNGEST-ROUTE-WIRING-GAP-01 — CLÔTURÉ (2026-10-23)
 
 **Objectif** : enregistrer les 4 fonctions Inngest exportées depuis `lib/inngest/functions/index.ts` mais jamais présentes dans le tableau `functions` de `app/api/inngest/route.ts`. Sans enregistrement, Inngest cloud les ignore silencieusement — aucun email de confirmation Packages/Activities/Voiture, aucune livraison CRM.

@@ -60,6 +60,7 @@ correspondantes. `step.run` persiste un checkpoint côté Inngest ; retry automa
 crash ; idempotence garantie par la contrainte `partner_invoices_reservation_uniq`.
 
 **Modules couverts** :
+
 - `booking/confirmed` → `process-confirmed-booking.ts` (hôtel B2B + B2C)
 - `booking/omra.confirmed` → `process-omra-confirmed.ts`
 - `booking/package.confirmed` → `process-package-confirmed.ts`

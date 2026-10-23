@@ -237,12 +237,20 @@ async function runCreateGuestPackageBooking(
         const unitChildPriceTnd = departure.childPriceTnd
           ? parseFloat(departure.childPriceTnd)
           : undefined
+        const fiscalRule = await getActiveFiscalRuleInTx(
+          tx,
+          "TN",
+          "package",
+          new Date(),
+        )
+        if (!fiscalRule) throw new Error("FISCAL_RULE_NOT_FOUND")
         const breakdownBeforePromo = computePriceBreakdown({
           unitPriceTnd,
           adults: booking.adults,
           children: booking.children,
           unitChildPriceTnd,
           depositPercent: departure.depositPercent,
+          vatRate: parseFloat(fiscalRule.vatRate),
         })
 
         // --- Garde anti-drift de prix (CART-DRIFT-01) ---
@@ -363,13 +371,6 @@ async function runCreateGuestPackageBooking(
 
         // --- 4. Réservation ---
         const publicRef = await nextPackagePublicRef(tx, agencyId)
-        const fiscalRule = await getActiveFiscalRuleInTx(
-          tx,
-          "TN",
-          "package",
-          new Date(),
-        )
-        if (!fiscalRule) throw new Error("FISCAL_RULE_NOT_FOUND")
         const [reservation] = await tx
           .insert(reservations)
           .values({
@@ -682,12 +683,20 @@ export async function createPackageBooking(
         const unitChildPriceTnd = departure.childPriceTnd
           ? parseFloat(departure.childPriceTnd)
           : undefined
+        const fiscalRuleB2B = await getActiveFiscalRuleInTx(
+          tx,
+          "TN",
+          "package",
+          new Date(),
+        )
+        if (!fiscalRuleB2B) throw new Error("FISCAL_RULE_NOT_FOUND")
         const breakdown = computePriceBreakdown({
           unitPriceTnd,
           adults: booking.adults,
           children: booking.children,
           unitChildPriceTnd,
           depositPercent: 100,
+          vatRate: parseFloat(fiscalRuleB2B.vatRate),
         })
         const totalTnd = breakdown.totalTnd
 
@@ -705,13 +714,6 @@ export async function createPackageBooking(
         const customerId = customer.id
 
         const publicRef = await nextPackagePublicRef(tx, agencyId)
-        const fiscalRuleB2B = await getActiveFiscalRuleInTx(
-          tx,
-          "TN",
-          "package",
-          new Date(),
-        )
-        if (!fiscalRuleB2B) throw new Error("FISCAL_RULE_NOT_FOUND")
         const [reservation] = await tx
           .insert(reservations)
           .values({

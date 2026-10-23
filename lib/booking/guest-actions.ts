@@ -62,7 +62,7 @@ import {
   priceDrifted,
   buildFiscalSnapshot,
 } from "./pricing"
-import { getActiveFiscalRuleInTx } from "@/lib/finance/fiscal-rules"
+import { getActiveFiscalRule, getActiveFiscalRuleInTx } from "@/lib/finance/fiscal-rules"
 import { confirmHotelWithProvider, nextPublicRef } from "./actions"
 import { authoritativeUnitPrice } from "./hotel-provider-booking"
 import { getDefaultAgencyId } from "@/lib/agencies/default-agency"
@@ -388,10 +388,13 @@ async function runCreateGuestReservation(
   const agencyPriceBeforePromo = commercialResultB2C
     ? commercialResultB2C.sellingAmount
     : applyMargin(myGoBooking.totalPrice, hotelMarginRule)
+  const fiscalRuleForBreakdown = await getActiveFiscalRule("TN", "hotel", new Date())
+  if (!fiscalRuleForBreakdown) throw new Error("FISCAL_RULE_NOT_FOUND")
   const breakdownBeforePromo = computePriceBreakdown({
     ...authoritativeUnitPrice(agencyPriceBeforePromo, draft.adults),
     adults: draft.adults,
     children: draft.children,
+    vatRate: parseFloat(fiscalRuleForBreakdown.vatRate),
   })
 
   // --- Garde anti-drift de prix (CART-DRIFT-01) ---
@@ -464,6 +467,7 @@ async function runCreateGuestReservation(
           ...authoritativeUnitPrice(agencyPrice, draft.adults),
           adults: draft.adults,
           children: draft.children,
+          vatRate: parseFloat(fiscalRuleForBreakdown.vatRate),
         })
 
   const hotelStartDate = new Date(draft.startDate)

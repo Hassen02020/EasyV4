@@ -16,7 +16,7 @@ import {
 import type { BookingDraft, TravelerInput } from "./schemas"
 import { bookingDraftSchema, travelerSchemaWithIdRule } from "./schemas"
 import { computePriceBreakdown, buildFiscalSnapshot } from "./pricing"
-import { getActiveFiscalRuleInTx } from "@/lib/finance/fiscal-rules"
+import { getActiveFiscalRule, getActiveFiscalRuleInTx } from "@/lib/finance/fiscal-rules"
 import { decodeDraft } from "./draft-store"
 import { debitPartnerCredit } from "@/lib/pro/booking-actions"
 import { getMarginsForAgency } from "@/lib/pro/server-context"
@@ -518,10 +518,13 @@ export async function createReservationFromDraft(input: {
     ? commercialResult.sellingAmount
     : applyMargin(myGoBooking.totalPrice, hotelMarginRule)
 
+  const fiscalRuleForBreakdown = await getActiveFiscalRule("TN", "hotel", new Date())
+  if (!fiscalRuleForBreakdown) throw new Error("FISCAL_RULE_NOT_FOUND")
   const breakdown = computePriceBreakdown({
     ...authoritativeUnitPrice(agencyHotelPrice, draft.adults),
     adults: draft.adults,
     children: draft.children,
+    vatRate: parseFloat(fiscalRuleForBreakdown.vatRate),
   })
 
   try {

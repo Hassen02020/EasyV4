@@ -244,12 +244,20 @@ async function runCreateGuestActivityBooking(
         const unitChildPriceTnd = session.childPriceTnd
           ? parseFloat(session.childPriceTnd)
           : undefined
+        const fiscalRule = await getActiveFiscalRuleInTx(
+          tx,
+          "TN",
+          "activity",
+          new Date(),
+        )
+        if (!fiscalRule) throw new Error("FISCAL_RULE_NOT_FOUND")
         const breakdown = computePriceBreakdown({
           unitPriceTnd,
           adults: booking.adults,
           children: booking.children,
           unitChildPriceTnd,
           depositPercent: 100, // Attractions : pas d'acompte partiel, règlement intégral à la réservation.
+          vatRate: parseFloat(fiscalRule.vatRate),
         })
         const breakdownBeforePromo = breakdown
 
@@ -349,13 +357,6 @@ async function runCreateGuestActivityBooking(
 
         // --- 5. Réservation ---
         const publicRef = await nextActivityPublicRef(tx, agencyId)
-        const fiscalRule = await getActiveFiscalRuleInTx(
-          tx,
-          "TN",
-          "activity",
-          new Date(),
-        )
-        if (!fiscalRule) throw new Error("FISCAL_RULE_NOT_FOUND")
         const [reservation] = await tx
           .insert(reservations)
           .values({

@@ -34,7 +34,7 @@ Un seul chantier actif à la fois ; il est indiqué dans ROADMAP.md (section "Ch
 
 ---
 
-## TAX-RULES-SUPERADMIN-01 — FISCAL SNAPSHOT — CLÔTURÉ LOT 1-8 (2026-10-23)
+## TAX-RULES-SUPERADMIN-01 — FISCAL SNAPSHOT — CLÔTURÉ LOT 1-9 (2026-10-23)
 
 **Objectif** : garantir que le montant présenté au client, le montant payé, la réservation
 enregistrée et la facture racontent exactement la même histoire financière.
@@ -115,8 +115,22 @@ Error("FISCAL_RULE_NOT_FOUND")` si aucune règle active
 - Décision Direction 2026-10-23 : option 3 du tableau des taxes v2 ("activer 19 %
   provisoirement avec avertissement") — 6 modules acceptés
 - À remplacer module par module dès confirmation conseiller fiscal (tableau B bis DGI)
-- **NOT YET DEPLOYED** : migrations 0022 + 0023 + 0024 à appliquer ensemble en
-  production. Pré-requis LOT 6 (fail-closed) désormais satisfait par cette seed.
+- **DEPLOYED** (2026-10-23) : migrations `0022` + `0023` + `0024` appliquées en production
+  sur projet Supabase `crygnaichvlxavvbifqi` (EasyV4, eu-west-1).
+  Preuves post-migration : table `fiscal_rules` 20 colonnes ✓, 3 index ✓,
+  règle active `(TN, *, 19.00, PROVISOIRE-GO-DIRECTION-2026-10-23)` présente ✓.
+
+**LOT 9 — CLÔTURÉ** (commit `46899d6`, branche `claude/easy2book-v6-modernization-7gyb5v`, 2026-10-23)
+
+- Audit pré-déploiement 14 points de contrôle — PASS sur tous sauf CI format (bloquant corrigé)
+- Fix Prettier format:check : 20 fichiers reformatés (`pnpm prettier --write`) — CI format PASS
+- Déploiement production : `0022` + `0023` + `0024` appliquées via Supabase MCP
+- Vérifications post-migration effectuées (colonnes, index, règle active)
+- Gaps résiduels documentés (non bloquants, chantiers séparés) :
+  - RLS absent sur `fiscal_rules` (accès direct DB non restreint)
+  - `listFiscalRules` lisible par tout utilisateur authentifié (lecture seule)
+  - `hotel_monde`, `omra` B2C/B2B hors périmètre fiscal (chantiers futurs)
+- Taux définitifs par module : chantier séparé — attente tableau B bis DGI + avis conseiller fiscal
 
 ---
 

@@ -136,6 +136,21 @@ Error("FISCAL_RULE_NOT_FOUND")` si aucune règle active
 
 ## Chantier actif
 
+### INNGEST-HANDLER-NETWORK-01 — CLÔTURÉ (2026-10-23)
+
+**Objectif** : combler le gap entre l'event `booking/network.confirmed` émis par NETWORK-B2C-01 (PR #234, 2026-10-18) et l'absence de handler Inngest — aucun email de confirmation n'était envoyé aux clients depuis la mise en production du portail Network B2C.
+
+**Changements** :
+- `lib/inngest/functions/process-network-confirmed.ts` [CREATE] — handler email + facture CAS-C (step.run)
+- `lib/network/guest-booking-actions.ts` [UPDATE] — retrait de l'appel direct `generateInvoiceForReservation` (CAS-C migration, évite le doublon)
+- `lib/inngest/functions/index.ts` [EXTEND] — export `processNetworkConfirmed`
+- `app/api/inngest/route.ts` [EXTEND] — enregistrement `processNetworkConfirmed`
+- `lib/inngest/functions/__tests__/process-network-confirmed-invariants.test.ts` [CREATE] — 14 invariants statiques
+
+**Preuves** : 14/14 invariants verts, 3247 tests 0 échec, typecheck/lint/format propres, commit `53d3f7d`, branche `claude/easy2book-v6-modernization-7gyb5v`.
+
+---
+
 ### FISCAL-OMRA-01 — CLÔTURÉ (2026-10-23)
 
 **Objectif** : connecter les deux chemins de réservation omra au moteur de règles fiscales.
@@ -834,7 +849,7 @@ NOT VERIFIED : valeurs actuellement posées en production (lecture bloquée).
 
 ---
 
-### NETWORK-B2C-01 — CLOS / READY FOR MERGE (2026-10-18)
+### NETWORK-B2C-01 — CLÔTURÉ (2026-10-18, PR #234)
 
 **Objectif** : Portail B2C public pour la réservation de produits Network par les
 clients finaux (guest checkout sans compte).

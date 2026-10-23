@@ -305,8 +305,25 @@ export function WorldHotelResultsContent() {
   const [refundableOnly, setRefundableOnly] = useState(false)
   const [selectedStars, setSelectedStars] = useState<Set<number>>(new Set())
   const [priceRange, setPriceRange] = useState<[number, number]>([0, 9999])
+  const [priceRangeInitKey, setPriceRangeInitKey] = useState<string | null>(
+    null,
+  )
   const [viewMode, setViewMode] = useState<"list" | "map">("list")
   const [selectedMapId, setSelectedMapId] = useState<number | null>(null)
+
+  // Réinitialise le slider de prix quand une nouvelle recherche charge ses offres.
+  // Pattern React "storing information from previous renders" — pas de setState dans un effet.
+  if (
+    fetchState.requestKey !== priceRangeInitKey &&
+    fetchState.offers.length > 0
+  ) {
+    setPriceRangeInitKey(fetchState.requestKey)
+    const prices = fetchState.offers.map((o) => o.pricePerNightTnd)
+    setPriceRange([
+      Math.floor(Math.min(...prices)),
+      Math.ceil(Math.max(...prices)),
+    ])
+  }
 
   useEffect(() => {
     if (!parsed.ok || !requestKey) return
@@ -356,16 +373,6 @@ export function WorldHotelResultsContent() {
     [fetchState, requestKey],
   )
   const error = fetchState.requestKey === requestKey ? fetchState.error : null
-
-  // Initialise le slider de prix dès que les offres chargent
-  useEffect(() => {
-    if (offers.length === 0) return
-    const prices = offers.map((o) => o.pricePerNightTnd)
-    setPriceRange([
-      Math.floor(Math.min(...prices)),
-      Math.ceil(Math.max(...prices)),
-    ])
-  }, [offers])
 
   const offerPriceRange = useMemo(() => {
     if (offers.length === 0) return { min: 0, max: 9999 }

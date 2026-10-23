@@ -115,9 +115,7 @@ after(async () => {
     await tx
       .delete(partnerInvoices)
       .where(eq(partnerInvoices.agencyId, agencyId))
-    await tx
-      .delete(reservations)
-      .where(eq(reservations.agencyId, agencyId))
+    await tx.delete(reservations).where(eq(reservations.agencyId, agencyId))
     await tx.delete(customers).where(eq(customers.agencyId, agencyId))
     await tx.delete(agencies).where(eq(agencies.id, agencyId))
   })
@@ -232,5 +230,9 @@ test("E5-01-03 : generateInvoiceForReservation — retry même réservation conf
         .from(partnerInvoices)
         .where(eq(partnerInvoices.reservationId, reservationIdConfirmed)),
   )
-  assert.strictEqual(rows.length, 1, "pas de doublon — toujours une seule facture")
+  assert.strictEqual(
+    rows.length,
+    1,
+    "pas de doublon — toujours une seule facture",
+  )
 })

@@ -54,7 +54,7 @@ enregistrée et la facture racontent exactement la même histoire financière.
 **LOT 5 — DONE** (commit `243d556`, branche `claude/easy2book-v6-modernization-7gyb5v`, 2026-10-23)
 
 - Table `fiscal_rules` (pays × module × période × draft/active/closed) — migration `0022_fiscal_rules.sql`
-- Moteur `lib/finance/fiscal-rules.ts` — résolution 4-passes wildcard (TN+hotel > TN+* > *+hotel > *+*)
+- Moteur `lib/finance/fiscal-rules.ts` — résolution 4-passes wildcard (TN+hotel > TN+_ > _+hotel > _+_)
 - `getActiveFiscalRuleInTx()` — variante transactionnelle pour booking-actions
 - Actions serveur `lib/finance/fiscal-rules-actions.ts` — createDraft / activate (advisory lock + overlap check dans 1 transaction) / deactivate — super_admin only pour les écritures
 - `FiscalSnapshot` étendu : `fiscal_rule_id` + `fiscal_rule_version` (rétrocompatibles)
@@ -69,7 +69,7 @@ enregistrée et la facture racontent exactement la même histoire financière.
   (`lib/booking/guest-actions.ts`), package B2C + B2B (`lib/packages/booking-actions.ts`),
   activité B2B (`lib/activities/booking-actions.ts`), activité B2C
   (`lib/activities/guest-booking-actions.ts`) → `getActiveFiscalRuleInTx()` + `throw new
-  Error("FISCAL_RULE_NOT_FOUND")` si aucune règle active
+Error("FISCAL_RULE_NOT_FOUND")` si aucune règle active
 - Wiring 3 call-sites pending-fallback : voiture (`lib/cars/actions.ts`), transfert
   (`lib/transfers/actions.ts`), vol (`lib/vols/booking-request-action.ts`) →
   `getActiveFiscalRuleInTx()` + `buildFiscalSnapshotFromTtc(...)` si règle trouvée, sinon
@@ -141,24 +141,27 @@ fetchNearbyNetworkActivities → getCrossSellNetworkActivities → NearbyActivit
 Gap fermé : aucune assertion E2E ne vérifiait que le prix chambre est non nul au moment de la
 sélection ni qu'un total est visible au checkout.
 Extension de `e2e/b2c-hotel-guest-create-live.spec.ts` :
+
 - Capture `span.text-lg.font-bold.text-primary.whitespace-nowrap` après sélection chambre → `toBeTruthy()`.
 - Asserte `[class*='font-semibold']` contenant des chiffres au checkout → `toBeVisible()`.
-Note : test local-only (`pnpm dev` + `MYGO_MODE=virtual`), non inclus dans CI.
+  Note : test local-only (`pnpm dev` + `MYGO_MODE=virtual`), non inclus dans CI.
 
 #### E5-01 — DONE (2026-10-22)
 
 Gap fermé : `generateInvoiceForReservation` était couverte uniquement par des invariants statiques
 (invoice-wiring.test.ts, 6 tests) — aucun test n'exerçait la fonction contre une vraie DB.
 3 tests d'intégration DB créés dans `lib/finance/__tests__/invoice-generation-loop.integration.test.ts` :
+
 - E5-01-01 : `status=pending` → `RESERVATION_NOT_CONFIRMED`, aucune facture créée.
 - E5-01-02 : `status=confirmed` → `ok:true`, `alreadyExisted:false`, facture persistée en DB.
 - E5-01-03 : retry → `ok:true`, `alreadyExisted:true`, pas de doublon (idempotence 23505 réelle).
-Ajouté au job `financial-e2e` CI dans `.github/workflows/ci.yml`.
+  Ajouté au job `financial-e2e` CI dans `.github/workflows/ci.yml`.
 
 #### E1-01 / E4-02 — DONE (2026-10-22)
 
 Gap fermé : `b2c-hotel-guest-create-live.spec.ts` ne pouvait tourner en CI (dépendance à
 `pnpm dev` + `MYGO_MODE=virtual`, incompatible avec `pnpm start` qui force `NODE_ENV=production`).
+
 - Créé `playwright.config.dev.ts` : `webServer.command = "pnpm dev"`, `workers=1`, `retries CI=1`.
 - Ajouté job `e2e-guest` dans `.github/workflows/ci.yml` : PostgreSQL CI, `db:push`, Playwright
   chromium, `MYGO_MODE=virtual`, lance `b2c-hotel-guest-create-live.spec.ts --config playwright.config.dev.ts`.
@@ -167,6 +170,7 @@ Gap fermé : `b2c-hotel-guest-create-live.spec.ts` ne pouvait tourner en CI (dé
 
 Gap fermé : `process-flight-confirmed.ts` était le seul handler Inngest post-CAS-C sans appel
 `generateInvoiceForReservation` — le module vols était exclu du checkpoint de facturation.
+
 - Ajouté `import { generateInvoiceForReservation }` et `step` aux params.
 - Ajouté `step.run("generate-invoice", ...)` en fin de handler (même patron que car/transfer/omra/hotel).
 - Ajouté `process-flight-confirmed.ts` dans `invoice-step-invariants.test.ts` → 23/23 verts (ex 20/20).
@@ -185,6 +189,7 @@ concernée. Garantie d'exécution (checkpoint persistant, retry automatique, ide
 20/20 tests d'invariant statiques verts. TypeScript clean.
 
 **Vérifications post-déploiement (2026-10-22)** :
+
 - Déploiement : CONFIRMED — `dpl_F3hTKpCs3LyeGh5fKaEs8d1EQHy6`, SHA = HEAD(main).
 - Non-régression : 264 failures vs 284 avant CAS-C — aucune régression introduite (failures pré-existantes).
 - Références publiques (CAS-B) : 18/18 invariants verts — `pg_advisory_xact_lock` en place sur tous les modules.
@@ -204,6 +209,7 @@ correspondantes. `step.run` persiste un checkpoint côté Inngest ; retry automa
 crash ; idempotence garantie par la contrainte `partner_invoices_reservation_uniq`.
 
 **Modules couverts** :
+
 - `booking/confirmed` → `process-confirmed-booking.ts` (hôtel B2B + B2C)
 - `booking/omra.confirmed` → `process-omra-confirmed.ts`
 - `booking/package.confirmed` → `process-package-confirmed.ts`

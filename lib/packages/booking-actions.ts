@@ -363,7 +363,12 @@ async function runCreateGuestPackageBooking(
 
         // --- 4. Réservation ---
         const publicRef = await nextPackagePublicRef(tx, agencyId)
-        const fiscalRule = await getActiveFiscalRuleInTx(tx, "TN", "package", new Date())
+        const fiscalRule = await getActiveFiscalRuleInTx(
+          tx,
+          "TN",
+          "package",
+          new Date(),
+        )
         if (!fiscalRule) throw new Error("FISCAL_RULE_NOT_FOUND")
         const [reservation] = await tx
           .insert(reservations)
@@ -700,7 +705,12 @@ export async function createPackageBooking(
         const customerId = customer.id
 
         const publicRef = await nextPackagePublicRef(tx, agencyId)
-        const fiscalRuleB2B = await getActiveFiscalRuleInTx(tx, "TN", "package", new Date())
+        const fiscalRuleB2B = await getActiveFiscalRuleInTx(
+          tx,
+          "TN",
+          "package",
+          new Date(),
+        )
         if (!fiscalRuleB2B) throw new Error("FISCAL_RULE_NOT_FOUND")
         const [reservation] = await tx
           .insert(reservations)

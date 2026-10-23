@@ -57,7 +57,11 @@ import {
   travelerSchemaWithIdRule,
   paymentMethodSchema,
 } from "./schemas"
-import { computePriceBreakdown, priceDrifted, buildFiscalSnapshot } from "./pricing"
+import {
+  computePriceBreakdown,
+  priceDrifted,
+  buildFiscalSnapshot,
+} from "./pricing"
 import { getActiveFiscalRuleInTx } from "@/lib/finance/fiscal-rules"
 import { confirmHotelWithProvider, nextPublicRef } from "./actions"
 import { authoritativeUnitPrice } from "./hotel-provider-booking"
@@ -589,7 +593,12 @@ async function runCreateGuestReservation(
               ? new Date(Date.now() + ONLINE_PAYMENT_WINDOW_MS)
               : null
 
-        const fiscalRule = await getActiveFiscalRuleInTx(tx, "TN", "hotel", new Date())
+        const fiscalRule = await getActiveFiscalRuleInTx(
+          tx,
+          "TN",
+          "hotel",
+          new Date(),
+        )
         if (!fiscalRule) throw new Error("FISCAL_RULE_NOT_FOUND")
 
         let inserted: {

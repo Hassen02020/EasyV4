@@ -169,9 +169,9 @@ export type FiscalSnapshot = {
   fiscal_rule_version: number | null
   // LOT 7 — taxe fixe par unité (taxe de séjour, taxe de location…)
   // Informationnelle : collectée hors Easy2Book (ex: à la réception de l'hôtel).
-  unitTaxTnd: number | null   // total taxe fixe en TND (unitRate × unitCount)
-  unitCount: number | null    // unités effectivement taxées (plafonnées par maxUnits)
-  unitRate: number | null     // montant par unité en TND
+  unitTaxTnd: number | null // total taxe fixe en TND (unitRate × unitCount)
+  unitCount: number | null // unités effectivement taxées (plafonnées par maxUnits)
+  unitRate: number | null // montant par unité en TND
 }
 
 /** Snapshot à partir d'un PriceBreakdown (base HT connue). */

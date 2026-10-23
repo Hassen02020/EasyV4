@@ -44,7 +44,10 @@ import { generateInvoiceForReservation } from "@/lib/finance/invoice-actions"
 import { recordReservationTransition } from "@/lib/admin/reservation-status-history"
 import { recordReservationFinancials } from "@/lib/finance/reservation-financials"
 import { creditPlatformCommission } from "@/lib/finance/platform-commission"
-import { computePriceBreakdown, buildFiscalSnapshot } from "@/lib/booking/pricing"
+import {
+  computePriceBreakdown,
+  buildFiscalSnapshot,
+} from "@/lib/booking/pricing"
 import { getActiveFiscalRuleInTx } from "@/lib/finance/fiscal-rules"
 import {
   activityPartnerBookingSchema,
@@ -179,7 +182,12 @@ export async function createActivityBooking(
 
         // --- 5. Réservation ---
         const publicRef = await nextActivityPublicRef(tx, agencyId)
-        const fiscalRule = await getActiveFiscalRuleInTx(tx, "TN", "activity", new Date())
+        const fiscalRule = await getActiveFiscalRuleInTx(
+          tx,
+          "TN",
+          "activity",
+          new Date(),
+        )
         if (!fiscalRule) throw new Error("FISCAL_RULE_NOT_FOUND")
         const [reservation] = await tx
           .insert(reservations)

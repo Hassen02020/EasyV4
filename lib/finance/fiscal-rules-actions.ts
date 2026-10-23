@@ -92,7 +92,8 @@ function advisoryLockKey(country: string, module: string): string {
  */
 export async function listFiscalRules(): Promise<ListFiscalRulesResult> {
   const session = await resolveSessionContext()
-  if (!session.ok) return { ok: false, error: "Non authentifié", code: "UNAUTHENTICATED" }
+  if (!session.ok)
+    return { ok: false, error: "Non authentifié", code: "UNAUTHENTICATED" }
 
   const rules = await getDb()
     .select({
@@ -124,31 +125,55 @@ export async function createDraftFiscalRule(
   input: CreateDraftFiscalRuleInput,
 ): Promise<CreateDraftFiscalRuleResult> {
   const session = await resolveSessionContext()
-  if (!session.ok) return { ok: false, error: "Non authentifié", code: "UNAUTHENTICATED" }
+  if (!session.ok)
+    return { ok: false, error: "Non authentifié", code: "UNAUTHENTICATED" }
   if (!session.isSuperAdmin) {
-    return { ok: false, error: "Accès réservé au super admin", code: "FORBIDDEN" }
+    return {
+      ok: false,
+      error: "Accès réservé au super admin",
+      code: "FORBIDDEN",
+    }
   }
 
   if (!input.country || !input.module) {
-    return { ok: false, error: "Pays et module requis", code: "VALIDATION_ERROR" }
+    return {
+      ok: false,
+      error: "Pays et module requis",
+      code: "VALIDATION_ERROR",
+    }
   }
-  if (!["standard", "zero_rated", "exempt", "out_of_scope"].includes(input.fiscalClassification)) {
-    return { ok: false, error: "Classification fiscale invalide", code: "VALIDATION_ERROR" }
+  if (
+    !["standard", "zero_rated", "exempt", "out_of_scope"].includes(
+      input.fiscalClassification,
+    )
+  ) {
+    return {
+      ok: false,
+      error: "Classification fiscale invalide",
+      code: "VALIDATION_ERROR",
+    }
   }
   if (input.vatRate < 0 || input.vatRate > 100) {
-    return { ok: false, error: "Taux TVA invalide (0–100)", code: "VALIDATION_ERROR" }
+    return {
+      ok: false,
+      error: "Taux TVA invalide (0–100)",
+      code: "VALIDATION_ERROR",
+    }
   }
   if (input.effectiveFrom <= new Date()) {
     return {
       ok: false,
-      error: "La date d'entrée en vigueur doit être dans le futur (anti-backdate)",
+      error:
+        "La date d'entrée en vigueur doit être dans le futur (anti-backdate)",
       code: "BACKDATE_FORBIDDEN",
     }
   }
 
   // Version = max(version pour ce country+module) + 1
   const [versionRow] = await getDb()
-    .select({ maxVersion: sql<number>`COALESCE(MAX(${fiscalRules.version}), 0)` })
+    .select({
+      maxVersion: sql<number>`COALESCE(MAX(${fiscalRules.version}), 0)`,
+    })
     .from(fiscalRules)
     .where(
       and(
@@ -172,7 +197,10 @@ export async function createDraftFiscalRule(
       version: nextVersion,
       note: input.note ?? null,
       createdBy: session.userId,
-    } satisfies Omit<NewFiscalRule, "id" | "createdAt" | "validationRef" | "activatedBy" | "activatedAt">)
+    } satisfies Omit<
+      NewFiscalRule,
+      "id" | "createdAt" | "validationRef" | "activatedBy" | "activatedAt"
+    >)
     .returning({ id: fiscalRules.id })
 
   return { ok: true, ruleId: created.id }
@@ -193,9 +221,14 @@ export async function activateFiscalRule(
   input: ActivateFiscalRuleInput,
 ): Promise<ActivateFiscalRuleResult> {
   const session = await resolveSessionContext()
-  if (!session.ok) return { ok: false, error: "Non authentifié", code: "UNAUTHENTICATED" }
+  if (!session.ok)
+    return { ok: false, error: "Non authentifié", code: "UNAUTHENTICATED" }
   if (!session.isSuperAdmin) {
-    return { ok: false, error: "Accès réservé au super admin", code: "FORBIDDEN" }
+    return {
+      ok: false,
+      error: "Accès réservé au super admin",
+      code: "FORBIDDEN",
+    }
   }
   if (!input.validationRef?.trim()) {
     return {
@@ -215,14 +248,13 @@ export async function activateFiscalRule(
         .limit(1)
 
       if (!rule) throw new Error("RULE_NOT_FOUND")
-      if (rule.status !== "draft") throw new Error(`RULE_NOT_DRAFT:${rule.status}`)
+      if (rule.status !== "draft")
+        throw new Error(`RULE_NOT_DRAFT:${rule.status}`)
 
       const lockKey = advisoryLockKey(rule.country, rule.module)
 
       // 2. Acquérir le verrou advisory transactionnel
-      await tx.execute(
-        sql`SELECT pg_advisory_xact_lock(hashtext(${lockKey}))`,
-      )
+      await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${lockKey}))`)
 
       // 3. Vérifier l'absence de chevauchement avec les règles actives
       const overlaps = await tx
@@ -297,11 +329,16 @@ export async function activateFiscalRule(
     if (msg.startsWith("FISCAL_RULE_OVERLAP")) {
       return {
         ok: false,
-        error: "Chevauchement détecté avec une règle active existante — corrigez la période.",
+        error:
+          "Chevauchement détecté avec une règle active existante — corrigez la période.",
         code: "FISCAL_RULE_OVERLAP",
       }
     }
-    return { ok: false, error: `Erreur interne: ${msg}`, code: "INTERNAL_ERROR" }
+    return {
+      ok: false,
+      error: `Erreur interne: ${msg}`,
+      code: "INTERNAL_ERROR",
+    }
   }
 }
 
@@ -313,9 +350,14 @@ export async function deactivateFiscalRule(
   ruleId: string,
 ): Promise<DeactivateFiscalRuleResult> {
   const session = await resolveSessionContext()
-  if (!session.ok) return { ok: false, error: "Non authentifié", code: "UNAUTHENTICATED" }
+  if (!session.ok)
+    return { ok: false, error: "Non authentifié", code: "UNAUTHENTICATED" }
   if (!session.isSuperAdmin) {
-    return { ok: false, error: "Accès réservé au super admin", code: "FORBIDDEN" }
+    return {
+      ok: false,
+      error: "Accès réservé au super admin",
+      code: "FORBIDDEN",
+    }
   }
 
   const [updated] = await getDb()
@@ -324,12 +366,7 @@ export async function deactivateFiscalRule(
       status: "closed",
       effectiveTo: new Date(),
     })
-    .where(
-      and(
-        eq(fiscalRules.id, ruleId),
-        eq(fiscalRules.status, "active"),
-      ),
-    )
+    .where(and(eq(fiscalRules.id, ruleId), eq(fiscalRules.status, "active")))
     .returning({ id: fiscalRules.id })
 
   if (!updated) {

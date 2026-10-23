@@ -591,7 +591,12 @@ export async function createReservationFromDraft(input: {
 
         const publicRef = await nextPublicRef(tx, agencyId)
 
-        const fiscalRule = await getActiveFiscalRuleInTx(tx, "TN", "hotel", new Date())
+        const fiscalRule = await getActiveFiscalRuleInTx(
+          tx,
+          "TN",
+          "hotel",
+          new Date(),
+        )
         if (!fiscalRule) throw new Error("FISCAL_RULE_NOT_FOUND")
 
         let inserted: {

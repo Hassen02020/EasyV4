@@ -35,7 +35,9 @@ export default async function FiscalRulesPage() {
   const role = (profile?.role as AdminShellRole) || "manager"
 
   if (!canAccessSection(role, "accounting")) {
-    redirect(`/error/403?section=accounting&from=/admin/accounting/fiscal-rules`)
+    redirect(
+      `/error/403?section=accounting&from=/admin/accounting/fiscal-rules`,
+    )
   }
 
   const rulesResult = await listFiscalRules()
@@ -47,9 +49,10 @@ export default async function FiscalRulesPage() {
     <div className="space-y-6 p-6">
       <div>
         <h1 className="text-2xl font-bold">Règles fiscales</h1>
-        <p className="text-muted-foreground text-sm mt-1">
-          Taux de TVA applicables par pays et par module métier. Résolution : pays+module
-          exact → pays+* → *+module → *+* (premier match actif à la date de réservation).
+        <p className="text-muted-foreground mt-1 text-sm">
+          Taux de TVA applicables par pays et par module métier. Résolution :
+          pays+module exact → pays+* → *+module → *+* (premier match actif à la
+          date de réservation).
         </p>
       </div>
       <FiscalRulesManager initialRules={rules} isSuperAdmin={isSuperAdmin} />

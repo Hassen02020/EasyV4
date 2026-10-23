@@ -87,7 +87,10 @@ describe("FISCAL-RULES-01 : builders", () => {
     assert.equal(snap.taxBasis, "TTC")
     assert.equal(snap.totalTnd, 590)
     // HT = 590 / 1.19 ≈ 495.80, TVA ≈ 94.20
-    assert.ok(Math.abs(snap.subtotalTnd! - 495.8) < 0.01, `subtotalTnd=${snap.subtotalTnd}`)
+    assert.ok(
+      Math.abs(snap.subtotalTnd! - 495.8) < 0.01,
+      `subtotalTnd=${snap.subtotalTnd}`,
+    )
     assert.ok(Math.abs(snap.vatTnd! - 94.2) < 0.01, `vatTnd=${snap.vatTnd}`)
     assert.equal(snap.fiscal_rule_id, "uuid-rule-pkg")
     assert.equal(snap.fiscal_rule_version, 1)
@@ -100,7 +103,15 @@ describe("FISCAL-RULES-01 : builders", () => {
       vatRate: 0,
       depositPercent: 100,
     })
-    const snap = buildFiscalSnapshot(bd, 0, "activity", null, null, "uuid-rule-zero", 1)
+    const snap = buildFiscalSnapshot(
+      bd,
+      0,
+      "activity",
+      null,
+      null,
+      "uuid-rule-zero",
+      1,
+    )
     assert.equal(snap.status, "determined")
     assert.equal(snap.vatRate, 0)
     assert.equal(snap.vatTnd, 0)
@@ -126,7 +137,11 @@ describe("FISCAL-RULES-01 : builders", () => {
 
 describe("FISCAL-RULES-01 : pending snapshot", () => {
   test("T5 — car : status pending, fiscal_rule_id null", () => {
-    const snap = buildPendingFiscalSnapshot(450, "car_rental", "taux_non_déterminé")
+    const snap = buildPendingFiscalSnapshot(
+      450,
+      "car_rental",
+      "taux_non_déterminé",
+    )
     assert.equal(snap.status, "pending")
     assert.equal(snap.vatRate, null)
     assert.equal(snap.vatTnd, null)
@@ -136,13 +151,21 @@ describe("FISCAL-RULES-01 : pending snapshot", () => {
   })
 
   test("T6 — transfer : status pending", () => {
-    const snap = buildPendingFiscalSnapshot(200, "transfer", "taux_non_déterminé")
+    const snap = buildPendingFiscalSnapshot(
+      200,
+      "transfer",
+      "taux_non_déterminé",
+    )
     assert.equal(snap.status, "pending")
     assert.equal(snap.fiscal_rule_id, null)
   })
 
   test("T7 — flight : status pending", () => {
-    const snap = buildPendingFiscalSnapshot(1200, "flight", "taux_non_déterminé")
+    const snap = buildPendingFiscalSnapshot(
+      1200,
+      "flight",
+      "taux_non_déterminé",
+    )
     assert.equal(snap.status, "pending")
     assert.equal(snap.fiscal_rule_id, null)
   })
@@ -157,7 +180,11 @@ describe("FISCAL-RULES-01 : omra correction", () => {
 
   test("T8 — omra : buildPendingFiscalSnapshot importé et utilisé dans INSERT", () => {
     assert.match(omraSrc, /buildPendingFiscalSnapshot/, "import manquant")
-    assert.match(omraSrc, /fiscalSnapshot:\s*buildPendingFiscalSnapshot/, "call INSERT manquant")
+    assert.match(
+      omraSrc,
+      /fiscalSnapshot:\s*buildPendingFiscalSnapshot/,
+      "call INSERT manquant",
+    )
     assert.match(omraSrc, /["']omra["']/, "serviceCategory 'omra' manquante")
   })
 })
@@ -392,7 +419,11 @@ describe("FISCAL-RULES-01 : résolution 4-passes comportementale (mock tx)", () 
     const tx = _makeMockTx([null, null, null, null])
     const result = await getActiveFiscalRuleInTx(tx, "TN", "hotel", new Date())
     assert.equal(result, null, "Aucune règle → null (fail-closed)")
-    assert.equal(tx.callCount, 4, "Les 4 passes doivent être épuisées avant de retourner null")
+    assert.equal(
+      tx.callCount,
+      4,
+      "Les 4 passes doivent être épuisées avant de retourner null",
+    )
   })
 
   test("T26 — pass 4 gagnante (*+*) : cascade complète, règle de dernier recours retournée", async () => {
@@ -416,38 +447,47 @@ describe("FISCAL-RULES-01 : résolution 4-passes comportementale (mock tx)", () 
 describe("FISCAL-RULES-01 LOT 7 : buildFiscalSnapshotWithUnitTax (taxe fixe par unité)", () => {
   test("T27 — taxe de séjour 3★ étrangers : 8 TND × 6 unités (3 nuits × 2 pers.) = 48 TND", () => {
     const snap = buildFiscalSnapshotWithUnitTax(
-      1190,             // totalTnd Easy2Book (TVA 19 % incluse)
-      19,               // vatRate
+      1190, // totalTnd Easy2Book (TVA 19 % incluse)
+      19, // vatRate
       "hotel",
       "LF-2024-ART-46",
       "taxe de séjour 3★ étrangers — collectée à la réception",
       "uuid-rule-unit-1",
       1,
-      8,                // 8 TND par unité
-      6,                // 3 nuits × 2 personnes = 6 unités
-      10,               // plafond 10 nuits (LF 2024 Art. 46)
+      8, // 8 TND par unité
+      6, // 3 nuits × 2 personnes = 6 unités
+      10, // plafond 10 nuits (LF 2024 Art. 46)
     )
     assert.equal(snap.status, "determined")
-    assert.equal(snap.unitTaxTnd, 48)          // 8 × min(6, 10) = 48
-    assert.equal(snap.unitCount, 6)            // sous le plafond
+    assert.equal(snap.unitTaxTnd, 48) // 8 × min(6, 10) = 48
+    assert.equal(snap.unitCount, 6) // sous le plafond
     assert.equal(snap.unitRate, 8)
     assert.equal(snap.fiscal_rule_id, "uuid-rule-unit-1")
     assert.equal(snap.taxRuleRef, "LF-2024-ART-46")
     // TVA sur le prix Easy2Book reste correcte
     assert.equal(snap.totalTnd, 1190)
-    assert.ok(Math.abs(snap.subtotalTnd! - 1000) < 0.01, `subtotalTnd=${snap.subtotalTnd}`)
+    assert.ok(
+      Math.abs(snap.subtotalTnd! - 1000) < 0.01,
+      `subtotalTnd=${snap.subtotalTnd}`,
+    )
     assert.ok(Math.abs(snap.vatTnd! - 190) < 0.01, `vatTnd=${snap.vatTnd}`)
   })
 
   test("T28 — plafond max_units respecté : 15 unités plafonnées à 10", () => {
     const snap = buildFiscalSnapshotWithUnitTax(
-      5950, 19, "hotel", "LF-2024-ART-46", null, "uuid-rule-unit-2", 1,
-      8,    // 8 TND par unité
-      15,   // 15 unités brutes (dépassement)
-      10,   // plafond 10
+      5950,
+      19,
+      "hotel",
+      "LF-2024-ART-46",
+      null,
+      "uuid-rule-unit-2",
+      1,
+      8, // 8 TND par unité
+      15, // 15 unités brutes (dépassement)
+      10, // plafond 10
     )
-    assert.equal(snap.unitCount, 10)           // plafonné à 10
-    assert.equal(snap.unitTaxTnd, 80)          // 8 × 10 = 80
+    assert.equal(snap.unitCount, 10) // plafonné à 10
+    assert.equal(snap.unitTaxTnd, 80) // 8 × 10 = 80
     assert.equal(snap.unitRate, 8)
   })
 
@@ -458,8 +498,20 @@ describe("FISCAL-RULES-01 LOT 7 : buildFiscalSnapshotWithUnitTax (taxe fixe par 
       vatRate: 19,
       depositPercent: 100,
     })
-    const snap = buildFiscalSnapshot(breakdown, 19, "hotel", "ref-v1", null, "uuid-v1", 1)
-    assert.equal(snap.unitTaxTnd, null, "Builder HT existant : unitTaxTnd doit rester null")
+    const snap = buildFiscalSnapshot(
+      breakdown,
+      19,
+      "hotel",
+      "ref-v1",
+      null,
+      "uuid-v1",
+      1,
+    )
+    assert.equal(
+      snap.unitTaxTnd,
+      null,
+      "Builder HT existant : unitTaxTnd doit rester null",
+    )
     assert.equal(snap.unitCount, null)
     assert.equal(snap.unitRate, null)
   })

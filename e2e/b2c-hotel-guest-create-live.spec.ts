@@ -201,7 +201,10 @@ test.describe("HOTEL-GUEST-CREATE-LIVE-01 — réservation hôtel guest réelle"
     // Assertion : au moins un élément font-semibold contenant des chiffres
     // est visible — preuve que le breakdown a été calculé et rendu.
     await expect(
-      page.locator("[class*='font-semibold']").filter({ hasText: /\d/ }).first(),
+      page
+        .locator("[class*='font-semibold']")
+        .filter({ hasText: /\d/ })
+        .first(),
     ).toBeVisible({ timeout: 5_000 })
 
     // Mode paiement "Espèces en agence" — aucune capture PSP réelle

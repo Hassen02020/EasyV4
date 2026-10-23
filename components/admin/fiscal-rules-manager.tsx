@@ -181,7 +181,7 @@ export function FiscalRulesManager({ initialRules, isSuperAdmin }: Props) {
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-lg font-semibold">Règles fiscales</h2>
-          <p className="text-sm text-muted-foreground">
+          <p className="text-muted-foreground text-sm">
             Taux de TVA applicables par pays et par module.
           </p>
         </div>
@@ -201,7 +201,10 @@ export function FiscalRulesManager({ initialRules, isSuperAdmin }: Props) {
                     <Input
                       value={form.country}
                       onChange={(e) =>
-                        setForm((f) => ({ ...f, country: e.target.value.toUpperCase() }))
+                        setForm((f) => ({
+                          ...f,
+                          country: e.target.value.toUpperCase(),
+                        }))
                       }
                       placeholder="TN ou *"
                       maxLength={2}
@@ -211,7 +214,9 @@ export function FiscalRulesManager({ initialRules, isSuperAdmin }: Props) {
                     <Label>Module</Label>
                     <Select
                       value={form.module}
-                      onValueChange={(v) => setForm((f) => ({ ...f, module: v }))}
+                      onValueChange={(v) =>
+                        setForm((f) => ({ ...f, module: v }))
+                      }
                     >
                       <SelectTrigger>
                         <SelectValue />
@@ -234,7 +239,8 @@ export function FiscalRulesManager({ initialRules, isSuperAdmin }: Props) {
                       onValueChange={(v) =>
                         setForm((f) => ({
                           ...f,
-                          fiscalClassification: v as typeof form.fiscalClassification,
+                          fiscalClassification:
+                            v as typeof form.fiscalClassification,
                         }))
                       }
                     >
@@ -257,7 +263,9 @@ export function FiscalRulesManager({ initialRules, isSuperAdmin }: Props) {
                       max={100}
                       step={0.01}
                       value={form.vatRate}
-                      onChange={(e) => setForm((f) => ({ ...f, vatRate: e.target.value }))}
+                      onChange={(e) =>
+                        setForm((f) => ({ ...f, vatRate: e.target.value }))
+                      }
                     />
                   </div>
                 </div>
@@ -275,14 +283,18 @@ export function FiscalRulesManager({ initialRules, isSuperAdmin }: Props) {
                   <Label>Note (optionnel)</Label>
                   <Input
                     value={form.note}
-                    onChange={(e) => setForm((f) => ({ ...f, note: e.target.value }))}
+                    onChange={(e) =>
+                      setForm((f) => ({ ...f, note: e.target.value }))
+                    }
                     placeholder="Contexte légal, référence texte..."
                   />
                 </div>
-                {error && (
-                  <p className="text-sm text-red-600">{error}</p>
-                )}
-                <Button onClick={handleCreate} disabled={isPending} className="w-full">
+                {error && <p className="text-sm text-red-600">{error}</p>}
+                <Button
+                  onClick={handleCreate}
+                  disabled={isPending}
+                  className="w-full"
+                >
                   {isPending ? "Création..." : "Créer le brouillon"}
                 </Button>
               </div>
@@ -295,9 +307,9 @@ export function FiscalRulesManager({ initialRules, isSuperAdmin }: Props) {
         <p className="text-sm text-red-600">{error}</p>
       )}
 
-      <div className="rounded-md border overflow-auto max-h-[60vh]">
+      <div className="max-h-[60vh] overflow-auto rounded-md border">
         <Table>
-          <TableHeader className="sticky top-0 bg-background z-10">
+          <TableHeader className="bg-background sticky top-0 z-10">
             <TableRow>
               <TableHead>Pays</TableHead>
               <TableHead>Module</TableHead>
@@ -315,7 +327,7 @@ export function FiscalRulesManager({ initialRules, isSuperAdmin }: Props) {
               <TableRow>
                 <TableCell
                   colSpan={isSuperAdmin ? 9 : 8}
-                  className="text-center text-muted-foreground py-8"
+                  className="text-muted-foreground py-8 text-center"
                 >
                   Aucune règle fiscale configurée
                 </TableCell>
@@ -323,7 +335,9 @@ export function FiscalRulesManager({ initialRules, isSuperAdmin }: Props) {
             )}
             {rules.map((rule) => (
               <TableRow key={rule.id}>
-                <TableCell className="font-mono font-medium">{rule.country}</TableCell>
+                <TableCell className="font-mono font-medium">
+                  {rule.country}
+                </TableCell>
                 <TableCell className="font-mono">{rule.module}</TableCell>
                 <TableCell>
                   {CLASSIFICATION_LABEL[rule.fiscalClassification] ??
@@ -339,15 +353,15 @@ export function FiscalRulesManager({ initialRules, isSuperAdmin }: Props) {
                     {STATUS_LABEL[rule.status] ?? rule.status}
                   </span>
                 </TableCell>
-                <TableCell className="tabular-nums text-muted-foreground">
+                <TableCell className="text-muted-foreground tabular-nums">
                   v{rule.version}
                 </TableCell>
-                <TableCell className="text-sm text-muted-foreground whitespace-nowrap">
+                <TableCell className="text-muted-foreground text-sm whitespace-nowrap">
                   {rule.effectiveFrom
                     ? new Date(rule.effectiveFrom).toLocaleDateString("fr-FR")
                     : "—"}
                 </TableCell>
-                <TableCell className="text-sm text-muted-foreground whitespace-nowrap">
+                <TableCell className="text-muted-foreground text-sm whitespace-nowrap">
                   {rule.effectiveTo
                     ? new Date(rule.effectiveTo).toLocaleDateString("fr-FR")
                     : "—"}
@@ -373,16 +387,22 @@ export function FiscalRulesManager({ initialRules, isSuperAdmin }: Props) {
                               <DialogTitle>Activer la règle</DialogTitle>
                             </DialogHeader>
                             <div className="space-y-3 py-2">
-                              <p className="text-sm text-muted-foreground">
-                                Pays : <strong>{rule.country}</strong> — Module :{" "}
-                                <strong>{rule.module}</strong> — Taux :{" "}
-                                <strong>{parseFloat(rule.vatRate).toFixed(2)} %</strong>
+                              <p className="text-muted-foreground text-sm">
+                                Pays : <strong>{rule.country}</strong> — Module
+                                : <strong>{rule.module}</strong> — Taux :{" "}
+                                <strong>
+                                  {parseFloat(rule.vatRate).toFixed(2)} %
+                                </strong>
                               </p>
                               <div>
-                                <Label>Référence de validation (obligatoire)</Label>
+                                <Label>
+                                  Référence de validation (obligatoire)
+                                </Label>
                                 <Input
                                   value={validationRef}
-                                  onChange={(e) => setValidationRef(e.target.value)}
+                                  onChange={(e) =>
+                                    setValidationRef(e.target.value)
+                                  }
                                   placeholder="Ex : Note interne 2026-10-23, CGI Art. 60..."
                                 />
                               </div>
@@ -394,7 +414,9 @@ export function FiscalRulesManager({ initialRules, isSuperAdmin }: Props) {
                                 disabled={isPending}
                                 className="w-full"
                               >
-                                {isPending ? "Activation..." : "Confirmer l'activation"}
+                                {isPending
+                                  ? "Activation..."
+                                  : "Confirmer l'activation"}
                               </Button>
                             </div>
                           </DialogContent>

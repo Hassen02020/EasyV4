@@ -67,7 +67,10 @@ test("E2-01-05 : fetchNearbyNetworkActivities délègue à getCrossSellNetworkAc
 
 test('E2-01-06 : getCrossSellNetworkActivities filtre products.status = "active" (jamais de produit réseau inactif dans le cross-sell)', () => {
   const fnIdx = crossSell.indexOf("getCrossSellNetworkActivities")
-  assert.ok(fnIdx > 0, "getCrossSellNetworkActivities doit exister dans cross-sell.ts")
+  assert.ok(
+    fnIdx > 0,
+    "getCrossSellNetworkActivities doit exister dans cross-sell.ts",
+  )
   // Slice autour de la fonction (800 chars suffisent)
   const block = crossSell.slice(fnIdx, fnIdx + 900)
   assert.ok(

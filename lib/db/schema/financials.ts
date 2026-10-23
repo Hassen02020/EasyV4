@@ -698,7 +698,9 @@ export const fiscalRules = pgTable(
     activatedAt: timestamp("activated_at", { withTimezone: true }),
     // LOT 7 — taxes à montant fixe par unité (taxe de séjour, taxe de location…)
     /** 'percentage' (défaut) | 'fixed_per_unit' | 'mixed' */
-    taxType: varchar("tax_type", { length: 24 }).notNull().default("percentage"),
+    taxType: varchar("tax_type", { length: 24 })
+      .notNull()
+      .default("percentage"),
     /** Montant fixe par unité en TND (ex: 8.00 pour taxe de séjour 3★ étrangers). */
     unitAmount: decimal("unit_amount", { precision: 10, scale: 2 }),
     /** Granularité : 'per_night_per_person' | 'per_night' | 'per_day' | 'per_vehicle_per_day' */

@@ -26,6 +26,11 @@ export type ActiveFiscalRule = Pick<
   | "version"
   | "validationRef"
   | "note"
+  | "taxType"
+  | "unitAmount"
+  | "unitType"
+  | "maxUnits"
+  | "residentAmount"
 >
 
 /**
@@ -55,6 +60,11 @@ export async function getActiveFiscalRule(
         version: fiscalRules.version,
         validationRef: fiscalRules.validationRef,
         note: fiscalRules.note,
+        taxType: fiscalRules.taxType,
+        unitAmount: fiscalRules.unitAmount,
+        unitType: fiscalRules.unitType,
+        maxUnits: fiscalRules.maxUnits,
+        residentAmount: fiscalRules.residentAmount,
       })
       .from(fiscalRules)
       .where(
@@ -106,6 +116,11 @@ export async function getActiveFiscalRuleInTx(
         version: fiscalRules.version,
         validationRef: fiscalRules.validationRef,
         note: fiscalRules.note,
+        taxType: fiscalRules.taxType,
+        unitAmount: fiscalRules.unitAmount,
+        unitType: fiscalRules.unitType,
+        maxUnits: fiscalRules.maxUnits,
+        residentAmount: fiscalRules.residentAmount,
       })
       .from(fiscalRules)
       .where(

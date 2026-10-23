@@ -167,6 +167,11 @@ export type FiscalSnapshot = {
   fiscalNote: string | null
   fiscal_rule_id: string | null
   fiscal_rule_version: number | null
+  // LOT 7 — taxe fixe par unité (taxe de séjour, taxe de location…)
+  // Informationnelle : collectée hors Easy2Book (ex: à la réception de l'hôtel).
+  unitTaxTnd: number | null   // total taxe fixe en TND (unitRate × unitCount)
+  unitCount: number | null    // unités effectivement taxées (plafonnées par maxUnits)
+  unitRate: number | null     // montant par unité en TND
 }
 
 /** Snapshot à partir d'un PriceBreakdown (base HT connue). */
@@ -194,6 +199,9 @@ export function buildFiscalSnapshot(
     fiscalNote,
     fiscal_rule_id: fiscalRuleId,
     fiscal_rule_version: fiscalRuleVersion,
+    unitTaxTnd: null,
+    unitCount: null,
+    unitRate: null,
   }
 }
 
@@ -227,6 +235,9 @@ export function buildFiscalSnapshotFromTtc(
     fiscalNote,
     fiscal_rule_id: fiscalRuleId,
     fiscal_rule_version: fiscalRuleVersion,
+    unitTaxTnd: null,
+    unitCount: null,
+    unitRate: null,
   }
 }
 
@@ -251,5 +262,60 @@ export function buildPendingFiscalSnapshot(
     fiscalNote,
     fiscal_rule_id: null,
     fiscal_rule_version: null,
+    unitTaxTnd: null,
+    unitCount: null,
+    unitRate: null,
+  }
+}
+
+/**
+ * Snapshot avec taxe fixe par unité (LOT 7).
+ *
+ * Utilisé pour les modules où s'applique une taxe à montant fixe par unité
+ * (ex : taxe de séjour LF 2024 Art. 46 — 4/8/12 TND/nuit/personne).
+ *
+ * La TVA Easy2Book est calculée sur totalTnd (base TTC).
+ * La taxe unitaire est INFORMATIONNELLE : collectée hors Easy2Book
+ * (ex: à la réception de l'hôtel — non incluse dans le paiement Easy2Book).
+ *
+ * @param unitAmount  Montant par unité en TND (ex: 8 pour hôtel 3★ étrangers).
+ * @param unitCount   Nombre d'unités brutes (ex: nuits × personnes).
+ * @param maxUnits    Plafond d'unités taxées (ex: 10 — LF 2024 Art. 46). null = pas de plafond.
+ */
+export function buildFiscalSnapshotWithUnitTax(
+  totalTnd: number,
+  vatRate: number,
+  serviceCategory: string,
+  taxRuleRef: string | null,
+  fiscalNote: string | null = null,
+  fiscalRuleId: string | null = null,
+  fiscalRuleVersion: number | null = null,
+  unitAmount: number,
+  unitCount: number,
+  maxUnits: number | null = null,
+): FiscalSnapshot {
+  const effectiveCount =
+    maxUnits !== null ? Math.min(unitCount, maxUnits) : unitCount
+  const unitTaxTnd = round2(unitAmount * effectiveCount)
+  const subtotalTnd = round2(totalTnd / (1 + vatRate / 100))
+  const vatTnd = round2(totalTnd - subtotalTnd)
+  return {
+    status: "determined",
+    country: "TN",
+    serviceCategory,
+    vatRate,
+    taxBasis: "TTC",
+    subtotalTnd,
+    vatTnd,
+    totalTnd,
+    rounding: "round2",
+    taxRuleRef,
+    capturedAt: new Date().toISOString(),
+    fiscalNote,
+    fiscal_rule_id: fiscalRuleId,
+    fiscal_rule_version: fiscalRuleVersion,
+    unitTaxTnd,
+    unitCount: effectiveCount,
+    unitRate: unitAmount,
   }
 }

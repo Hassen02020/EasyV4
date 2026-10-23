@@ -696,6 +696,17 @@ export const fiscalRules = pgTable(
     /** UUID du super_admin ayant activé la règle. */
     activatedBy: uuid("activated_by"),
     activatedAt: timestamp("activated_at", { withTimezone: true }),
+    // LOT 7 — taxes à montant fixe par unité (taxe de séjour, taxe de location…)
+    /** 'percentage' (défaut) | 'fixed_per_unit' | 'mixed' */
+    taxType: varchar("tax_type", { length: 24 }).notNull().default("percentage"),
+    /** Montant fixe par unité en TND (ex: 8.00 pour taxe de séjour 3★ étrangers). */
+    unitAmount: decimal("unit_amount", { precision: 10, scale: 2 }),
+    /** Granularité : 'per_night_per_person' | 'per_night' | 'per_day' | 'per_vehicle_per_day' */
+    unitType: varchar("unit_type", { length: 32 }),
+    /** Plafond d'unités taxées (ex: 10 nuits — LF 2024 Art. 46 taxe de séjour). */
+    maxUnits: integer("max_units"),
+    /** Montant alternatif pour résidents tunisiens / UMA si différent de unitAmount. */
+    residentAmount: decimal("resident_amount", { precision: 10, scale: 2 }),
   },
   (t) => [
     index("fiscal_rules_lookup_idx").on(

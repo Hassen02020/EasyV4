@@ -25,6 +25,7 @@ import { resolve } from "node:path"
 import {
   buildFiscalSnapshot,
   buildFiscalSnapshotFromTtc,
+  buildFiscalSnapshotWithUnitTax,
   buildPendingFiscalSnapshot,
   computePriceBreakdown,
 } from "@/lib/booking/pricing"
@@ -339,6 +340,12 @@ const _stubRule: ActiveFiscalRule = {
   version: 1,
   validationRef: "LF-2024-ART-1",
   note: null,
+  // LOT 7 — champs taxe fixe par unité (valeurs par défaut, règle percentage standard)
+  taxType: "percentage",
+  unitAmount: null,
+  unitType: null,
+  maxUnits: null,
+  residentAmount: null,
 }
 
 /** Crée un tx Drizzle mocké qui retourne les règles dans l'ordre des passes. */
@@ -399,5 +406,61 @@ describe("FISCAL-RULES-01 : résolution 4-passes comportementale (mock tx)", () 
     const result = await getActiveFiscalRuleInTx(tx, "TN", "hotel", new Date())
     assert.deepEqual(result, fallbackRule)
     assert.equal(tx.callCount, 4, "4 passes pour atteindre le fallback *+*")
+  })
+})
+
+// ---------------------------------------------------------------------------
+// T27–T29 : LOT 7 — buildFiscalSnapshotWithUnitTax (taxe fixe par unité)
+// ---------------------------------------------------------------------------
+
+describe("FISCAL-RULES-01 LOT 7 : buildFiscalSnapshotWithUnitTax (taxe fixe par unité)", () => {
+  test("T27 — taxe de séjour 3★ étrangers : 8 TND × 6 unités (3 nuits × 2 pers.) = 48 TND", () => {
+    const snap = buildFiscalSnapshotWithUnitTax(
+      1190,             // totalTnd Easy2Book (TVA 19 % incluse)
+      19,               // vatRate
+      "hotel",
+      "LF-2024-ART-46",
+      "taxe de séjour 3★ étrangers — collectée à la réception",
+      "uuid-rule-unit-1",
+      1,
+      8,                // 8 TND par unité
+      6,                // 3 nuits × 2 personnes = 6 unités
+      10,               // plafond 10 nuits (LF 2024 Art. 46)
+    )
+    assert.equal(snap.status, "determined")
+    assert.equal(snap.unitTaxTnd, 48)          // 8 × min(6, 10) = 48
+    assert.equal(snap.unitCount, 6)            // sous le plafond
+    assert.equal(snap.unitRate, 8)
+    assert.equal(snap.fiscal_rule_id, "uuid-rule-unit-1")
+    assert.equal(snap.taxRuleRef, "LF-2024-ART-46")
+    // TVA sur le prix Easy2Book reste correcte
+    assert.equal(snap.totalTnd, 1190)
+    assert.ok(Math.abs(snap.subtotalTnd! - 1000) < 0.01, `subtotalTnd=${snap.subtotalTnd}`)
+    assert.ok(Math.abs(snap.vatTnd! - 190) < 0.01, `vatTnd=${snap.vatTnd}`)
+  })
+
+  test("T28 — plafond max_units respecté : 15 unités plafonnées à 10", () => {
+    const snap = buildFiscalSnapshotWithUnitTax(
+      5950, 19, "hotel", "LF-2024-ART-46", null, "uuid-rule-unit-2", 1,
+      8,    // 8 TND par unité
+      15,   // 15 unités brutes (dépassement)
+      10,   // plafond 10
+    )
+    assert.equal(snap.unitCount, 10)           // plafonné à 10
+    assert.equal(snap.unitTaxTnd, 80)          // 8 × 10 = 80
+    assert.equal(snap.unitRate, 8)
+  })
+
+  test("T29 — builders existants non affectés : unitTaxTnd null sur buildFiscalSnapshot HT", () => {
+    const breakdown = computePriceBreakdown({
+      unitPriceTnd: 1000,
+      adults: 1,
+      vatRate: 19,
+      depositPercent: 100,
+    })
+    const snap = buildFiscalSnapshot(breakdown, 19, "hotel", "ref-v1", null, "uuid-v1", 1)
+    assert.equal(snap.unitTaxTnd, null, "Builder HT existant : unitTaxTnd doit rester null")
+    assert.equal(snap.unitCount, null)
+    assert.equal(snap.unitRate, null)
   })
 })

@@ -34,7 +34,7 @@ Un seul chantier actif à la fois ; il est indiqué dans ROADMAP.md (section "Ch
 
 ---
 
-## TAX-RULES-SUPERADMIN-01 — FISCAL SNAPSHOT — CLÔTURÉ LOT 1-6 (2026-10-23)
+## TAX-RULES-SUPERADMIN-01 — FISCAL SNAPSHOT — CLÔTURÉ LOT 1-7 (2026-10-23)
 
 **Objectif** : garantir que le montant présenté au client, le montant payé, la réservation
 enregistrée et la facture racontent exactement la même histoire financière.
@@ -80,6 +80,25 @@ enregistrée et la facture racontent exactement la même histoire financière.
 - **Pré-requis déploiement** : la Direction doit créer et activer au moins une règle par
   module fail-closed (hotel, package, activity) via `/admin/accounting/fiscal-rules` AVANT
   de déployer LOT 6 en production, sous peine de blocage des réservations de ces modules.
+
+**LOT 7 — DONE** (branche `claude/easy2book-v6-modernization-7gyb5v`, 2026-10-23)
+
+- Migration additive `drizzle/0023_fiscal_rules_unit_tax.sql` : 5 colonnes ajoutées sur
+  `fiscal_rules` — `tax_type` (NOT NULL DEFAULT 'percentage'), `unit_amount`, `unit_type`,
+  `max_units`, `resident_amount` — aucune rupture de rétrocompatibilité
+- Drizzle schema `lib/db/schema/financials.ts` : 5 nouveaux champs dans `fiscalRules`
+- `ActiveFiscalRule` Pick étendu + SELECT dans `getActiveFiscalRule` et
+  `getActiveFiscalRuleInTx` — les 5 champs remontés depuis la DB
+- `FiscalSnapshot` étendu : `unitTaxTnd`, `unitCount`, `unitRate` (nullable, null dans
+  les 3 builders existants — rétrocompatible)
+- Nouveau builder `buildFiscalSnapshotWithUnitTax()` — taxe fixe par unité avec plafond
+  (`maxUnits`) ; taxe informationnelle collectée hors Easy2Book (ex: à la réception)
+- Contexte fiscal capturé : LF 2024 Art. 46 — taxe de séjour 4/8/12 TND/nuit/personne
+  étrangers (2★/3★/4-5★) ; 1/2/3 TND Tunisiens/UMA ; plafond 10 nuits
+- Tests T23–T29 : comportemental mock-tx (T23-T26) + unit-tax builder (T27-T29)
+- 2730 pass, 0 fail ; TypeScript 0 erreurs
+- **NOT YET DEPLOYED** : migration `0023` non appliquée en production ; déploiement
+  nécessite GO Direction + activation règles LOT 6 (pré-requis inchangé)
 
 ---
 

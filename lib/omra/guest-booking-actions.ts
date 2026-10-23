@@ -64,6 +64,8 @@ import { recordReservationFinancials } from "@/lib/finance/reservation-financial
 import { creditPlatformCommission } from "@/lib/finance/platform-commission"
 import { resolveCheckoutPromoCore } from "@/lib/crm/promo-checkout-core"
 import { applyPromoDiscountCore } from "@/lib/finance/promo-discount-core"
+import { buildFiscalSnapshotFromTtc } from "@/lib/booking/pricing"
+import { getActiveFiscalRuleInTx } from "@/lib/finance/fiscal-rules"
 
 export type CreateGuestOmraBookingResult =
   | {
@@ -297,6 +299,15 @@ async function runCreateGuestOmraBooking(
 
         // --- 4. Réservation ---
         const publicRef = await nextOmraPublicRef(tx, agencyId)
+
+        const fiscalRule = await getActiveFiscalRuleInTx(
+          tx,
+          "TN",
+          "omra",
+          new Date(),
+        )
+        if (!fiscalRule) throw new Error("FISCAL_RULE_NOT_FOUND")
+
         const [reservation] = await tx
           .insert(reservations)
           .values({
@@ -311,6 +322,15 @@ async function runCreateGuestOmraBooking(
             tndAmount: totalTnd.toFixed(2),
             depositAmount: totalTnd.toFixed(2),
             depositPaid: "0",
+            fiscalSnapshot: buildFiscalSnapshotFromTtc(
+              totalTnd,
+              parseFloat(fiscalRule.vatRate),
+              "omra",
+              fiscalRule.validationRef,
+              fiscalRule.note,
+              fiscalRule.id,
+              fiscalRule.version,
+            ),
             providerPayload: {
               packageId: booking.packageId,
               departureDate: booking.departureDate,

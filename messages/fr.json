@@ -686,7 +686,13 @@
     "cancellationFree": "Annulation gratuite",
     "cancellationNonRefundable": "Non remboursable — aucun remboursement en cas d'annulation",
     "acceptCancellationPolicy": "J'ai lu et j'accepte la politique d'annulation de cette offre",
-    "mustAcceptCancellationPolicy": "Vous devez accepter la politique d'annulation pour continuer"
+    "mustAcceptCancellationPolicy": "Vous devez accepter la politique d'annulation pour continuer",
+    "viewList": "Liste",
+    "viewMap": "Carte",
+    "filterByStars": "Catégorie",
+    "filterByPrice": "Prix / nuit (TND)",
+    "priceFrom": "De",
+    "priceTo": "À"
   },
   "Attractions": {
     "kicker": "Attractions",

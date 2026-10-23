@@ -74,7 +74,7 @@ export function createVirtualWorldHotelDriver(): WorldHotelSupplierDriver {
         stars: offer.stars,
         rating: offer.rating,
         reviewCount: offer.reviewCount,
-        thumbnailUrl: null,
+        thumbnailUrl: `https://picsum.photos/seed/${offer.offerId}/400/250`,
         pricePerNightTnd: offer.pricePerNightTnd,
         totalPriceTnd: offer.totalPriceTnd,
         nights: offer.nights,

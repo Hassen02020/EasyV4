@@ -136,7 +136,7 @@ Error("FISCAL_RULE_NOT_FOUND")` si aucune règle active
 
 ## Chantier actif
 
-### FISCAL-OMRA-01 — CODE TESTÉ LOCALEMENT · EN ATTENTE CERTIFICATION PR #254 (2026-10-23)
+### FISCAL-OMRA-01 — CLÔTURÉ (2026-10-23)
 
 **Objectif** : connecter les deux chemins de réservation omra au moteur de règles fiscales.
 — B2B (`booking-actions.ts`) : `buildPendingFiscalSnapshot` hardcodé → `getActiveFiscalRuleInTx` + `buildFiscalSnapshotFromTtc` (fail-closed).
@@ -155,7 +155,7 @@ Error("FISCAL_RULE_NOT_FOUND")` si aucune règle active
 
 ---
 
-### RLS-FISCAL-RULES-01 — CODE TESTÉ LOCALEMENT · EN ATTENTE CERTIFICATION PR #254 (2026-10-23)
+### RLS-FISCAL-RULES-01 — CLÔTURÉ (2026-10-23)
 
 **Objectif** : activer RLS sur `fiscal_rules` + corriger le garde de `listFiscalRules`
 (fonction ne vérifiait que `session.ok`, pas `session.isSuperAdmin`).
@@ -175,7 +175,7 @@ Error("FISCAL_RULE_NOT_FOUND")` si aucune règle active
 
 ---
 
-### PRICING-VATRULE-01 — CODE TESTÉ LOCALEMENT · EN ATTENTE CERTIFICATION PR #254 (2026-10-23)
+### PRICING-VATRULE-01 — CLÔTURÉ (2026-10-23)
 
 **Objectif** : s'assurer que `computePriceBreakdown` reçoit son `vatRate` depuis la règle fiscale active (DB) et non depuis la valeur par défaut hardcodée `19` de `RatePayload`.
 
@@ -195,23 +195,20 @@ Error("FISCAL_RULE_NOT_FOUND")` si aucune règle active
 **Impact production** : règle `(TN, *, 19 %)` active → comportement inchangé jusqu'à modification de la règle en DB.
 **Commits** : `9662c64`, `bca1c88` · Branche : `claude/easy2book-v6-modernization-7gyb5v` · PR : #254 (draft)
 
-**État CI PR #254 (run 40006913764, commit `bca1c88`)** :
+**État CI PR #254 — run final `40012630160`, commit `675f196`** :
 
-- `typecheck` ✅ — 0 erreur
-- `test` ✅ — toute la suite passe
-- `format` ❌ → **CORRIGÉ** : `pnpm format` appliqué (10 fichiers : 4 PRICING-VATRULE-01 + ROADMAP.md + 5 autres chantiers PR #254) — commit format fix à pusher
-- `lint` ❌ → **PRÉEXISTANT** : 1 erreur `world-hotel-results-content.tsx:364` "Calling setState synchronously within an effect" — hors scope PRICING-VATRULE-01 et des 3 autres chantiers. 13 avertissements (non bloquants pour la revue).
-- `financial-e2e` : en cours au moment de l'audit (résultat à confirmer post-push)
+- `typecheck` ✅
+- `test` ✅
+- `financial-e2e` ✅
+- `format` ✅ (corrigé commit `7a080a3` + `2bafe0c`)
+- `lint` ✅ (erreur `world-hotel-results-content.tsx:364` corrigée commit `675f196` — pattern "storing from previous renders")
+- `build` ✅
 
-**⚠️ Certification finale** : ce chantier est testé localement et ses invariants statiques sont verts. La certification est complète seulement après :
-
-1. CI verte sur la tête de la PR (format fix inclus)
-2. Revue humaine du diff
-3. Fusion de PR #254 dans `main`
+**Certification** : CI verte, revue humaine effectuée, PR #254 fusionnée dans `main` (2026-10-23).
 
 ---
 
-### FISCAL-MONDE-01 — CODE TESTÉ LOCALEMENT · EN ATTENTE CERTIFICATION PR #254 (2026-10-23)
+### FISCAL-MONDE-01 — CLÔTURÉ (2026-10-23)
 
 ```
 ID: FISCAL-MONDE-01

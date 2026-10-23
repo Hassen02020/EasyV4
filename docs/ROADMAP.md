@@ -136,6 +136,23 @@ Error("FISCAL_RULE_NOT_FOUND")` si aucune règle active
 
 ## Chantier actif
 
+### INNGEST-ROUTE-WIRING-GAP-01 — CLÔTURÉ (2026-10-23)
+
+**Objectif** : enregistrer les 4 fonctions Inngest exportées depuis `lib/inngest/functions/index.ts` mais jamais présentes dans le tableau `functions` de `app/api/inngest/route.ts`. Sans enregistrement, Inngest cloud les ignore silencieusement — aucun email de confirmation Packages/Activities/Voiture, aucune livraison CRM.
+
+**Gap documenté** : commentaire explicite dans `route.ts` depuis MUTUELLE-CONCURRENCY-COMPLETE-01 (gap préexistant, hors périmètre à l'époque) — constat validé par audit CARTO-TECH-01.
+
+**Changements** :
+
+- `app/api/inngest/route.ts` [EXTEND] — +4 imports + +4 entrées dans `functions[]` : `processPackageConfirmed`, `processActivityConfirmed`, `processCarConfirmed`, `deliverCampaign`
+- `lib/inngest/functions/__tests__/inngest-route-wiring-gap-01-invariants.test.ts` [CREATE] — 25 invariants statiques (trigger, onFailure, steps, barrel export, route import, route registration pour chacune des 4 fonctions)
+
+**Preuves** : 25/25 invariants verts, 2834 tests 0 échec, typecheck propre (0 erreur), lint 0 erreur (13 warnings préexistants), format propre, build pré-existant cassé (`PRICE_TOKEN_SECRET` absent en CI — vérifié identique sur `main` avant changement, non-régression confirmée).
+
+**Branche** : `claude/easy2book-v6-modernization-7gyb5v`
+
+---
+
 ### INNGEST-HANDLER-NETWORK-01 — CLÔTURÉ (2026-10-23)
 
 **Objectif** : combler le gap entre l'event `booking/network.confirmed` émis par NETWORK-B2C-01 (PR #234, 2026-10-18) et l'absence de handler Inngest — aucun email de confirmation n'était envoyé aux clients depuis la mise en production du portail Network B2C.

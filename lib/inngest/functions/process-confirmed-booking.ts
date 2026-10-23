@@ -176,11 +176,14 @@ export const processConfirmedBooking = inngest.createFunction(
         actorUserId: "",
       })
       if (!result.ok) {
-        console.error("[process-confirmed-booking] génération facture échouée", {
-          reservationId,
-          publicRef,
-          error: result.error,
-        })
+        console.error(
+          "[process-confirmed-booking] génération facture échouée",
+          {
+            reservationId,
+            publicRef,
+            error: result.error,
+          },
+        )
       }
       return result
     })

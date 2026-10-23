@@ -432,7 +432,13 @@ jobs:
           sudo systemctl start postgresql.service
           sudo -u postgres pg_isready -t 30
           sudo -u postgres psql -c "ALTER USER postgres PASSWORD 'postgres';"
-      - name: Stub schéma auth (auth.uid/role/roles — requis par db:push/RLS)
+      - name: Schéma DB CI (db:push)
+        run: pnpm db:push --force
+      - name: Vérification schéma (agencies doit exister après db:push)
+        run: |
+          psql "$DATABASE_URL" -c "\dt agencies" | grep -q agencies || \
+            (echo "FATAL: table agencies absente après db:push" && exit 1)
+      - name: Stub schéma auth (auth.uid/role/roles — requis par l'app/RLS, après db:push)
         run: |
           psql "$DATABASE_URL" -v ON_ERROR_STOP=1 <<'SQL'
             CREATE SCHEMA IF NOT EXISTS auth;
@@ -451,8 +457,6 @@ jobs:
               created_at timestamptz DEFAULT now()
             );
           SQL
-      - name: Schéma DB CI (db:push)
-        run: pnpm db:push --force
       - name: Install Playwright chromium
         run: pnpm exec playwright install chromium --with-deps
       - name: Guest booking E2E (MYGO_MODE=virtual, pnpm dev)

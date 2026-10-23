@@ -136,7 +136,7 @@ Error("FISCAL_RULE_NOT_FOUND")` si aucune règle active
 
 ## Chantier actif
 
-### FISCAL-MONDE-01 — PROPOSITION — EN ATTENTE DE GO
+### FISCAL-MONDE-01 — CLÔTURÉ (2026-10-23)
 
 ```
 ID: FISCAL-MONDE-01
@@ -177,7 +177,16 @@ CRITÈRE DE SORTIE: fiscalSnapshot non nul dans l'INSERT hotels-monde,
 ESTIMATION: ≤ 2h (pattern éprouvé, 1 fichier, 0 migration).
 ```
 
-→ STOP — ATTENTE DU GO
+**Implémentation** :
+
+- `lib/hotels-monde/guest-booking-actions.ts` : import `buildFiscalSnapshotFromTtc`
+  - `getActiveFiscalRuleInTx` ; appel fail-closed dans la TX ; `fiscalSnapshot`
+    dans l'INSERT `reservations` (pattern identique LOT 6 hotel B2C).
+- `lib/hotels-monde/__tests__/fiscal-wiring.test.ts` : 7 invariants statiques
+  (import, appel TN/hotel_monde, guard FISCAL_RULE_NOT_FOUND, câblage INSERT,
+  parseFloat(vatRate), traçabilité id/version).
+- Tests : 7/7 verts. `pnpm test` : 2737 pass / 0 fail. TypeScript 0 erreurs.
+- Aucune migration DB (colonne `fiscal_snapshot` déjà présente depuis LOT 3).
 
 ---
 

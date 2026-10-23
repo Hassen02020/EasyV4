@@ -56,6 +56,8 @@ import { creditPlatformCommission } from "@/lib/finance/platform-commission"
 import { resolveCheckoutPromoCore } from "@/lib/crm/promo-checkout-core"
 import { applyPromoDiscountCore } from "@/lib/finance/promo-discount-core"
 import type { ApplicableDiscountResult } from "@/lib/crm/promo-core"
+import { buildFiscalSnapshotFromTtc } from "@/lib/booking/pricing"
+import { getActiveFiscalRuleInTx } from "@/lib/finance/fiscal-rules"
 import { sendEvent } from "@/lib/inngest/client"
 import { getPaymentProvider } from "@/lib/payment/provider"
 import { withGuestIdempotency } from "@/lib/booking/guest-idempotency"
@@ -342,6 +344,15 @@ async function runCreateGuestWorldHotelBooking(
         })
 
         const publicRef = await nextWorldHotelPublicRef(tx, agencyId)
+
+        const fiscalRule = await getActiveFiscalRuleInTx(
+          tx,
+          "TN",
+          "hotel_monde",
+          new Date(),
+        )
+        if (!fiscalRule) throw new Error("FISCAL_RULE_NOT_FOUND")
+
         const [reservation] = await tx
           .insert(reservations)
           .values({
@@ -356,6 +367,15 @@ async function runCreateGuestWorldHotelBooking(
             tndAmount: String(finalTotalTnd),
             depositAmount: String(finalTotalTnd),
             depositPaid: "0",
+            fiscalSnapshot: buildFiscalSnapshotFromTtc(
+              finalTotalTnd,
+              parseFloat(fiscalRule.vatRate),
+              "hotel_monde",
+              fiscalRule.validationRef,
+              fiscalRule.note,
+              fiscalRule.id,
+              fiscalRule.version,
+            ),
             providerPayload: {
               offerId: bookResult.offerId,
               confirmationNumber: bookResult.confirmationNumber,

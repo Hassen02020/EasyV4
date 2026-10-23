@@ -30,7 +30,10 @@ import { join } from "node:path"
 const ROOT = process.cwd()
 
 const hotelB2B = readFileSync(join(ROOT, "lib/booking/actions.ts"), "utf8")
-const hotelB2C = readFileSync(join(ROOT, "lib/booking/guest-actions.ts"), "utf8")
+const hotelB2C = readFileSync(
+  join(ROOT, "lib/booking/guest-actions.ts"),
+  "utf8",
+)
 const packages = readFileSync(
   join(ROOT, "lib/packages/booking-actions.ts"),
   "utf8",

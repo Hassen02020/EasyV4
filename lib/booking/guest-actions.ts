@@ -62,7 +62,10 @@ import {
   priceDrifted,
   buildFiscalSnapshot,
 } from "./pricing"
-import { getActiveFiscalRule, getActiveFiscalRuleInTx } from "@/lib/finance/fiscal-rules"
+import {
+  getActiveFiscalRule,
+  getActiveFiscalRuleInTx,
+} from "@/lib/finance/fiscal-rules"
 import { confirmHotelWithProvider, nextPublicRef } from "./actions"
 import { authoritativeUnitPrice } from "./hotel-provider-booking"
 import { getDefaultAgencyId } from "@/lib/agencies/default-agency"
@@ -388,7 +391,11 @@ async function runCreateGuestReservation(
   const agencyPriceBeforePromo = commercialResultB2C
     ? commercialResultB2C.sellingAmount
     : applyMargin(myGoBooking.totalPrice, hotelMarginRule)
-  const fiscalRuleForBreakdown = await getActiveFiscalRule("TN", "hotel", new Date())
+  const fiscalRuleForBreakdown = await getActiveFiscalRule(
+    "TN",
+    "hotel",
+    new Date(),
+  )
   if (!fiscalRuleForBreakdown) throw new Error("FISCAL_RULE_NOT_FOUND")
   const breakdownBeforePromo = computePriceBreakdown({
     ...authoritativeUnitPrice(agencyPriceBeforePromo, draft.adults),

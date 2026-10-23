@@ -208,7 +208,11 @@ test("pricing: vatRate=7 — enfant par défaut (50 % de l'adulte)", () => {
 
 test("pricing: vatRate=7 vs vatRate=19 — même HT, différence TVA exacte", () => {
   // Même base HT (500 TND, 1 adulte). Seule la TVA diffère.
-  const r19 = computePriceBreakdown({ unitPriceTnd: 500, adults: 1, vatRate: 19 })
+  const r19 = computePriceBreakdown({
+    unitPriceTnd: 500,
+    adults: 1,
+    vatRate: 19,
+  })
   const r7 = computePriceBreakdown({ unitPriceTnd: 500, adults: 1, vatRate: 7 })
 
   assert.equal(r19.subtotalTnd, 500) // HT identique

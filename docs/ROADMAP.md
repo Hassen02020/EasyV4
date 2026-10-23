@@ -136,13 +136,14 @@ Error("FISCAL_RULE_NOT_FOUND")` si aucune règle active
 
 ## Chantier actif
 
-### FISCAL-OMRA-01 — CLÔTURÉ (2026-10-23)
+### FISCAL-OMRA-01 — CODE TESTÉ LOCALEMENT · EN ATTENTE CERTIFICATION PR #254 (2026-10-23)
 
 **Objectif** : connecter les deux chemins de réservation omra au moteur de règles fiscales.
 — B2B (`booking-actions.ts`) : `buildPendingFiscalSnapshot` hardcodé → `getActiveFiscalRuleInTx` + `buildFiscalSnapshotFromTtc` (fail-closed).
 — B2C (`guest-booking-actions.ts`) : `fiscalSnapshot` absent de l'INSERT (NULL) → engine-connected.
 
 **Fichiers** :
+
 - `lib/omra/booking-actions.ts` — import + appel fail-closed `(TN, omra)` + guard `FISCAL_RULE_NOT_FOUND` + snapshot dans INSERT
 - `lib/omra/guest-booking-actions.ts` — idem (gap identique à hotels-monde avant FISCAL-MONDE-01)
 - `lib/omra/__tests__/fiscal-wiring.test.ts` — 15 invariants statiques (7 B2B + 8 B2C incluant absence buildPendingFiscalSnapshot)
@@ -154,7 +155,7 @@ Error("FISCAL_RULE_NOT_FOUND")` si aucune règle active
 
 ---
 
-### RLS-FISCAL-RULES-01 — CLÔTURÉ (2026-10-23)
+### RLS-FISCAL-RULES-01 — CODE TESTÉ LOCALEMENT · EN ATTENTE CERTIFICATION PR #254 (2026-10-23)
 
 **Objectif** : activer RLS sur `fiscal_rules` + corriger le garde de `listFiscalRules`
 (fonction ne vérifiait que `session.ok`, pas `session.isSuperAdmin`).
@@ -163,6 +164,7 @@ Error("FISCAL_RULE_NOT_FOUND")` si aucune règle active
 → `rls_enabled=true`, `policy_name=fiscal_rules_super_admin`, `cmd=*`, `using_expr=is_super_admin()`, `with_check_expr=is_super_admin()` — confirmé sur Supabase `crygnaichvlxavvbifqi` post-commit `74c931e`.
 
 **Fichiers** :
+
 - `drizzle/manual/0140_rls_fiscal_rules.sql` — migration appliquée en production
 - `lib/finance/fiscal-rules-actions.ts` — guard `isSuperAdmin` ajouté dans `listFiscalRules()`
 - `lib/finance/__tests__/fiscal-rules-rls.test.ts` — 8 invariants statiques (migration RLS, policy FOR ALL, is_super_admin(), WITH CHECK, idempotence, guard lecture, guard écriture, bypass service role)
@@ -173,13 +175,14 @@ Error("FISCAL_RULE_NOT_FOUND")` si aucune règle active
 
 ---
 
-### PRICING-VATRULE-01 — CLÔTURÉ (2026-10-23)
+### PRICING-VATRULE-01 — CODE TESTÉ LOCALEMENT · EN ATTENTE CERTIFICATION PR #254 (2026-10-23)
 
 **Objectif** : s'assurer que `computePriceBreakdown` reçoit son `vatRate` depuis la règle fiscale active (DB) et non depuis la valeur par défaut hardcodée `19` de `RatePayload`.
 
 **Audit** : `unitPriceTnd` = HT confirmé (commentaire `pricing.ts:11`, `taxBasis: "HT"` dans `buildFiscalSnapshot`). Pas de double-TVA. Stratégie TX : hotel B2B/B2C utilisent `getActiveFiscalRule` (non-TX) avant le breakdown hors-TX, et conservent `getActiveFiscalRuleInTx` (TX) pour le snapshot.
 
 **Fichiers** :
+
 - `lib/booking/actions.ts` — hotel B2B : `getActiveFiscalRule` non-TX avant breakdown + `vatRate: parseFloat(fiscalRuleForBreakdown.vatRate)`
 - `lib/booking/guest-actions.ts` — hotel B2C : idem, 2 appels à computePriceBreakdown couverts
 - `lib/packages/booking-actions.ts` — pkg B2C (`fiscalRule`) + pkg B2B (`fiscalRuleB2B`) déplacés avant breakdown
@@ -188,13 +191,25 @@ Error("FISCAL_RULE_NOT_FOUND")` si aucune règle active
 - `lib/booking/__tests__/pricing.test.ts` — 5 nouveaux cas vatRate=7 avec valeurs HT/TVA/TTC explicites (14, 33.6, 52.5 TND) + comparaison 7% vs 19% + invariant pas-de-double-TVA
 - `lib/booking/__tests__/pricing-vatrule-wiring.test.ts` — 30 invariants statiques (6 × 5 fichiers : import, module, guard, parseFloat, ordre fetch<breakdown, pas de vatRate:19)
 
-**Résultats** : 30/30 invariants câblage verts. `pnpm test` : 2795 pass / 0 fail. TypeScript 0 erreurs. Lint 0 erreur dans les fichiers modifiés (1 erreur préexistante `world-hotel-results-content.tsx` hors scope).
+**Résultats locaux** : 30/30 invariants câblage verts. `pnpm test` : 2795 pass / 0 fail. TypeScript 0 erreurs.
 **Impact production** : règle `(TN, *, 19 %)` active → comportement inchangé jusqu'à modification de la règle en DB.
-**Commit** : `9662c64` · Branche : `claude/easy2book-v6-modernization-7gyb5v` · PR : #254
+**Commits** : `9662c64`, `bca1c88` · Branche : `claude/easy2book-v6-modernization-7gyb5v` · PR : #254 (draft)
+
+**État CI PR #254 (run 40006913764, commit `bca1c88`)** :
+- `typecheck` ✅ — 0 erreur
+- `test` ✅ — toute la suite passe
+- `format` ❌ → **CORRIGÉ** : `pnpm format` appliqué (10 fichiers : 4 PRICING-VATRULE-01 + ROADMAP.md + 5 autres chantiers PR #254) — commit format fix à pusher
+- `lint` ❌ → **PRÉEXISTANT** : 1 erreur `world-hotel-results-content.tsx:364` "Calling setState synchronously within an effect" — hors scope PRICING-VATRULE-01 et des 3 autres chantiers. 13 avertissements (non bloquants pour la revue).
+- `financial-e2e` : en cours au moment de l'audit (résultat à confirmer post-push)
+
+**⚠️ Certification finale** : ce chantier est testé localement et ses invariants statiques sont verts. La certification est complète seulement après :
+1. CI verte sur la tête de la PR (format fix inclus)
+2. Revue humaine du diff
+3. Fusion de PR #254 dans `main`
 
 ---
 
-### FISCAL-MONDE-01 — CLÔTURÉ (2026-10-23)
+### FISCAL-MONDE-01 — CODE TESTÉ LOCALEMENT · EN ATTENTE CERTIFICATION PR #254 (2026-10-23)
 
 ```
 ID: FISCAL-MONDE-01

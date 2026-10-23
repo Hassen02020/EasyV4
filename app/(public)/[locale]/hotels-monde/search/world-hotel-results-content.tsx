@@ -361,13 +361,19 @@ export function WorldHotelResultsContent() {
   useEffect(() => {
     if (offers.length === 0) return
     const prices = offers.map((o) => o.pricePerNightTnd)
-    setPriceRange([Math.floor(Math.min(...prices)), Math.ceil(Math.max(...prices))])
+    setPriceRange([
+      Math.floor(Math.min(...prices)),
+      Math.ceil(Math.max(...prices)),
+    ])
   }, [offers])
 
   const offerPriceRange = useMemo(() => {
     if (offers.length === 0) return { min: 0, max: 9999 }
     const prices = offers.map((o) => o.pricePerNightTnd)
-    return { min: Math.floor(Math.min(...prices)), max: Math.ceil(Math.max(...prices)) }
+    return {
+      min: Math.floor(Math.min(...prices)),
+      max: Math.ceil(Math.max(...prices)),
+    }
   }, [offers])
 
   const { format: formatPrice } = useCurrency()
@@ -377,14 +383,23 @@ export function WorldHotelResultsContent() {
     if (breakfastOnly) result = result.filter((o) => o.breakfastIncluded)
     if (refundableOnly) result = result.filter((o) => o.refundable)
     if (selectedStars.size > 0)
-      result = result.filter((o) => o.stars != null && selectedStars.has(o.stars))
+      result = result.filter(
+        (o) => o.stars != null && selectedStars.has(o.stars),
+      )
     result = result.filter(
       (o) =>
         o.pricePerNightTnd >= priceRange[0] &&
         o.pricePerNightTnd <= priceRange[1],
     )
     return sortOffers(result, sortMode)
-  }, [offers, breakfastOnly, refundableOnly, selectedStars, priceRange, sortMode])
+  }, [
+    offers,
+    breakfastOnly,
+    refundableOnly,
+    selectedStars,
+    priceRange,
+    sortMode,
+  ])
 
   const destCoords = useMemo(
     () =>
@@ -519,9 +534,7 @@ export function WorldHotelResultsContent() {
                 max={offerPriceRange.max}
                 step={10}
                 value={priceRange}
-                onValueChange={(v) =>
-                  setPriceRange(v as [number, number])
-                }
+                onValueChange={(v) => setPriceRange(v as [number, number])}
                 className="w-full"
               />
               <div className="text-muted-foreground flex justify-between text-xs tabular-nums">

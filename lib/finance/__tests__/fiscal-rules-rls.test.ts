@@ -80,7 +80,9 @@ test("RLS-FISCAL-RULES-01-M5: DROP POLICY IF EXISTS — idempotence", () => {
 // --- Server action ---
 
 test("RLS-FISCAL-RULES-01-A1: listFiscalRules vérifie isSuperAdmin (lecture protégée)", () => {
-  const listFn = actions.slice(actions.indexOf("export async function listFiscalRules"))
+  const listFn = actions.slice(
+    actions.indexOf("export async function listFiscalRules"),
+  )
   const nextFn = listFn.indexOf("\nexport async function", 10)
   const listBody = nextFn > 0 ? listFn.slice(0, nextFn) : listFn.slice(0, 600)
   assert.ok(
@@ -106,10 +108,14 @@ test("RLS-FISCAL-RULES-01-B1: getActiveFiscalRuleInTx utilise tx (service role, 
   // Vérifie qu'il prend un tx (db transaction) comme premier paramètre —
   // pas un appel REST/PostgREST (service role bypass RLS).
   // La signature est sur plusieurs lignes : function(...)\n  tx: any
-  const fnIdx = fiscalRulesLib.indexOf("export async function getActiveFiscalRuleInTx")
+  const fnIdx = fiscalRulesLib.indexOf(
+    "export async function getActiveFiscalRuleInTx",
+  )
   const fnSlice = fiscalRulesLib.slice(fnIdx, fnIdx + 300)
   assert.ok(
-    fnSlice.includes("tx:") || fnSlice.includes("tx ,") || fnSlice.includes("tx,"),
+    fnSlice.includes("tx:") ||
+      fnSlice.includes("tx ,") ||
+      fnSlice.includes("tx,"),
     "getActiveFiscalRuleInTx doit prendre tx en premier paramètre (bypass RLS)",
   )
 })

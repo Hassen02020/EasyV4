@@ -27,6 +27,7 @@ import {
   // Mutuelle (email existant + facture CAS-C) ne s'exécute jamais.
   processMutuelleConfirmed,
   recoverMutuelleMissingInvoices,
+  processNetworkConfirmed,
 } from "@/lib/inngest/functions"
 
 export const { GET, POST, PUT } = serve({
@@ -44,5 +45,6 @@ export const { GET, POST, PUT } = serve({
     notifyStaleLeads,
     processMutuelleConfirmed,
     recoverMutuelleMissingInvoices,
+    processNetworkConfirmed,
   ],
 })

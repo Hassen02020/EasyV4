@@ -40,7 +40,6 @@ import { priceDrifted } from "@/lib/booking/pricing"
 import { getPaymentProvider } from "@/lib/payment/provider"
 import { withGuestIdempotency } from "@/lib/booking/guest-idempotency"
 import { resolveLinkedAuthUserId } from "@/lib/booking/customer-identity"
-import { generateInvoiceForReservation } from "@/lib/finance/invoice-actions"
 import { recordReservationFinancials } from "@/lib/finance/reservation-financials"
 import { creditPlatformCommission } from "@/lib/finance/platform-commission"
 import { earnPendingPoints } from "@/lib/loyalty/rewards-core"
@@ -436,27 +435,6 @@ async function runCreateGuestNetworkBooking(
       }).catch(() => {
         /* fire-and-forget */
       })
-    }
-
-    if (result.status === "confirmed") {
-      try {
-        const invoiceResult = await generateInvoiceForReservation({
-          agencyId,
-          reservationId: result.reservationId,
-          actorUserId: "",
-        })
-        if (!invoiceResult.ok) {
-          console.error(
-            "[network-guest] génération facture échouée",
-            invoiceResult.error,
-          )
-        }
-      } catch (err) {
-        console.error(
-          "[network-guest] génération facture échouée",
-          err instanceof Error ? err.message : String(err),
-        )
-      }
     }
 
     return {

@@ -196,6 +196,7 @@ Error("FISCAL_RULE_NOT_FOUND")` si aucune règle active
 **Commits** : `9662c64`, `bca1c88` · Branche : `claude/easy2book-v6-modernization-7gyb5v` · PR : #254 (draft)
 
 **État CI PR #254 (run 40006913764, commit `bca1c88`)** :
+
 - `typecheck` ✅ — 0 erreur
 - `test` ✅ — toute la suite passe
 - `format` ❌ → **CORRIGÉ** : `pnpm format` appliqué (10 fichiers : 4 PRICING-VATRULE-01 + ROADMAP.md + 5 autres chantiers PR #254) — commit format fix à pusher
@@ -203,6 +204,7 @@ Error("FISCAL_RULE_NOT_FOUND")` si aucune règle active
 - `financial-e2e` : en cours au moment de l'audit (résultat à confirmer post-push)
 
 **⚠️ Certification finale** : ce chantier est testé localement et ses invariants statiques sont verts. La certification est complète seulement après :
+
 1. CI verte sur la tête de la PR (format fix inclus)
 2. Revue humaine du diff
 3. Fusion de PR #254 dans `main`

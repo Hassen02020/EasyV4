@@ -141,6 +141,7 @@ Error("FISCAL_RULE_NOT_FOUND")` si aucune règle active
 **Objectif** : combler le gap entre l'event `booking/network.confirmed` émis par NETWORK-B2C-01 (PR #234, 2026-10-18) et l'absence de handler Inngest — aucun email de confirmation n'était envoyé aux clients depuis la mise en production du portail Network B2C.
 
 **Changements** :
+
 - `lib/inngest/functions/process-network-confirmed.ts` [CREATE] — handler email + facture CAS-C (step.run)
 - `lib/network/guest-booking-actions.ts` [UPDATE] — retrait de l'appel direct `generateInvoiceForReservation` (CAS-C migration, évite le doublon)
 - `lib/inngest/functions/index.ts` [EXTEND] — export `processNetworkConfirmed`

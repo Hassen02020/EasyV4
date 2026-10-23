@@ -115,7 +115,7 @@ export function FooterClient({
     {
       icon: trustBadgeIcons[2],
       title: t("disponibiliteReelle"),
-      description: "MyGo/APIGDS",
+      description: "APIGDS",
     },
     {
       icon: trustBadgeIcons[3],
@@ -171,7 +171,7 @@ export function FooterClient({
                   // net à n'importe quelle taille.
                   <Easy2BookLogo
                     withWordmark={false}
-                    className="size-12 rounded-xl bg-white p-1.5"
+                    className="size-10 rounded-xl bg-white p-1.5"
                   />
                 )}
                 {brandName ? (

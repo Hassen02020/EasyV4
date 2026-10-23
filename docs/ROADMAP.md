@@ -136,6 +136,25 @@ Error("FISCAL_RULE_NOT_FOUND")` si aucune règle active
 
 ## Chantier actif
 
+### RLS-FISCAL-RULES-01 — CLÔTURÉ (2026-10-23)
+
+**Objectif** : activer RLS sur `fiscal_rules` + corriger le garde de `listFiscalRules`
+(fonction ne vérifiait que `session.ok`, pas `session.isSuperAdmin`).
+
+**Preuve de sécurité** : `SELECT relrowsecurity, polname, polcmd, using_expr, with_check_expr FROM pg_class + pg_policy WHERE relname='fiscal_rules'`
+→ `rls_enabled=true`, `policy_name=fiscal_rules_super_admin`, `cmd=*`, `using_expr=is_super_admin()`, `with_check_expr=is_super_admin()` — confirmé sur Supabase `crygnaichvlxavvbifqi` post-commit `74c931e`.
+
+**Fichiers** :
+- `drizzle/manual/0140_rls_fiscal_rules.sql` — migration appliquée en production
+- `lib/finance/fiscal-rules-actions.ts` — guard `isSuperAdmin` ajouté dans `listFiscalRules()`
+- `lib/finance/__tests__/fiscal-rules-rls.test.ts` — 8 invariants statiques (migration RLS, policy FOR ALL, is_super_admin(), WITH CHECK, idempotence, guard lecture, guard écriture, bypass service role)
+
+**Résultats** : 8/8 invariants verts. `pnpm test` : 2745 pass / 0 fail. TypeScript 0 erreurs.
+**Non-régression** : `getActiveFiscalRuleInTx` (booking path) utilise DATABASE_URL service role (bypass RLS) — bookings et fiscalSnapshot non impactés.
+**Commit** : `74c931e` · Branche : `claude/easy2book-v6-modernization-7gyb5v` · PR : #254
+
+---
+
 ### FISCAL-MONDE-01 — CLÔTURÉ (2026-10-23)
 
 ```

@@ -28,6 +28,10 @@ import {
   buildPendingFiscalSnapshot,
   computePriceBreakdown,
 } from "@/lib/booking/pricing"
+import {
+  getActiveFiscalRuleInTx,
+  type ActiveFiscalRule,
+} from "@/lib/finance/fiscal-rules"
 
 const ROOT = resolve(__dirname, "../../..")
 
@@ -318,5 +322,82 @@ describe("FISCAL-RULES-01 LOT 6 : wiring call-sites", () => {
   test("T22 — vols importent getActiveFiscalRuleInTx avec fallback pending", () => {
     assert.match(flights, /getActiveFiscalRuleInTx/)
     assert.match(flights, /buildPendingFiscalSnapshot/)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// T23–T26 : Comportemental — résolution 4-passes avec tx mocké
+//           Valide la logique sans DB réelle (interface tx Drizzle simulée).
+// ---------------------------------------------------------------------------
+
+const _stubRule: ActiveFiscalRule = {
+  id: "uuid-stub-hotel",
+  country: "TN",
+  module: "hotel",
+  fiscalClassification: "standard",
+  vatRate: "19.00",
+  version: 1,
+  validationRef: "LF-2024-ART-1",
+  note: null,
+}
+
+/** Crée un tx Drizzle mocké qui retourne les règles dans l'ordre des passes. */
+function _makeMockTx(responses: (ActiveFiscalRule | null)[]) {
+  let _calls = 0
+  return {
+    get callCount() {
+      return _calls
+    },
+    select: (_fields: unknown) => ({
+      from: (_table: unknown) => ({
+        where: (_cond: unknown) => ({
+          limit: (_n: number): ActiveFiscalRule[] => {
+            const rule = responses[_calls++] ?? null
+            return rule ? [rule] : []
+          },
+        }),
+      }),
+    }),
+  }
+}
+
+describe("FISCAL-RULES-01 : résolution 4-passes comportementale (mock tx)", () => {
+  test("T23 — pass 1 gagnante (TN+hotel) : 1 seule requête, règle retournée", async () => {
+    const tx = _makeMockTx([_stubRule, null, null, null])
+    const result = await getActiveFiscalRuleInTx(tx, "TN", "hotel", new Date())
+    assert.deepEqual(result, _stubRule)
+    assert.equal(tx.callCount, 1, "Pass 1 gagnante → 1 seule requête attendue")
+  })
+
+  test("T24 — pass 3 gagnante (TN+* et TN+hotel vides, *+hotel match) : 3 requêtes", async () => {
+    const wildcardRule: ActiveFiscalRule = {
+      ..._stubRule,
+      id: "uuid-wildcard-module",
+      country: "*",
+    }
+    const tx = _makeMockTx([null, null, wildcardRule, null])
+    const result = await getActiveFiscalRuleInTx(tx, "TN", "hotel", new Date())
+    assert.deepEqual(result, wildcardRule)
+    assert.equal(tx.callCount, 3, "3 passes attendues (1+2 vides, 3 gagnante)")
+  })
+
+  test("T25 — aucune règle active : 4 requêtes exhaustives, null retourné (fail-closed)", async () => {
+    const tx = _makeMockTx([null, null, null, null])
+    const result = await getActiveFiscalRuleInTx(tx, "TN", "hotel", new Date())
+    assert.equal(result, null, "Aucune règle → null (fail-closed)")
+    assert.equal(tx.callCount, 4, "Les 4 passes doivent être épuisées avant de retourner null")
+  })
+
+  test("T26 — pass 4 gagnante (*+*) : cascade complète, règle de dernier recours retournée", async () => {
+    const fallbackRule: ActiveFiscalRule = {
+      ..._stubRule,
+      id: "uuid-wildcard-all",
+      country: "*",
+      module: "*",
+    }
+    const tx = _makeMockTx([null, null, null, fallbackRule])
+    const result = await getActiveFiscalRuleInTx(tx, "TN", "hotel", new Date())
+    assert.deepEqual(result, fallbackRule)
+    assert.equal(tx.callCount, 4, "4 passes pour atteindre le fallback *+*")
   })
 })

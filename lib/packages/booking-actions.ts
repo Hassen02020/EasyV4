@@ -41,7 +41,13 @@ import {
   auditEvents,
 } from "@/lib/db/schema"
 import { getDefaultAgencyId } from "@/lib/agencies/default-agency"
-import { computePriceBreakdown, priceDrifted } from "@/lib/booking/pricing"
+import {
+  computePriceBreakdown,
+  priceDrifted,
+  buildFiscalSnapshotFromTtc,
+  buildFiscalSnapshot,
+} from "@/lib/booking/pricing"
+import { getActiveFiscalRuleInTx } from "@/lib/finance/fiscal-rules"
 import { generateInvoiceForReservation } from "@/lib/finance/invoice-actions"
 import { getPaymentProvider } from "@/lib/payment/provider"
 import { withGuestIdempotency } from "@/lib/booking/guest-idempotency"
@@ -357,6 +363,13 @@ async function runCreateGuestPackageBooking(
 
         // --- 4. Réservation ---
         const publicRef = await nextPackagePublicRef(tx, agencyId)
+        const fiscalRule = await getActiveFiscalRuleInTx(
+          tx,
+          "TN",
+          "package",
+          new Date(),
+        )
+        if (!fiscalRule) throw new Error("FISCAL_RULE_NOT_FOUND")
         const [reservation] = await tx
           .insert(reservations)
           .values({
@@ -371,6 +384,15 @@ async function runCreateGuestPackageBooking(
             tndAmount: String(totalTnd),
             depositAmount: String(totalTnd),
             depositPaid: "0",
+            fiscalSnapshot: buildFiscalSnapshotFromTtc(
+              totalTnd,
+              parseFloat(fiscalRule.vatRate),
+              "package",
+              fiscalRule.validationRef,
+              fiscalRule.note,
+              fiscalRule.id,
+              fiscalRule.version,
+            ),
             providerPayload: {
               packageId: booking.packageId,
               departureId: booking.departureId,
@@ -683,6 +705,13 @@ export async function createPackageBooking(
         const customerId = customer.id
 
         const publicRef = await nextPackagePublicRef(tx, agencyId)
+        const fiscalRuleB2B = await getActiveFiscalRuleInTx(
+          tx,
+          "TN",
+          "package",
+          new Date(),
+        )
+        if (!fiscalRuleB2B) throw new Error("FISCAL_RULE_NOT_FOUND")
         const [reservation] = await tx
           .insert(reservations)
           .values({
@@ -697,6 +726,15 @@ export async function createPackageBooking(
             tndAmount: String(totalTnd),
             depositAmount: String(totalTnd),
             depositPaid: "0",
+            fiscalSnapshot: buildFiscalSnapshot(
+              breakdown,
+              parseFloat(fiscalRuleB2B.vatRate),
+              "package",
+              fiscalRuleB2B.validationRef,
+              fiscalRuleB2B.note,
+              fiscalRuleB2B.id,
+              fiscalRuleB2B.version,
+            ),
             providerPayload: {
               packageId: booking.packageId,
               departureId: booking.departureId,

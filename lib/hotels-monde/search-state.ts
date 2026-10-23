@@ -14,6 +14,9 @@ export interface WorldDestinationOption {
   city: string
   country: string
   label: string
+  /** Coordonnées du centre-ville (pour la vue carte des résultats). */
+  lat: number
+  lng: number
 }
 
 export const POPULAR_DESTINATIONS: WorldDestinationOption[] = [
@@ -22,50 +25,80 @@ export const POPULAR_DESTINATIONS: WorldDestinationOption[] = [
     city: "Istanbul",
     country: "Turquie",
     label: "Istanbul, Turquie",
+    lat: 41.0082,
+    lng: 28.9784,
   },
   {
     value: "dubai",
     city: "Dubaï",
     country: "Émirats Arabes Unis",
     label: "Dubaï, Émirats",
+    lat: 25.2048,
+    lng: 55.2708,
   },
-  { value: "paris", city: "Paris", country: "France", label: "Paris, France" },
-  { value: "rome", city: "Rome", country: "Italie", label: "Rome, Italie" },
+  {
+    value: "paris",
+    city: "Paris",
+    country: "France",
+    label: "Paris, France",
+    lat: 48.8566,
+    lng: 2.3522,
+  },
+  {
+    value: "rome",
+    city: "Rome",
+    country: "Italie",
+    label: "Rome, Italie",
+    lat: 41.9028,
+    lng: 12.4964,
+  },
   {
     value: "barcelona",
     city: "Barcelone",
     country: "Espagne",
     label: "Barcelone, Espagne",
+    lat: 41.3851,
+    lng: 2.1734,
   },
   {
     value: "london",
     city: "Londres",
     country: "Royaume-Uni",
     label: "Londres, Royaume-Uni",
+    lat: 51.5074,
+    lng: -0.1278,
   },
   {
     value: "cairo",
     city: "Le Caire",
     country: "Égypte",
     label: "Le Caire, Égypte",
+    lat: 30.0444,
+    lng: 31.2357,
   },
   {
     value: "marrakech",
     city: "Marrakech",
     country: "Maroc",
     label: "Marrakech, Maroc",
+    lat: 31.6295,
+    lng: -7.9811,
   },
   {
     value: "amsterdam",
     city: "Amsterdam",
     country: "Pays-Bas",
     label: "Amsterdam, Pays-Bas",
+    lat: 52.3676,
+    lng: 4.9041,
   },
   {
     value: "new_york",
     city: "New York",
     country: "États-Unis",
     label: "New York, États-Unis",
+    lat: 40.7128,
+    lng: -74.006,
   },
 ]
 

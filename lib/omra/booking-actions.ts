@@ -37,6 +37,7 @@ import { sendEvent } from "@/lib/inngest/client"
 import { recordReservationTransition } from "@/lib/admin/reservation-status-history"
 import { recordReservationFinancials } from "@/lib/finance/reservation-financials"
 import { creditPlatformCommission } from "@/lib/finance/platform-commission"
+import { buildPendingFiscalSnapshot } from "@/lib/booking/pricing"
 
 /* -------------------------------------------------------------------------- */
 /* Types                                                                      */
@@ -274,6 +275,11 @@ export async function createOmraBooking(
             tndAmount: String(totalTnd),
             depositAmount: String(totalTnd),
             depositPaid: "0",
+            fiscalSnapshot: buildPendingFiscalSnapshot(
+              totalTnd,
+              "omra",
+              "taux_non_déterminé",
+            ),
             providerPayload: {
               packageId: input.packageId,
               departureDate: input.departureDate,

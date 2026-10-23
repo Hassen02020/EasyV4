@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
+import dynamic from "next/dynamic"
 import { Link, useRouter } from "@/i18n/navigation"
 import { useSearchParams } from "next/navigation"
 import { useTranslations, useLocale } from "next-intl"
@@ -14,6 +15,8 @@ import { SearchPagination } from "@/components/search-pagination"
 import {
   Coffee,
   Info,
+  List,
+  Map,
   MapPin,
   RefreshCw,
   ShieldCheck,
@@ -23,6 +26,7 @@ import {
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
+import { Slider } from "@/components/ui/slider"
 import {
   Select,
   SelectContent,
@@ -32,11 +36,23 @@ import {
 } from "@/components/ui/select"
 import { Checkbox } from "@/components/ui/checkbox"
 import {
+  POPULAR_DESTINATIONS,
   parseWorldHotelSearchParams,
   worldHotelStateToApiParams,
   type WorldHotelSearchState,
 } from "@/lib/hotels-monde/search-state"
 import type { WorldHotelOffer } from "@/lib/hotels-monde/client"
+import type { HotelMapPoint } from "@/components/hotel-map"
+
+const HotelMap = dynamic(
+  () => import("@/components/hotel-map").then((m) => m.HotelMap),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="bg-muted h-full w-full animate-pulse rounded-xl" />
+    ),
+  },
+)
 
 type SortMode = "recommended" | "price_asc" | "price_desc" | "rating_desc"
 
@@ -112,9 +128,18 @@ function HotelCard({
     <div className="bg-card border-border overflow-hidden rounded-lg border shadow-sm transition-shadow hover:shadow-md">
       <div className="flex flex-col gap-4 p-4 md:flex-row md:items-center">
         <div className="flex min-w-0 flex-1 items-center gap-4">
-          <div className="bg-primary/10 flex h-12 w-12 shrink-0 items-center justify-center rounded-full">
-            <MapPin className="text-primary h-5 w-5" />
-          </div>
+          {offer.thumbnailUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element -- picsum.photos démo (hors remotePatterns next/image), CSP img-src https: couvre
+            <img
+              src={offer.thumbnailUrl}
+              alt={offer.name}
+              className="h-20 w-20 shrink-0 rounded-lg object-cover"
+            />
+          ) : (
+            <div className="bg-primary/10 flex h-12 w-12 shrink-0 items-center justify-center rounded-full">
+              <MapPin className="text-primary h-5 w-5" />
+            </div>
+          )}
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
               <span className="text-foreground text-lg font-bold">
@@ -278,6 +303,10 @@ export function WorldHotelResultsContent() {
   const [sortMode, setSortMode] = useState<SortMode>("recommended")
   const [breakfastOnly, setBreakfastOnly] = useState(false)
   const [refundableOnly, setRefundableOnly] = useState(false)
+  const [selectedStars, setSelectedStars] = useState<Set<number>>(new Set())
+  const [priceRange, setPriceRange] = useState<[number, number]>([0, 9999])
+  const [viewMode, setViewMode] = useState<"list" | "map">("list")
+  const [selectedMapId, setSelectedMapId] = useState<number | null>(null)
 
   useEffect(() => {
     if (!parsed.ok || !requestKey) return
@@ -328,12 +357,59 @@ export function WorldHotelResultsContent() {
   )
   const error = fetchState.requestKey === requestKey ? fetchState.error : null
 
+  // Initialise le slider de prix dès que les offres chargent
+  useEffect(() => {
+    if (offers.length === 0) return
+    const prices = offers.map((o) => o.pricePerNightTnd)
+    setPriceRange([Math.floor(Math.min(...prices)), Math.ceil(Math.max(...prices))])
+  }, [offers])
+
+  const offerPriceRange = useMemo(() => {
+    if (offers.length === 0) return { min: 0, max: 9999 }
+    const prices = offers.map((o) => o.pricePerNightTnd)
+    return { min: Math.floor(Math.min(...prices)), max: Math.ceil(Math.max(...prices)) }
+  }, [offers])
+
+  const { format: formatPrice } = useCurrency()
+
   const filteredSorted = useMemo(() => {
     let result = offers
     if (breakfastOnly) result = result.filter((o) => o.breakfastIncluded)
     if (refundableOnly) result = result.filter((o) => o.refundable)
+    if (selectedStars.size > 0)
+      result = result.filter((o) => o.stars != null && selectedStars.has(o.stars))
+    result = result.filter(
+      (o) =>
+        o.pricePerNightTnd >= priceRange[0] &&
+        o.pricePerNightTnd <= priceRange[1],
+    )
     return sortOffers(result, sortMode)
-  }, [offers, breakfastOnly, refundableOnly, sortMode])
+  }, [offers, breakfastOnly, refundableOnly, selectedStars, priceRange, sortMode])
+
+  const destCoords = useMemo(
+    () =>
+      parsed.ok
+        ? POPULAR_DESTINATIONS.find((d) => d.value === parsed.state.destination)
+        : undefined,
+    [parsed],
+  )
+
+  const mapPoints = useMemo<HotelMapPoint[]>(() => {
+    if (!destCoords) return []
+    const count = filteredSorted.length
+    return filteredSorted.map((offer, i) => {
+      // Répartition en spirale déterministe autour du centre-ville (~1 km max)
+      const angle = (i / Math.max(count, 1)) * 2 * Math.PI
+      const radius = 0.005 + (i % 4) * 0.0025
+      return {
+        id: i,
+        name: offer.name,
+        latitude: destCoords.lat + Math.sin(angle) * radius,
+        longitude: destCoords.lng + Math.cos(angle) * radius,
+        priceLabel: formatPrice(offer.totalPriceTnd),
+      }
+    })
+  }, [filteredSorted, destCoords, formatPrice])
 
   // Pagination SERP (chantier 6) — breakfastOnly/refundableOnly/sortMode ne
   // vivent qu'en state local (pas dans l'URL) : passés comme clé de remise
@@ -345,7 +421,7 @@ export function WorldHotelResultsContent() {
     setPage,
   } = usePaginatedResults(
     filteredSorted,
-    `${breakfastOnly}|${refundableOnly}|${sortMode}`,
+    `${breakfastOnly}|${refundableOnly}|${sortMode}|${Array.from(selectedStars).sort().join(",")}|${priceRange[0]}-${priceRange[1]}`,
   )
 
   if (!parsed.ok) {
@@ -398,7 +474,67 @@ export function WorldHotelResultsContent() {
 
       {status === "success" && (
         <div className="flex flex-col gap-4 lg:flex-row">
-          <aside className="flex shrink-0 flex-wrap items-center gap-4 lg:w-56 lg:flex-col lg:items-start">
+          <aside className="flex shrink-0 flex-wrap items-start gap-4 lg:w-56 lg:flex-col">
+            {/* Filtre étoiles */}
+            <div className="space-y-2 lg:w-full">
+              <p className="text-foreground text-sm font-semibold">
+                {t("filterByStars")}
+              </p>
+              {[5, 4, 3, 2, 1].map((n) => (
+                <div key={n} className="flex items-center gap-2">
+                  <Checkbox
+                    id={`stars-${n}`}
+                    checked={selectedStars.has(n)}
+                    onCheckedChange={(v) => {
+                      setSelectedStars((prev) => {
+                        const next = new Set(prev)
+                        if (v === true) next.add(n)
+                        else next.delete(n)
+                        return next
+                      })
+                    }}
+                  />
+                  <label
+                    htmlFor={`stars-${n}`}
+                    className="flex cursor-pointer items-center gap-0.5"
+                  >
+                    {Array.from({ length: n }).map((_, i) => (
+                      <Star
+                        key={i}
+                        className="h-3 w-3 fill-amber-400 text-amber-400"
+                      />
+                    ))}
+                  </label>
+                </div>
+              ))}
+            </div>
+
+            {/* Filtre prix / nuit */}
+            <div className="w-full space-y-3 lg:w-full">
+              <p className="text-foreground text-sm font-semibold">
+                {t("filterByPrice")}
+              </p>
+              <Slider
+                min={offerPriceRange.min}
+                max={offerPriceRange.max}
+                step={10}
+                value={priceRange}
+                onValueChange={(v) =>
+                  setPriceRange(v as [number, number])
+                }
+                className="w-full"
+              />
+              <div className="text-muted-foreground flex justify-between text-xs tabular-nums">
+                <span>
+                  {t("priceFrom")} {priceRange[0]} TND
+                </span>
+                <span>
+                  {t("priceTo")} {priceRange[1]} TND
+                </span>
+              </div>
+            </div>
+
+            {/* Filtres simples */}
             <div className="flex items-center gap-2">
               <Checkbox
                 id="breakfast-only"
@@ -425,6 +561,8 @@ export function WorldHotelResultsContent() {
                 {t("freeCancellation")}
               </label>
             </div>
+
+            {/* Tri */}
             <div className="w-full lg:mt-2">
               <Select
                 value={sortMode}
@@ -450,10 +588,40 @@ export function WorldHotelResultsContent() {
           </aside>
 
           <div className="flex-1 space-y-3">
+            {/* Toggle Liste / Carte */}
+            <div className="flex items-center gap-2">
+              <Button
+                variant={viewMode === "list" ? "default" : "outline"}
+                size="sm"
+                className="gap-1.5"
+                onClick={() => setViewMode("list")}
+              >
+                <List className="h-3.5 w-3.5" />
+                {t("viewList")}
+              </Button>
+              <Button
+                variant={viewMode === "map" ? "default" : "outline"}
+                size="sm"
+                className="gap-1.5"
+                onClick={() => setViewMode("map")}
+              >
+                <Map className="h-3.5 w-3.5" />
+                {t("viewMap")}
+              </Button>
+            </div>
+
             {filteredSorted.length === 0 ? (
               <div className="border-border text-muted-foreground rounded-lg border p-6 text-sm">
                 {t("noHotelsMatchFilters")}
               </div>
+            ) : viewMode === "map" ? (
+              <HotelMap
+                points={mapPoints}
+                selectedId={selectedMapId}
+                hoveredId={null}
+                onMarkerSelect={setSelectedMapId}
+                className="h-[520px] w-full overflow-hidden rounded-xl border"
+              />
             ) : (
               <>
                 {pagedOffers.map((offer) => (

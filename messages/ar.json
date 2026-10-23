@@ -686,7 +686,13 @@
     "cancellationFree": "إلغاء مجاني",
     "cancellationNonRefundable": "غير قابل للاسترداد — لا يوجد استرداد في حالة الإلغاء",
     "acceptCancellationPolicy": "لقد قرأت وأوافق على سياسة الإلغاء لهذا العرض",
-    "mustAcceptCancellationPolicy": "يجب عليك قبول سياسة الإلغاء للمتابعة"
+    "mustAcceptCancellationPolicy": "يجب عليك قبول سياسة الإلغاء للمتابعة",
+    "viewList": "قائمة",
+    "viewMap": "خريطة",
+    "filterByStars": "الفئة",
+    "filterByPrice": "السعر / ليلة (د.ت)",
+    "priceFrom": "من",
+    "priceTo": "إلى"
   },
   "Attractions": {
     "kicker": "الأنشطة السياحية",

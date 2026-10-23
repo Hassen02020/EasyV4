@@ -686,7 +686,13 @@
     "cancellationFree": "Free cancellation",
     "cancellationNonRefundable": "Non-refundable — no refund in case of cancellation",
     "acceptCancellationPolicy": "I have read and accept the cancellation policy for this offer",
-    "mustAcceptCancellationPolicy": "You must accept the cancellation policy to continue"
+    "mustAcceptCancellationPolicy": "You must accept the cancellation policy to continue",
+    "viewList": "List",
+    "viewMap": "Map",
+    "filterByStars": "Category",
+    "filterByPrice": "Price / night (TND)",
+    "priceFrom": "From",
+    "priceTo": "To"
   },
   "Attractions": {
     "kicker": "Attractions",

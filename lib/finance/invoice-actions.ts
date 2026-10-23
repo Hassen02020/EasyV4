@@ -30,6 +30,7 @@ import { withTenantContext } from "@/lib/db/tenant-context"
 import { agencies, partnerInvoices, reservations } from "@/lib/db/schema"
 import type { DrizzleTransaction } from "@/lib/db/client"
 import { pgErrorCode } from "@/lib/db/pg-error"
+import type { FiscalSnapshot } from "@/lib/booking/pricing"
 
 /* -------------------------------------------------------------------------- */
 /* Génération                                                                  */
@@ -115,6 +116,17 @@ export async function generateInvoiceForReservation(
             ? payload.offerLabel
             : `Réservation ${reservation.module}`
 
+        const fiscal =
+          (reservation.fiscalSnapshot as FiscalSnapshot | null) ?? null
+        const invoiceHt =
+          fiscal?.status === "determined" && fiscal.subtotalTnd != null
+            ? fiscal.subtotalTnd
+            : totalTtc
+        const invoiceTva =
+          fiscal?.status === "determined" && fiscal.vatTnd != null
+            ? fiscal.vatTnd
+            : 0
+
         try {
           // Savepoint (transaction imbriquée) : si l'INSERT échoue sur le
           // conflit d'unicité, seul ce sous-bloc est annulé — la transaction
@@ -138,8 +150,8 @@ export async function generateInvoiceForReservation(
                     amount: totalTtc,
                   },
                 ],
-                totalHt: totalTtc.toFixed(2),
-                totalTva: "0.00",
+                totalHt: invoiceHt.toFixed(2),
+                totalTva: invoiceTva.toFixed(2),
                 totalTtc: totalTtc.toFixed(2),
                 amountPaid: totalTtc.toFixed(2),
                 status: "paid",
@@ -247,6 +259,17 @@ export async function generateIssuedInvoiceForReservation(
             ? payload.offerLabel
             : `Réservation ${reservation.module}`
 
+        const fiscal =
+          (reservation.fiscalSnapshot as FiscalSnapshot | null) ?? null
+        const invoiceHt =
+          fiscal?.status === "determined" && fiscal.subtotalTnd != null
+            ? fiscal.subtotalTnd
+            : totalTtc
+        const invoiceTva =
+          fiscal?.status === "determined" && fiscal.vatTnd != null
+            ? fiscal.vatTnd
+            : 0
+
         try {
           // Savepoint — même raison que generateInvoiceForReservation (voir
           // son commentaire ci-dessus) : isoler l'échec de conflit d'unicité
@@ -268,8 +291,8 @@ export async function generateIssuedInvoiceForReservation(
                     amount: totalTtc,
                   },
                 ],
-                totalHt: totalTtc.toFixed(2),
-                totalTva: "0.00",
+                totalHt: invoiceHt.toFixed(2),
+                totalTva: invoiceTva.toFixed(2),
                 totalTtc: totalTtc.toFixed(2),
                 amountPaid: "0.00",
                 status: "issued",

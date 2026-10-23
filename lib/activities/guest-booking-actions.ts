@@ -32,7 +32,12 @@ import {
   auditEvents,
 } from "@/lib/db/schema"
 import { getDefaultAgencyId } from "@/lib/agencies/default-agency"
-import { computePriceBreakdown, priceDrifted } from "@/lib/booking/pricing"
+import {
+  computePriceBreakdown,
+  priceDrifted,
+  buildFiscalSnapshotFromTtc,
+} from "@/lib/booking/pricing"
+import { getActiveFiscalRuleInTx } from "@/lib/finance/fiscal-rules"
 import { generateInvoiceForReservation } from "@/lib/finance/invoice-actions"
 import { getPaymentProvider } from "@/lib/payment/provider"
 import { withGuestIdempotency } from "@/lib/booking/guest-idempotency"
@@ -344,6 +349,13 @@ async function runCreateGuestActivityBooking(
 
         // --- 5. Réservation ---
         const publicRef = await nextActivityPublicRef(tx, agencyId)
+        const fiscalRule = await getActiveFiscalRuleInTx(
+          tx,
+          "TN",
+          "activity",
+          new Date(),
+        )
+        if (!fiscalRule) throw new Error("FISCAL_RULE_NOT_FOUND")
         const [reservation] = await tx
           .insert(reservations)
           .values({
@@ -358,6 +370,15 @@ async function runCreateGuestActivityBooking(
             tndAmount: String(totalTnd),
             depositAmount: String(totalTnd),
             depositPaid: "0",
+            fiscalSnapshot: buildFiscalSnapshotFromTtc(
+              totalTnd,
+              parseFloat(fiscalRule.vatRate),
+              "activity",
+              fiscalRule.validationRef,
+              fiscalRule.note,
+              fiscalRule.id,
+              fiscalRule.version,
+            ),
             providerPayload: {
               activityId: booking.activityId,
               sessionId: booking.sessionId,

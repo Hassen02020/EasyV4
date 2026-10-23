@@ -34,18 +34,181 @@ Un seul chantier actif à la fois ; il est indiqué dans ROADMAP.md (section "Ch
 
 ---
 
+## TAX-RULES-SUPERADMIN-01 — FISCAL SNAPSHOT — CLÔTURÉ LOT 1-9 (2026-10-23)
+
+**Objectif** : garantir que le montant présenté au client, le montant payé, la réservation
+enregistrée et la facture racontent exactement la même histoire financière.
+
+**LOT 1-4 — DONE** (commit `0a6bdd9`, branche `claude/easy2book-v6-modernization-7gyb5v`)
+
+- LOT 1 : `FiscalSnapshot` / `FiscalStatus` + 3 builders dans `lib/booking/pricing.ts`
+- LOT 2 : snapshot figé dans chaque INSERT réservation (hôtel B2B/B2C, package, activité,
+  voiture, transfert, vol) — taux provisoire 19% / `fiscalNote: "taux_provisoire_19_pct"` ;
+  cars/transferts/vols → `status: "pending"` (taux non déterminé, jamais inventé)
+- LOT 3 : colonne `reservations.fiscal_snapshot JSONB` — migration `0011_quiet_stark_industries.sql`
+- LOT 4 : `generateInvoiceForReservation` + `generateIssuedInvoiceForReservation` lisent le
+  snapshot (status="determined" → `subtotalTnd`/`vatTnd`) ; fallback historique/pending →
+  `totalTtc`/`0` — jamais un taux inventé
+- Tests : 2701 pass, 0 fail ; invariant INVOICE-WIRING-01 mis à jour (6 assertions)
+
+**LOT 5 — DONE** (commit `243d556`, branche `claude/easy2book-v6-modernization-7gyb5v`, 2026-10-23)
+
+- Table `fiscal_rules` (pays × module × période × draft/active/closed) — migration `0022_fiscal_rules.sql`
+- Moteur `lib/finance/fiscal-rules.ts` — résolution 4-passes wildcard (TN+hotel > TN+_ > _+hotel > _+_)
+- `getActiveFiscalRuleInTx()` — variante transactionnelle pour booking-actions
+- Actions serveur `lib/finance/fiscal-rules-actions.ts` — createDraft / activate (advisory lock + overlap check dans 1 transaction) / deactivate — super_admin only pour les écritures
+- `FiscalSnapshot` étendu : `fiscal_rule_id` + `fiscal_rule_version` (rétrocompatibles)
+- Correction gap Omra : `fiscalSnapshot: buildPendingFiscalSnapshot(...)` dans l'INSERT reservations
+- Interface `/admin/accounting/fiscal-rules` — liste scrollable + dialogs CRUD
+- Tests T1–T17 : 2718 pass, 0 fail ; TypeScript 0 erreurs
+- Gap documenté (non corrigé) : Activity B2B — `activityPartnerBookingSchema` sans `expectedTotalTnd`, dérive impossible côté serveur sans modification frontend
+
+**LOT 6 — DONE** (branche `claude/easy2book-v6-modernization-7gyb5v`, 2026-10-23)
+
+- Wiring 6 call-sites fail-closed : hotel B2B (`lib/booking/actions.ts`), hotel B2C
+  (`lib/booking/guest-actions.ts`), package B2C + B2B (`lib/packages/booking-actions.ts`),
+  activité B2B (`lib/activities/booking-actions.ts`), activité B2C
+  (`lib/activities/guest-booking-actions.ts`) → `getActiveFiscalRuleInTx()` + `throw new
+Error("FISCAL_RULE_NOT_FOUND")` si aucune règle active
+- Wiring 3 call-sites pending-fallback : voiture (`lib/cars/actions.ts`), transfert
+  (`lib/transfers/actions.ts`), vol (`lib/vols/booking-request-action.ts`) →
+  `getActiveFiscalRuleInTx()` + `buildFiscalSnapshotFromTtc(...)` si règle trouvée, sinon
+  `buildPendingFiscalSnapshot(...)` (jamais un taux inventé)
+- `parseFloat(fiscalRule.vatRate)` partout (Drizzle renvoie `numeric` en `string`)
+- Tests T18–T22 : wiring assertions source-code sur les 9 call-sites
+- 2682 pass, 0 fail ; TypeScript 0 erreurs
+- **Pré-requis déploiement** : la Direction doit créer et activer au moins une règle par
+  module fail-closed (hotel, package, activity) via `/admin/accounting/fiscal-rules` AVANT
+  de déployer LOT 6 en production, sous peine de blocage des réservations de ces modules.
+
+**LOT 7 — DONE** (branche `claude/easy2book-v6-modernization-7gyb5v`, 2026-10-23)
+
+- Migration additive `drizzle/0023_fiscal_rules_unit_tax.sql` : 5 colonnes ajoutées sur
+  `fiscal_rules` — `tax_type` (NOT NULL DEFAULT 'percentage'), `unit_amount`, `unit_type`,
+  `max_units`, `resident_amount` — aucune rupture de rétrocompatibilité
+- Drizzle schema `lib/db/schema/financials.ts` : 5 nouveaux champs dans `fiscalRules`
+- `ActiveFiscalRule` Pick étendu + SELECT dans `getActiveFiscalRule` et
+  `getActiveFiscalRuleInTx` — les 5 champs remontés depuis la DB
+- `FiscalSnapshot` étendu : `unitTaxTnd`, `unitCount`, `unitRate` (nullable, null dans
+  les 3 builders existants — rétrocompatible)
+- Nouveau builder `buildFiscalSnapshotWithUnitTax()` — taxe fixe par unité avec plafond
+  (`maxUnits`) ; taxe informationnelle collectée hors Easy2Book (ex: à la réception)
+- Contexte fiscal capturé : LF 2024 Art. 46 — taxe de séjour 4/8/12 TND/nuit/personne
+  étrangers (2★/3★/4-5★) ; 1/2/3 TND Tunisiens/UMA ; plafond 10 nuits
+- Tests T23–T29 : comportemental mock-tx (T23-T26) + unit-tax builder (T27-T29)
+- 2730 pass, 0 fail ; TypeScript 0 erreurs
+- **NOT YET DEPLOYED** : migration `0023` non appliquée en production ; déploiement
+  nécessite GO Direction + activation règles LOT 6 (pré-requis inchangé)
+
+**LOT 8 — DONE** (branche `claude/easy2book-v6-modernization-7gyb5v`, 2026-10-23)
+
+- Migration seed `drizzle/0024_fiscal_rules_seed_provisional.sql` : INSERT idempotent
+  d'une règle provisoire `(TN, *, 19 %, active)` dans `fiscal_rules`
+- Idempotente : `INSERT … SELECT … WHERE NOT EXISTS (…validation_ref…)` — re-run sûr
+- Matchée à la passe 2 (TN+\*) de la résolution 4-passes — couvre les **6 modules TN** :
+  hotel, package, activity (fail-closed) + car_rental, transfer, flight
+  (basculent de `pending` → 19 % provisoire — décision Direction 2026-10-23)
+- `validationRef='PROVISOIRE-GO-DIRECTION-2026-10-23'` — traçable et rollbackable
+  (`DELETE WHERE validation_ref=...`)
+- `created_by/activated_by` = nil-UUID (seed système) — pas de dépendance user
+- `tax_type='percentage'` — compatible LOT 7 (0023 précède 0024)
+- Décision Direction 2026-10-23 : option 3 du tableau des taxes v2 ("activer 19 %
+  provisoirement avec avertissement") — 6 modules acceptés
+- À remplacer module par module dès confirmation conseiller fiscal (tableau B bis DGI)
+- **DEPLOYED** (2026-10-23) : migrations `0022` + `0023` + `0024` appliquées en production
+  sur projet Supabase `crygnaichvlxavvbifqi` (EasyV4, eu-west-1).
+  Preuves post-migration : table `fiscal_rules` 20 colonnes ✓, 3 index ✓,
+  règle active `(TN, *, 19.00, PROVISOIRE-GO-DIRECTION-2026-10-23)` présente ✓.
+
+**LOT 9 — CLÔTURÉ** (commit `46899d6`, branche `claude/easy2book-v6-modernization-7gyb5v`, 2026-10-23)
+
+- Audit pré-déploiement 14 points de contrôle — PASS sur tous sauf CI format (bloquant corrigé)
+- Fix Prettier format:check : 20 fichiers reformatés (`pnpm prettier --write`) — CI format PASS
+- Déploiement production : `0022` + `0023` + `0024` appliquées via Supabase MCP
+- Vérifications post-migration effectuées (colonnes, index, règle active)
+- Gaps résiduels documentés (non bloquants, chantiers séparés) :
+  - RLS absent sur `fiscal_rules` (accès direct DB non restreint)
+  - `listFiscalRules` lisible par tout utilisateur authentifié (lecture seule)
+  - `hotel_monde`, `omra` B2C/B2B hors périmètre fiscal (chantiers futurs)
+- Taux définitifs par module : chantier séparé — attente tableau B bis DGI + avis conseiller fiscal
+
+---
+
 ## Chantier actif
 
-### CAS-C — INVOICE STEP.RUN — PR OUVERTE — TESTED / READY FOR PRODUCTION — AWAITING MERGE
+### VAL-01 — VALIDATION PARCOURS COMMERCIAL — EN COURS (2026-10-22)
 
-Branche `claude/easy2book-v6-modernization-7gyb5v` — commit `2fe5bce` — 2026-10-22.
+**Objectif** : valider que les briques intégrées fonctionnent ensemble du point de vue du client.
+Périmètre : hôtel search → activités → fiche → disponibilité → réservation → paiement → facture.
+
+**Séquence GO (E2-01 → E3-01 → E5-01 terminés, E1-01/E4-02 chantier séparé)** :
+
+#### E2-01 — DONE (2026-10-22)
+
+Gap fermé : aucun test ne vérifiait le câblage bout en bout `hotel page →
+fetchNearbyNetworkActivities → getCrossSellNetworkActivities → NearbyActivities component`.
+8 invariants statiques créés dans `lib/network/__tests__/nearby-activities-hotel-wiring.test.ts`.
+8/8 verts. Preuve : le filtre `status="active"` est attesté à la source ET sur la page hôtel.
+
+#### E3-01 — DONE (2026-10-22)
+
+Gap fermé : aucune assertion E2E ne vérifiait que le prix chambre est non nul au moment de la
+sélection ni qu'un total est visible au checkout.
+Extension de `e2e/b2c-hotel-guest-create-live.spec.ts` :
+
+- Capture `span.text-lg.font-bold.text-primary.whitespace-nowrap` après sélection chambre → `toBeTruthy()`.
+- Asserte `[class*='font-semibold']` contenant des chiffres au checkout → `toBeVisible()`.
+  Note : test local-only (`pnpm dev` + `MYGO_MODE=virtual`), non inclus dans CI.
+
+#### E5-01 — DONE (2026-10-22)
+
+Gap fermé : `generateInvoiceForReservation` était couverte uniquement par des invariants statiques
+(invoice-wiring.test.ts, 6 tests) — aucun test n'exerçait la fonction contre une vraie DB.
+3 tests d'intégration DB créés dans `lib/finance/__tests__/invoice-generation-loop.integration.test.ts` :
+
+- E5-01-01 : `status=pending` → `RESERVATION_NOT_CONFIRMED`, aucune facture créée.
+- E5-01-02 : `status=confirmed` → `ok:true`, `alreadyExisted:false`, facture persistée en DB.
+- E5-01-03 : retry → `ok:true`, `alreadyExisted:true`, pas de doublon (idempotence 23505 réelle).
+  Ajouté au job `financial-e2e` CI dans `.github/workflows/ci.yml`.
+
+#### E1-01 / E4-02 — DONE (2026-10-22)
+
+Gap fermé : `b2c-hotel-guest-create-live.spec.ts` ne pouvait tourner en CI (dépendance à
+`pnpm dev` + `MYGO_MODE=virtual`, incompatible avec `pnpm start` qui force `NODE_ENV=production`).
+
+- Créé `playwright.config.dev.ts` : `webServer.command = "pnpm dev"`, `workers=1`, `retries CI=1`.
+- Ajouté job `e2e-guest` dans `.github/workflows/ci.yml` : PostgreSQL CI, `db:push`, Playwright
+  chromium, `MYGO_MODE=virtual`, lance `b2c-hotel-guest-create-live.spec.ts --config playwright.config.dev.ts`.
+
+#### FLIGHTS-INVOICE-GAP — DONE (2026-10-22)
+
+Gap fermé : `process-flight-confirmed.ts` était le seul handler Inngest post-CAS-C sans appel
+`generateInvoiceForReservation` — le module vols était exclu du checkpoint de facturation.
+
+- Ajouté `import { generateInvoiceForReservation }` et `step` aux params.
+- Ajouté `step.run("generate-invoice", ...)` en fin de handler (même patron que car/transfer/omra/hotel).
+- Ajouté `process-flight-confirmed.ts` dans `invoice-step-invariants.test.ts` → 23/23 verts (ex 20/20).
+- `process-flight-confirmed-wiring.test.ts` : 13/13 toujours verts.
+
+---
+
+### CAS-C — INVOICE STEP.RUN — DONE (mergé + déployé 2026-10-22)
+
+PR #251 mergée sur `main`. Déployé : `dpl_F3hTKpCs3LyeGh5fKaEs8d1EQHy6`, `state=READY`,
+`target=production`, `githubCommitSha=ac51dbfbd77900119afe4442fe9718832d8cabdc` sur `easy2book-new`.
 
 `generateInvoiceForReservation` déplacé depuis les appels fire-and-forget post-commit
 dans les actions serveur vers `step.run("generate-invoice")` dans chaque fonction Inngest
 concernée. Garantie d'exécution (checkpoint persistant, retry automatique, idempotence DB).
 20/20 tests d'invariant statiques verts. TypeScript clean.
 
-NOT VERIFIED : déploiement production.
+**Vérifications post-déploiement (2026-10-22)** :
+
+- Déploiement : CONFIRMED — `dpl_F3hTKpCs3LyeGh5fKaEs8d1EQHy6`, SHA = HEAD(main).
+- Non-régression : 264 failures vs 284 avant CAS-C — aucune régression introduite (failures pré-existantes).
+- Références publiques (CAS-B) : 18/18 invariants verts — `pg_advisory_xact_lock` en place sur tous les modules.
+- Admissibilité réseau : `network_product_node_is_active()` vérifié avant toute réservation, 13/13 tests verts.
+- Activités à proximité : `getCrossSellNetworkActivities()` filtre `status="active"` à la source, 5/5 tests verts, câblé sur hôtel/destination/fiche.
 
 ---
 
@@ -66,10 +229,11 @@ crash ; idempotence garantie par la contrainte `partner_invoices_reservation_uni
 - `booking/package.confirmed` → `process-package-confirmed.ts`
 - `booking/transfer.confirmed` → `process-transfer-confirmed.ts`
 - `booking/car.confirmed` → `process-car-confirmed.ts` (sendEvent reordonné avant invoice)
+- `booking/flight.confirmed` → `process-flight-confirmed.ts` (FLIGHTS-INVOICE-GAP, 2026-10-22)
 
 **Hors scope** : Packages B2B, Network guest, Transfers guest, Paiement manuel.
 
-**Tests** : `lib/inngest/functions/__tests__/invoice-step-invariants.test.ts` — 20/20.
+**Tests** : `lib/inngest/functions/__tests__/invoice-step-invariants.test.ts` — 23/23 (ex 20 — +3 flights).
 **Build** : TypeScript clean. Aucune migration DB.
 
 ---

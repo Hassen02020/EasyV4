@@ -28,8 +28,10 @@
  *    (une facture générée après confirmation/paiement intégral est déjà
  *    réglée).
  *
- * 6. totalTva: "0.00" — aucun taux de TVA inventé : la TVA est toujours
- *    zéro jusqu'à ce qu'un vrai modèle fiscal soit implémenté.
+ * 6. FISCAL SNAPSHOT (TAX-RULES-SUPERADMIN-01) — HT et TVA lus depuis le
+ *    fiscalSnapshot figé à la réservation (status="determined"), jamais
+ *    recalculés à la facturation. Fallback: réservations historiques/pending
+ *    reçoivent totalTtc en HT et 0 en TVA (pas de taux inventé).
  *
  * Pattern readFileSync — même discipline que lib/cars/__tests__/
  * car-voucher-wiring.test.ts.
@@ -97,8 +99,24 @@ test('INVOICE-WIRING-01 : status: "paid" sur toute nouvelle facture (jamais "pen
   assert.doesNotMatch(src, /status:\s*["']draft["']/)
 })
 
-// ─── Invariant 6 : totalTva: "0.00" ──────────────────────────────────────────
+// ─── Invariant 6 : fiscal snapshot — HT/TVA lus depuis le snapshot figé ──────
 
-test('INVOICE-WIRING-01 : totalTva: "0.00" — aucun taux de TVA inventé (taux réel non modélisé)', () => {
-  assert.match(src, /totalTva:\s*["']0\.00["']/)
+test("INVOICE-WIRING-01 : fiscalSnapshot casté en FiscalSnapshot|null — import du type présent", () => {
+  assert.match(src, /FiscalSnapshot/)
+  assert.match(src, /fiscalSnapshot\b/)
+})
+
+test('INVOICE-WIRING-01 : guard status="determined" avant lecture subtotalTnd/vatTnd', () => {
+  assert.match(src, /fiscal\?\.status\s*===\s*["']determined["']/)
+  assert.match(src, /fiscal\.subtotalTnd/)
+  assert.match(src, /fiscal\.vatTnd/)
+})
+
+test("INVOICE-WIRING-01 : fallback historique — totalTtc en HT et 0 en TVA si snapshot absent ou pending", () => {
+  // Fallback HT = totalTtc (pas de taux inventé)
+  assert.match(src, /invoiceHt/)
+  assert.match(src, /invoiceTva/)
+  // Les deux sont utilisés dans l'INSERT via toFixed(2)
+  assert.match(src, /invoiceHt\.toFixed\(2\)/)
+  assert.match(src, /invoiceTva\.toFixed\(2\)/)
 })

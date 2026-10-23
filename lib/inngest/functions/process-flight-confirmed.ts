@@ -18,6 +18,7 @@ import { flightBookings } from "@/lib/db/schema/flights"
 import { auditEvents } from "@/lib/db/schema"
 import { pgErrorCode } from "@/lib/db/pg-error"
 import type { CanonicalItinerary } from "@/lib/vols/canonical"
+import { generateInvoiceForReservation } from "@/lib/finance/invoice-actions"
 
 const ACTION_FLIGHT_VOUCHER_SENT = "notification.flight_voucher_email.sent"
 
@@ -71,8 +72,10 @@ export const processFlightConfirmed = inngest.createFunction(
   },
   async ({
     event,
+    step,
   }: {
     event: { data: Events["booking/flight.confirmed"]["data"] }
+    step: { run: <T>(name: string, fn: () => Promise<T>) => Promise<T> }
   }) => {
     const d = event.data
 
@@ -150,6 +153,24 @@ export const processFlightConfirmed = inngest.createFunction(
     }
 
     await recordFlightVoucherSent(d.agencyId, d.reservationId, d.publicRef)
+
+    // CAS-C — facture garantie via step.run (déplacée depuis le fire-and-forget).
+    await step.run("generate-invoice", async () => {
+      const result = await generateInvoiceForReservation({
+        agencyId: d.agencyId,
+        reservationId: d.reservationId,
+        actorUserId: "",
+      })
+      if (!result.ok) {
+        console.error("[process-flight-confirmed] génération facture échouée", {
+          reservationId: d.reservationId,
+          publicRef: d.publicRef,
+          error: result.error,
+        })
+      }
+      return result
+    })
+
     return { reservationId: d.reservationId }
   },
 )

@@ -28,6 +28,11 @@ import {
 } from "@/lib/db/schema"
 import { debitPartnerCredit } from "@/lib/pro/booking-actions"
 import { calculateTransferPrice } from "./pricing"
+import {
+  buildPendingFiscalSnapshot,
+  buildFiscalSnapshotFromTtc,
+} from "@/lib/booking/pricing"
+import { getActiveFiscalRuleInTx } from "@/lib/finance/fiscal-rules"
 import { sendEvent } from "@/lib/inngest/client"
 import { recordReservationFinancials } from "@/lib/finance/reservation-financials"
 import { creditPlatformCommission } from "@/lib/finance/platform-commission"
@@ -189,6 +194,25 @@ export async function createTransferBooking(
        * 4. Créer la réservation générique
        * ------------------------------------------------------------------ */
       const publicRef = await nextPublicRef(tx, agencyId)
+
+      const fiscalRuleTransfer = await getActiveFiscalRuleInTx(
+        tx,
+        "TN",
+        "transfer",
+        new Date(),
+      )
+      const transferFiscalSnapshot = fiscalRuleTransfer
+        ? buildFiscalSnapshotFromTtc(
+            totalTnd,
+            parseFloat(fiscalRuleTransfer.vatRate),
+            "transfer",
+            fiscalRuleTransfer.validationRef,
+            fiscalRuleTransfer.note,
+            fiscalRuleTransfer.id,
+            fiscalRuleTransfer.version,
+          )
+        : buildPendingFiscalSnapshot(totalTnd, "transfer", "taux_non_déterminé")
+
       const [reservation] = await tx
         .insert(reservations)
         .values({
@@ -203,6 +227,7 @@ export async function createTransferBooking(
           tndAmount: String(totalTnd),
           depositAmount: String(totalTnd),
           depositPaid: "0",
+          fiscalSnapshot: transferFiscalSnapshot,
           providerPayload: {
             fromZoneId: input.fromZoneId,
             toZoneId: input.toZoneId,

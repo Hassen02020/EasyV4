@@ -94,6 +94,12 @@ export async function listFiscalRules(): Promise<ListFiscalRulesResult> {
   const session = await resolveSessionContext()
   if (!session.ok)
     return { ok: false, error: "Non authentifié", code: "UNAUTHENTICATED" }
+  if (!session.isSuperAdmin)
+    return {
+      ok: false,
+      error: "Accès réservé au super admin",
+      code: "FORBIDDEN",
+    }
 
   const rules = await getDb()
     .select({

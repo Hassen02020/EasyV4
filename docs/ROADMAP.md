@@ -173,6 +173,27 @@ Error("FISCAL_RULE_NOT_FOUND")` si aucune règle active
 
 ---
 
+### PRICING-VATRULE-01 — CLÔTURÉ (2026-10-23)
+
+**Objectif** : s'assurer que `computePriceBreakdown` reçoit son `vatRate` depuis la règle fiscale active (DB) et non depuis la valeur par défaut hardcodée `19` de `RatePayload`.
+
+**Audit** : `unitPriceTnd` = HT confirmé (commentaire `pricing.ts:11`, `taxBasis: "HT"` dans `buildFiscalSnapshot`). Pas de double-TVA. Stratégie TX : hotel B2B/B2C utilisent `getActiveFiscalRule` (non-TX) avant le breakdown hors-TX, et conservent `getActiveFiscalRuleInTx` (TX) pour le snapshot.
+
+**Fichiers** :
+- `lib/booking/actions.ts` — hotel B2B : `getActiveFiscalRule` non-TX avant breakdown + `vatRate: parseFloat(fiscalRuleForBreakdown.vatRate)`
+- `lib/booking/guest-actions.ts` — hotel B2C : idem, 2 appels à computePriceBreakdown couverts
+- `lib/packages/booking-actions.ts` — pkg B2C (`fiscalRule`) + pkg B2B (`fiscalRuleB2B`) déplacés avant breakdown
+- `lib/activities/booking-actions.ts` — activity B2B : `getActiveFiscalRuleInTx` déplacé avant breakdown
+- `lib/activities/guest-booking-actions.ts` — activity B2C : idem + doublon supprimé
+- `lib/booking/__tests__/pricing.test.ts` — 5 nouveaux cas vatRate=7 avec valeurs HT/TVA/TTC explicites (14, 33.6, 52.5 TND) + comparaison 7% vs 19% + invariant pas-de-double-TVA
+- `lib/booking/__tests__/pricing-vatrule-wiring.test.ts` — 30 invariants statiques (6 × 5 fichiers : import, module, guard, parseFloat, ordre fetch<breakdown, pas de vatRate:19)
+
+**Résultats** : 30/30 invariants câblage verts. `pnpm test` : 2795 pass / 0 fail. TypeScript 0 erreurs. Lint 0 erreur dans les fichiers modifiés (1 erreur préexistante `world-hotel-results-content.tsx` hors scope).
+**Impact production** : règle `(TN, *, 19 %)` active → comportement inchangé jusqu'à modification de la règle en DB.
+**Commit** : `9662c64` · Branche : `claude/easy2book-v6-modernization-7gyb5v` · PR : #254
+
+---
+
 ### FISCAL-MONDE-01 — CLÔTURÉ (2026-10-23)
 
 ```

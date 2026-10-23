@@ -157,12 +157,20 @@ export async function createActivityBooking(
         const unitChildPriceTnd = activitySession.childPriceTnd
           ? parseFloat(activitySession.childPriceTnd)
           : undefined
+        const fiscalRule = await getActiveFiscalRuleInTx(
+          tx,
+          "TN",
+          "activity",
+          new Date(),
+        )
+        if (!fiscalRule) throw new Error("FISCAL_RULE_NOT_FOUND")
         const breakdown = computePriceBreakdown({
           unitPriceTnd,
           adults: booking.adults,
           children: booking.children,
           unitChildPriceTnd,
           depositPercent: 100,
+          vatRate: parseFloat(fiscalRule.vatRate),
         })
         const totalTnd = breakdown.totalTnd
 
@@ -182,13 +190,6 @@ export async function createActivityBooking(
 
         // --- 5. Réservation ---
         const publicRef = await nextActivityPublicRef(tx, agencyId)
-        const fiscalRule = await getActiveFiscalRuleInTx(
-          tx,
-          "TN",
-          "activity",
-          new Date(),
-        )
-        if (!fiscalRule) throw new Error("FISCAL_RULE_NOT_FOUND")
         const [reservation] = await tx
           .insert(reservations)
           .values({

@@ -136,10 +136,141 @@ Error("FISCAL_RULE_NOT_FOUND")` si aucune règle active
 
 ## Chantier actif
 
-### VAL-01 — VALIDATION PARCOURS COMMERCIAL — EN COURS (2026-10-22)
+### FISCAL-OMRA-01 — CODE TESTÉ LOCALEMENT · EN ATTENTE CERTIFICATION PR #254 (2026-10-23)
+
+**Objectif** : connecter les deux chemins de réservation omra au moteur de règles fiscales.
+— B2B (`booking-actions.ts`) : `buildPendingFiscalSnapshot` hardcodé → `getActiveFiscalRuleInTx` + `buildFiscalSnapshotFromTtc` (fail-closed).
+— B2C (`guest-booking-actions.ts`) : `fiscalSnapshot` absent de l'INSERT (NULL) → engine-connected.
+
+**Fichiers** :
+
+- `lib/omra/booking-actions.ts` — import + appel fail-closed `(TN, omra)` + guard `FISCAL_RULE_NOT_FOUND` + snapshot dans INSERT
+- `lib/omra/guest-booking-actions.ts` — idem (gap identique à hotels-monde avant FISCAL-MONDE-01)
+- `lib/omra/__tests__/fiscal-wiring.test.ts` — 15 invariants statiques (7 B2B + 8 B2C incluant absence buildPendingFiscalSnapshot)
+- `lib/finance/__tests__/fiscal-rules.test.ts` — T8 mis à jour (engine-connected vs pending hardcodé)
+
+**Résultats** : 15/15 invariants verts. `pnpm test` : 2760 pass / 0 fail. TypeScript 0 erreurs.
+**Non-régression** : règle `(TN, *, 19 %)` couvre `omra` via wildcard 4-passes — `FISCAL_RULE_NOT_FOUND` impossible en prod.
+**Commit** : `456bb87` · Branche : `claude/easy2book-v6-modernization-7gyb5v` · PR : #254
+
+---
+
+### RLS-FISCAL-RULES-01 — CODE TESTÉ LOCALEMENT · EN ATTENTE CERTIFICATION PR #254 (2026-10-23)
+
+**Objectif** : activer RLS sur `fiscal_rules` + corriger le garde de `listFiscalRules`
+(fonction ne vérifiait que `session.ok`, pas `session.isSuperAdmin`).
+
+**Preuve de sécurité** : `SELECT relrowsecurity, polname, polcmd, using_expr, with_check_expr FROM pg_class + pg_policy WHERE relname='fiscal_rules'`
+→ `rls_enabled=true`, `policy_name=fiscal_rules_super_admin`, `cmd=*`, `using_expr=is_super_admin()`, `with_check_expr=is_super_admin()` — confirmé sur Supabase `crygnaichvlxavvbifqi` post-commit `74c931e`.
+
+**Fichiers** :
+
+- `drizzle/manual/0140_rls_fiscal_rules.sql` — migration appliquée en production
+- `lib/finance/fiscal-rules-actions.ts` — guard `isSuperAdmin` ajouté dans `listFiscalRules()`
+- `lib/finance/__tests__/fiscal-rules-rls.test.ts` — 8 invariants statiques (migration RLS, policy FOR ALL, is_super_admin(), WITH CHECK, idempotence, guard lecture, guard écriture, bypass service role)
+
+**Résultats** : 8/8 invariants verts. `pnpm test` : 2745 pass / 0 fail. TypeScript 0 erreurs.
+**Non-régression** : `getActiveFiscalRuleInTx` (booking path) utilise DATABASE_URL service role (bypass RLS) — bookings et fiscalSnapshot non impactés.
+**Commit** : `74c931e` · Branche : `claude/easy2book-v6-modernization-7gyb5v` · PR : #254
+
+---
+
+### PRICING-VATRULE-01 — CODE TESTÉ LOCALEMENT · EN ATTENTE CERTIFICATION PR #254 (2026-10-23)
+
+**Objectif** : s'assurer que `computePriceBreakdown` reçoit son `vatRate` depuis la règle fiscale active (DB) et non depuis la valeur par défaut hardcodée `19` de `RatePayload`.
+
+**Audit** : `unitPriceTnd` = HT confirmé (commentaire `pricing.ts:11`, `taxBasis: "HT"` dans `buildFiscalSnapshot`). Pas de double-TVA. Stratégie TX : hotel B2B/B2C utilisent `getActiveFiscalRule` (non-TX) avant le breakdown hors-TX, et conservent `getActiveFiscalRuleInTx` (TX) pour le snapshot.
+
+**Fichiers** :
+
+- `lib/booking/actions.ts` — hotel B2B : `getActiveFiscalRule` non-TX avant breakdown + `vatRate: parseFloat(fiscalRuleForBreakdown.vatRate)`
+- `lib/booking/guest-actions.ts` — hotel B2C : idem, 2 appels à computePriceBreakdown couverts
+- `lib/packages/booking-actions.ts` — pkg B2C (`fiscalRule`) + pkg B2B (`fiscalRuleB2B`) déplacés avant breakdown
+- `lib/activities/booking-actions.ts` — activity B2B : `getActiveFiscalRuleInTx` déplacé avant breakdown
+- `lib/activities/guest-booking-actions.ts` — activity B2C : idem + doublon supprimé
+- `lib/booking/__tests__/pricing.test.ts` — 5 nouveaux cas vatRate=7 avec valeurs HT/TVA/TTC explicites (14, 33.6, 52.5 TND) + comparaison 7% vs 19% + invariant pas-de-double-TVA
+- `lib/booking/__tests__/pricing-vatrule-wiring.test.ts` — 30 invariants statiques (6 × 5 fichiers : import, module, guard, parseFloat, ordre fetch<breakdown, pas de vatRate:19)
+
+**Résultats locaux** : 30/30 invariants câblage verts. `pnpm test` : 2795 pass / 0 fail. TypeScript 0 erreurs.
+**Impact production** : règle `(TN, *, 19 %)` active → comportement inchangé jusqu'à modification de la règle en DB.
+**Commits** : `9662c64`, `bca1c88` · Branche : `claude/easy2book-v6-modernization-7gyb5v` · PR : #254 (draft)
+
+**État CI PR #254 (run 40006913764, commit `bca1c88`)** :
+
+- `typecheck` ✅ — 0 erreur
+- `test` ✅ — toute la suite passe
+- `format` ❌ → **CORRIGÉ** : `pnpm format` appliqué (10 fichiers : 4 PRICING-VATRULE-01 + ROADMAP.md + 5 autres chantiers PR #254) — commit format fix à pusher
+- `lint` ❌ → **PRÉEXISTANT** : 1 erreur `world-hotel-results-content.tsx:364` "Calling setState synchronously within an effect" — hors scope PRICING-VATRULE-01 et des 3 autres chantiers. 13 avertissements (non bloquants pour la revue).
+- `financial-e2e` : en cours au moment de l'audit (résultat à confirmer post-push)
+
+**⚠️ Certification finale** : ce chantier est testé localement et ses invariants statiques sont verts. La certification est complète seulement après :
+
+1. CI verte sur la tête de la PR (format fix inclus)
+2. Revue humaine du diff
+3. Fusion de PR #254 dans `main`
+
+---
+
+### FISCAL-MONDE-01 — CODE TESTÉ LOCALEMENT · EN ATTENTE CERTIFICATION PR #254 (2026-10-23)
+
+```
+ID: FISCAL-MONDE-01
+OBJECTIF: Câbler lib/hotels-monde/guest-booking-actions.ts dans le moteur
+          de règles fiscales (getActiveFiscalRuleInTx → fiscalSnapshot figé
+          dans l'INSERT reservations), comme LOT 6 l'a fait pour hotel B2B/B2C,
+          package, activité. Actuellement : aucun champ fiscalSnapshot dans
+          l'INSERT hotels-monde → NULL en DB → facture utilise le fallback
+          totalTtc/0 (pas de ventilation TVA).
+ÉTAT AUDIT: FIX — lib/hotels-monde/guest-booking-actions.ts:346 INSERT
+            reservations sans fiscalSnapshot. Omra a buildPendingFiscalSnapshot
+            (non nul) mais hors moteur — périmètre séparé si besoin.
+CE QUI EXISTE: getActiveFiscalRuleInTx() + buildFiscalSnapshotFromTtc() +
+               buildPendingFiscalSnapshot() déjà dans lib/finance/fiscal-rules.ts
+               et lib/booking/pricing.ts. Règle active (TN, *, 19 %)
+               en production. Pattern LOT 6 documenté sur 9 call-sites.
+CE QUI MANQUE: import + appel getActiveFiscalRuleInTx() dans la TX
+               hotels-monde + fiscalSnapshot dans l'INSERT reservations.
+POURQUOI MAINTENANT: Toutes les autres lignes de réservation TN ont un
+                      fiscalSnapshot non nul depuis LOT 6. Hotels-monde
+                      reste le seul module actif avec NULL → incohérence
+                      comptable si le module est activé en production.
+DÉPENDANCES: LOT 6 DONE, règle (TN, *, 19 %) active en production DONE.
+FICHIERS: lib/hotels-monde/guest-booking-actions.ts (1 fichier principal)
+          + test d'invariant statique nouveau ou étendu.
+CHANGEMENTS DB: Aucun — colonne fiscal_snapshot déjà présente (LOT 3,
+                migration 0011). Aucune migration requise.
+RISQUES: Fail-closed identique à LOT 6 : si aucune règle active trouvée
+         (ne peut pas arriver avec la règle provisoire (TN, *)), la TX
+         lève FISCAL_RULE_NOT_FOUND → réservation rejetée. Risque maîtrisé
+         car règle (TN, *) couvre tous les modules. Rollback : supprimer
+         l'import + revert l'INSERT (1 ligne).
+PLAN DE RETOUR: git revert du commit, aucune migration à reverter.
+TESTS: invariants statiques (présence getActiveFiscalRuleInTx, présence
+       fiscalSnapshot dans INSERT, même pattern que LOT 6).
+CRITÈRE DE SORTIE: fiscalSnapshot non nul dans l'INSERT hotels-monde,
+                   tests verts, TypeScript clean, CI verte.
+ESTIMATION: ≤ 2h (pattern éprouvé, 1 fichier, 0 migration).
+```
+
+**Implémentation** :
+
+- `lib/hotels-monde/guest-booking-actions.ts` : import `buildFiscalSnapshotFromTtc`
+  - `getActiveFiscalRuleInTx` ; appel fail-closed dans la TX ; `fiscalSnapshot`
+    dans l'INSERT `reservations` (pattern identique LOT 6 hotel B2C).
+- `lib/hotels-monde/__tests__/fiscal-wiring.test.ts` : 7 invariants statiques
+  (import, appel TN/hotel_monde, guard FISCAL_RULE_NOT_FOUND, câblage INSERT,
+  parseFloat(vatRate), traçabilité id/version).
+- Tests : 7/7 verts. `pnpm test` : 2737 pass / 0 fail. TypeScript 0 erreurs.
+- Aucune migration DB (colonne `fiscal_snapshot` déjà présente depuis LOT 3).
+
+---
+
+### VAL-01 — VALIDATION PARCOURS COMMERCIAL — CLÔTURÉ (2026-10-22/23)
 
 **Objectif** : valider que les briques intégrées fonctionnent ensemble du point de vue du client.
 Périmètre : hôtel search → activités → fiche → disponibilité → réservation → paiement → facture.
+
+**Clôture** : toutes les sous-tâches DONE ; PR #252 mergée sur `main` (commit `b7633f9`, 2026-10-23).
 
 **Séquence GO (E2-01 → E3-01 → E5-01 terminés, E1-01/E4-02 chantier séparé)** :
 
@@ -189,6 +320,40 @@ Gap fermé : `process-flight-confirmed.ts` était le seul handler Inngest post-C
 - Ajouté `step.run("generate-invoice", ...)` en fin de handler (même patron que car/transfer/omra/hotel).
 - Ajouté `process-flight-confirmed.ts` dans `invoice-step-invariants.test.ts` → 23/23 verts (ex 20/20).
 - `process-flight-confirmed-wiring.test.ts` : 13/13 toujours verts.
+
+**Preuves de fusion VAL-01** :
+
+- Branche : `claude/easy2book-v6-modernization-7gyb5v`
+- PR : #252 — mergée sur `main`, commit `b7633f9`, 2026-10-23.
+- Format hotfix (Prettier) : PR #253 (`fix/format-prettier-main`) mergée sur `main`, commit `935217b`, 2026-10-23.
+
+---
+
+### HOTELS-MONDE-UX-01 — CLÔTURÉ (2026-10-23)
+
+**Objectif** : enrichir la page résultats Hotels Monde avec photos, filtres étoiles/prix et vue carte.
+
+**Commits** : `7e57d7b` sur `claude/easy2book-v6-modernization-7gyb5v`, PR #252 (avec VAL-01).
+
+**Fonctionnalités livrées** :
+
+- **Photos** : `thumbnailUrl` câblé dans `virtual-supplier` (picsum.photos déterministe `seed/{offerId}`),
+  `<img>` non-Next.js avec eslint-disable justifié (démo/placeholder, CSP `img-src https:` couvre).
+- **Filtre étoiles** : checkboxes 5★→1★ sur `selectedStars: Set<number>` — filtre `filteredSorted`.
+- **Filtre prix** : Radix `<Slider>` initialisé dynamiquement sur `[min, max]` des offres chargées.
+- **Vue carte** : toggle Liste/Carte, `HotelMap` (`react-leaflet` v5) chargé en `dynamic` SSR-false,
+  `mapPoints` générés en cercle autour de `destCoords` (coordonnées ajoutées aux 10 destinations).
+- **i18n** : clés `viewList`, `viewMap`, `filterByStars`, `filterByPrice`, `priceFrom`, `priceTo`
+  dans `messages/fr.json`, `en.json`, `ar.json`.
+
+**Fichiers** :
+
+- `app/(public)/[locale]/hotels-monde/search/world-hotel-results-content.tsx`
+- `lib/hotels-monde/search-state.ts` (+ `lat`/`lng` sur `WorldDestinationOption` + 10 destinations)
+- `lib/hotels-monde/supplier-drivers.ts` (thumbnailUrl picsum)
+- `messages/fr.json`, `messages/en.json`, `messages/ar.json`
+
+**Tests** : TypeScript 0 erreurs, CI verte (PR #252).
 
 ---
 

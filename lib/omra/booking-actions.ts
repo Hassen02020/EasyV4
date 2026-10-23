@@ -37,7 +37,8 @@ import { sendEvent } from "@/lib/inngest/client"
 import { recordReservationTransition } from "@/lib/admin/reservation-status-history"
 import { recordReservationFinancials } from "@/lib/finance/reservation-financials"
 import { creditPlatformCommission } from "@/lib/finance/platform-commission"
-import { buildPendingFiscalSnapshot } from "@/lib/booking/pricing"
+import { buildFiscalSnapshotFromTtc } from "@/lib/booking/pricing"
+import { getActiveFiscalRuleInTx } from "@/lib/finance/fiscal-rules"
 
 /* -------------------------------------------------------------------------- */
 /* Types                                                                      */
@@ -261,6 +262,15 @@ export async function createOmraBooking(
          * 6. Créer la réservation
          * ------------------------------------------------------------------ */
         const publicRef = await nextPublicRef(tx, agencyId)
+
+        const fiscalRule = await getActiveFiscalRuleInTx(
+          tx,
+          "TN",
+          "omra",
+          new Date(),
+        )
+        if (!fiscalRule) throw new Error("FISCAL_RULE_NOT_FOUND")
+
         const [reservation] = await tx
           .insert(reservations)
           .values({
@@ -275,10 +285,14 @@ export async function createOmraBooking(
             tndAmount: String(totalTnd),
             depositAmount: String(totalTnd),
             depositPaid: "0",
-            fiscalSnapshot: buildPendingFiscalSnapshot(
+            fiscalSnapshot: buildFiscalSnapshotFromTtc(
               totalTnd,
+              parseFloat(fiscalRule.vatRate),
               "omra",
-              "taux_non_déterminé",
+              fiscalRule.validationRef,
+              fiscalRule.note,
+              fiscalRule.id,
+              fiscalRule.version,
             ),
             providerPayload: {
               packageId: input.packageId,

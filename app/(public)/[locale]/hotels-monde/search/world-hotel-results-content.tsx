@@ -305,8 +305,25 @@ export function WorldHotelResultsContent() {
   const [refundableOnly, setRefundableOnly] = useState(false)
   const [selectedStars, setSelectedStars] = useState<Set<number>>(new Set())
   const [priceRange, setPriceRange] = useState<[number, number]>([0, 9999])
+  const [priceRangeInitKey, setPriceRangeInitKey] = useState<string | null>(
+    null,
+  )
   const [viewMode, setViewMode] = useState<"list" | "map">("list")
   const [selectedMapId, setSelectedMapId] = useState<number | null>(null)
+
+  // Réinitialise le slider de prix quand une nouvelle recherche charge ses offres.
+  // Pattern React "storing information from previous renders" — pas de setState dans un effet.
+  if (
+    fetchState.requestKey !== priceRangeInitKey &&
+    fetchState.offers.length > 0
+  ) {
+    setPriceRangeInitKey(fetchState.requestKey)
+    const prices = fetchState.offers.map((o) => o.pricePerNightTnd)
+    setPriceRange([
+      Math.floor(Math.min(...prices)),
+      Math.ceil(Math.max(...prices)),
+    ])
+  }
 
   useEffect(() => {
     if (!parsed.ok || !requestKey) return
@@ -357,17 +374,13 @@ export function WorldHotelResultsContent() {
   )
   const error = fetchState.requestKey === requestKey ? fetchState.error : null
 
-  // Initialise le slider de prix dès que les offres chargent
-  useEffect(() => {
-    if (offers.length === 0) return
-    const prices = offers.map((o) => o.pricePerNightTnd)
-    setPriceRange([Math.floor(Math.min(...prices)), Math.ceil(Math.max(...prices))])
-  }, [offers])
-
   const offerPriceRange = useMemo(() => {
     if (offers.length === 0) return { min: 0, max: 9999 }
     const prices = offers.map((o) => o.pricePerNightTnd)
-    return { min: Math.floor(Math.min(...prices)), max: Math.ceil(Math.max(...prices)) }
+    return {
+      min: Math.floor(Math.min(...prices)),
+      max: Math.ceil(Math.max(...prices)),
+    }
   }, [offers])
 
   const { format: formatPrice } = useCurrency()
@@ -377,14 +390,23 @@ export function WorldHotelResultsContent() {
     if (breakfastOnly) result = result.filter((o) => o.breakfastIncluded)
     if (refundableOnly) result = result.filter((o) => o.refundable)
     if (selectedStars.size > 0)
-      result = result.filter((o) => o.stars != null && selectedStars.has(o.stars))
+      result = result.filter(
+        (o) => o.stars != null && selectedStars.has(o.stars),
+      )
     result = result.filter(
       (o) =>
         o.pricePerNightTnd >= priceRange[0] &&
         o.pricePerNightTnd <= priceRange[1],
     )
     return sortOffers(result, sortMode)
-  }, [offers, breakfastOnly, refundableOnly, selectedStars, priceRange, sortMode])
+  }, [
+    offers,
+    breakfastOnly,
+    refundableOnly,
+    selectedStars,
+    priceRange,
+    sortMode,
+  ])
 
   const destCoords = useMemo(
     () =>
@@ -519,9 +541,7 @@ export function WorldHotelResultsContent() {
                 max={offerPriceRange.max}
                 step={10}
                 value={priceRange}
-                onValueChange={(v) =>
-                  setPriceRange(v as [number, number])
-                }
+                onValueChange={(v) => setPriceRange(v as [number, number])}
                 className="w-full"
               />
               <div className="text-muted-foreground flex justify-between text-xs tabular-nums">

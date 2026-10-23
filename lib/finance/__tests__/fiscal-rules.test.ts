@@ -172,20 +172,36 @@ describe("FISCAL-RULES-01 : pending snapshot", () => {
 })
 
 // ---------------------------------------------------------------------------
-// T8 : Omra corrigé — buildPendingFiscalSnapshot présent dans booking-actions
+// T8 : Omra — engine fiscal connecté (FISCAL-OMRA-01)
+// buildPendingFiscalSnapshot remplacé par getActiveFiscalRuleInTx +
+// buildFiscalSnapshotFromTtc (fail-closed, même pattern que hotel B2C)
 // ---------------------------------------------------------------------------
 
 describe("FISCAL-RULES-01 : omra correction", () => {
   const omraSrc = readSrc("lib/omra/booking-actions.ts")
 
-  test("T8 — omra : buildPendingFiscalSnapshot importé et utilisé dans INSERT", () => {
-    assert.match(omraSrc, /buildPendingFiscalSnapshot/, "import manquant")
+  test("T8 — omra : getActiveFiscalRuleInTx + buildFiscalSnapshotFromTtc câblés dans INSERT", () => {
     assert.match(
       omraSrc,
-      /fiscalSnapshot:\s*buildPendingFiscalSnapshot/,
-      "call INSERT manquant",
+      /import[^;]+getActiveFiscalRuleInTx/,
+      "getActiveFiscalRuleInTx doit être importé",
+    )
+    assert.match(
+      omraSrc,
+      /fiscalSnapshot:\s*buildFiscalSnapshotFromTtc/,
+      "fiscalSnapshot doit utiliser buildFiscalSnapshotFromTtc dans l'INSERT",
     )
     assert.match(omraSrc, /["']omra["']/, "serviceCategory 'omra' manquante")
+    assert.match(
+      omraSrc,
+      /FISCAL_RULE_NOT_FOUND/,
+      "guard FISCAL_RULE_NOT_FOUND manquant",
+    )
+    assert.doesNotMatch(
+      omraSrc,
+      /buildPendingFiscalSnapshot/,
+      "buildPendingFiscalSnapshot ne doit plus être utilisé dans omra B2B",
+    )
   })
 })
 

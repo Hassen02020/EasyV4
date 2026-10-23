@@ -158,3 +158,81 @@ test("priceDrifted: tolérance personnalisée respectée", () => {
   assert.equal(priceDrifted(100, 100.5, 1), false)
   assert.equal(priceDrifted(100, 101.5, 1), true)
 })
+
+// --- PRICING-VATRULE-01 : vatRate dynamique (non-19) ------------------
+// Ces tests vérifient que computePriceBreakdown calcule correctement HT,
+// TVA et TTC pour des taux autres que le défaut 19 % — notamment 7 %.
+// Convention auditée : unitPriceTnd est toujours HT. La TVA est appliquée
+// UNE SEULE FOIS sur la base HT. Pas de double-TVA.
+
+test("pricing: vatRate=7 — 2 adultes, HT/TVA/TTC exacts", () => {
+  // Base HT : 2 × 100 = 200. TVA 7 % : 14. TTC : 214.
+  const r = computePriceBreakdown({
+    unitPriceTnd: 100,
+    adults: 2,
+    vatRate: 7,
+  })
+  assert.equal(r.subtotalTnd, 200)
+  assert.equal(r.vatTnd, 14)
+  assert.equal(r.totalTnd, 214)
+  assert.equal(r.depositTnd, 64.2) // 214 × 30 % = 64.2
+  assert.equal(r.balanceTnd, 149.8) // 214 − 64.2
+})
+
+test("pricing: vatRate=7 — 2 adultes + 1 enfant avec prix explicite", () => {
+  // Base HT : 2 × 200 + 80 = 480. TVA 7 % : 33.6. TTC : 513.6.
+  const r = computePriceBreakdown({
+    unitPriceTnd: 200,
+    adults: 2,
+    children: 1,
+    unitChildPriceTnd: 80,
+    vatRate: 7,
+  })
+  assert.equal(r.subtotalTnd, 480)
+  assert.equal(r.vatTnd, 33.6)
+  assert.equal(r.totalTnd, 513.6)
+})
+
+test("pricing: vatRate=7 — enfant par défaut (50 % de l'adulte)", () => {
+  // Base HT : 2 × 300 + 150 = 750. TVA 7 % : 52.5. TTC : 802.5.
+  const r = computePriceBreakdown({
+    unitPriceTnd: 300,
+    adults: 2,
+    children: 1,
+    vatRate: 7,
+  })
+  assert.equal(r.subtotalTnd, 750)
+  assert.equal(r.vatTnd, 52.5)
+  assert.equal(r.totalTnd, 802.5)
+})
+
+test("pricing: vatRate=7 vs vatRate=19 — même HT, différence TVA exacte", () => {
+  // Même base HT (500 TND, 1 adulte). Seule la TVA diffère.
+  const r19 = computePriceBreakdown({
+    unitPriceTnd: 500,
+    adults: 1,
+    vatRate: 19,
+  })
+  const r7 = computePriceBreakdown({ unitPriceTnd: 500, adults: 1, vatRate: 7 })
+
+  assert.equal(r19.subtotalTnd, 500) // HT identique
+  assert.equal(r7.subtotalTnd, 500)
+
+  assert.equal(r19.vatTnd, 95) // 500 × 19 % = 95
+  assert.equal(r7.vatTnd, 35) // 500 × 7 %  = 35
+
+  assert.equal(r19.totalTnd, 595) // 500 + 95
+  assert.equal(r7.totalTnd, 535) // 500 + 35
+
+  // Écart TTC : exactement 12 % de la base HT (pas de double-TVA).
+  assert.equal(r19.totalTnd - r7.totalTnd, 60) // (19 % − 7 %) × 500 = 60
+})
+
+test("pricing: convention HT — pas de double-TVA à vatRate=7", () => {
+  // unitPriceTnd = HT. TVA appliquée une seule fois.
+  // Si double-TVA : 200 × 1.07 × 1.07 = 228.98 — ce résultat doit être absent.
+  const r = computePriceBreakdown({ unitPriceTnd: 200, adults: 1, vatRate: 7 })
+  assert.equal(r.subtotalTnd, 200) // base HT inchangée
+  assert.equal(r.totalTnd, 214) // 200 × 1.07 = 214, PAS 228.98
+  assert.notEqual(r.totalTnd, 228.98)
+})

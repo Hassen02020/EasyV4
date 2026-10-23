@@ -466,6 +466,21 @@ jobs:
             VALUES ('easy2book-ci', 'Easy2Book CI', 'ota')
             ON CONFLICT DO NOTHING;
           SQL
+      - name: Seed CI — règle fiscale wildcard (requise par getActiveFiscalRuleInTx)
+        run: |
+          psql "$DATABASE_URL" -v ON_ERROR_STOP=1 <<'SQL'
+            INSERT INTO fiscal_rules (
+              country, module, fiscal_classification, vat_rate,
+              status, effective_from, effective_to, version,
+              validation_ref, note,
+              created_by, tax_type
+            ) VALUES (
+              '*', '*', 'zero_rated', '0.00',
+              'active', '2020-01-01 00:00:00+00', NULL, 1,
+              'CI-seed', 'CI wildcard fiscal rule — test only',
+              '00000000-0000-0000-0000-000000000000', 'percentage'
+            ) ON CONFLICT DO NOTHING;
+          SQL
       - name: Install Playwright chromium
         run: pnpm exec playwright install chromium --with-deps
       - name: Guest booking E2E (MYGO_MODE=virtual, pnpm dev)

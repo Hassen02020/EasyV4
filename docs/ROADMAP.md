@@ -34,7 +34,7 @@ Un seul chantier actif à la fois ; il est indiqué dans ROADMAP.md (section "Ch
 
 ---
 
-## TAX-RULES-SUPERADMIN-01 — FISCAL SNAPSHOT — CLÔTURÉ LOT 1-7 (2026-10-23)
+## TAX-RULES-SUPERADMIN-01 — FISCAL SNAPSHOT — CLÔTURÉ LOT 1-8 (2026-10-23)
 
 **Objectif** : garantir que le montant présenté au client, le montant payé, la réservation
 enregistrée et la facture racontent exactement la même histoire financière.
@@ -102,16 +102,18 @@ enregistrée et la facture racontent exactement la même histoire financière.
 
 **LOT 8 — DONE** (branche `claude/easy2book-v6-modernization-7gyb5v`, 2026-10-23)
 
-- Migration seed `drizzle/0024_fiscal_rules_seed_provisional.sql` : INSERT d'une
-  règle provisoire `(TN, *, 19 %, active)` dans `fiscal_rules`
-- Matchée à la passe 2 (TN+\*) de la résolution 4-passes — couvre hotel, package,
-  activity (fail-closed) sans bloquer les réservations au déploiement LOT 6
+- Migration seed `drizzle/0024_fiscal_rules_seed_provisional.sql` : INSERT idempotent
+  d'une règle provisoire `(TN, *, 19 %, active)` dans `fiscal_rules`
+- Idempotente : `INSERT … SELECT … WHERE NOT EXISTS (…validation_ref…)` — re-run sûr
+- Matchée à la passe 2 (TN+\*) de la résolution 4-passes — couvre les **6 modules TN** :
+  hotel, package, activity (fail-closed) + car_rental, transfer, flight
+  (basculent de `pending` → 19 % provisoire — décision Direction 2026-10-23)
 - `validationRef='PROVISOIRE-GO-DIRECTION-2026-10-23'` — traçable et rollbackable
   (`DELETE WHERE validation_ref=...`)
 - `created_by/activated_by` = nil-UUID (seed système) — pas de dépendance user
 - `tax_type='percentage'` — compatible LOT 7 (0023 précède 0024)
 - Décision Direction 2026-10-23 : option 3 du tableau des taxes v2 ("activer 19 %
-  provisoirement avec avertissement")
+  provisoirement avec avertissement") — 6 modules acceptés
 - À remplacer module par module dès confirmation conseiller fiscal (tableau B bis DGI)
 - **NOT YET DEPLOYED** : migrations 0022 + 0023 + 0024 à appliquer ensemble en
   production. Pré-requis LOT 6 (fail-closed) désormais satisfait par cette seed.

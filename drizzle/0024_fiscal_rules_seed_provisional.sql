@@ -18,6 +18,7 @@
 --   WHERE validation_ref = 'PROVISOIRE-GO-DIRECTION-2026-10-23';
 --   (réservations fail-closed bloquées à nouveau — opération réversible)
 
+-- Idempotent : ne s'exécute pas si une règle active TN+* avec ce validation_ref existe déjà.
 INSERT INTO "fiscal_rules" (
   "id",
   "country",
@@ -39,7 +40,8 @@ INSERT INTO "fiscal_rules" (
   "unit_type",
   "max_units",
   "resident_amount"
-) VALUES (
+)
+SELECT
   gen_random_uuid(),
   'TN',
   '*',
@@ -52,8 +54,10 @@ INSERT INTO "fiscal_rules" (
   'PROVISOIRE-GO-DIRECTION-2026-10-23',
   'Taux 19 % provisoire — décision Direction 2026-10-23 (tableau des taxes agence v2, option 3). '
   'Remplacer par des règles module/taux confirmés dès réception du tableau B bis DGI et avis conseiller fiscal. '
-  'Modules fail-closed couverts : hotel, package, activity (passe 2 = TN+*). '
-  'Modules pending-fallback non concernés : car, transfer, vol.',
+  'Modules couverts via passe 2 (TN+*) : '
+  'hotel (fail-closed), package (fail-closed), activity (fail-closed), '
+  'car_rental (bascule pending→19 %), transfer (bascule pending→19 %), flight (bascule pending→19 %). '
+  'Décision Direction 2026-10-23 : les 6 modules acceptés à 19 % provisoire.',
   '00000000-0000-0000-0000-000000000000',
   now(),
   '00000000-0000-0000-0000-000000000000',
@@ -63,4 +67,10 @@ INSERT INTO "fiscal_rules" (
   NULL,
   NULL,
   NULL
+WHERE NOT EXISTS (
+  SELECT 1 FROM "fiscal_rules"
+  WHERE country = 'TN'
+    AND module = '*'
+    AND status = 'active'
+    AND validation_ref = 'PROVISOIRE-GO-DIRECTION-2026-10-23'
 );

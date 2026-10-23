@@ -34,7 +34,7 @@ Un seul chantier actif à la fois ; il est indiqué dans ROADMAP.md (section "Ch
 
 ---
 
-## TAX-RULES-SUPERADMIN-01 — FISCAL SNAPSHOT — CLÔTURÉ LOT 1-4 (2026-10-22)
+## TAX-RULES-SUPERADMIN-01 — FISCAL SNAPSHOT — CLÔTURÉ LOT 1-5 (2026-10-23)
 
 **Objectif** : garantir que le montant présenté au client, le montant payé, la réservation
 enregistrée et la facture racontent exactement la même histoire financière.
@@ -51,8 +51,17 @@ enregistrée et la facture racontent exactement la même histoire financière.
   `totalTtc`/`0` — jamais un taux inventé
 - Tests : 2701 pass, 0 fail ; invariant INVOICE-WIRING-01 mis à jour (6 assertions)
 
-**LOT 5 — BLOQUÉ** : moteur super admin pour les règles fiscales réelles par catégorie.
-Dépendance : validation fiscale externe des taux tunisiens par module. Chantier séparé, GO séparé.
+**LOT 5 — DONE** (commit `243d556`, branche `claude/easy2book-v6-modernization-7gyb5v`, 2026-10-23)
+
+- Table `fiscal_rules` (pays × module × période × draft/active/closed) — migration `0022_fiscal_rules.sql`
+- Moteur `lib/finance/fiscal-rules.ts` — résolution 4-passes wildcard (TN+hotel > TN+* > *+hotel > *+*)
+- `getActiveFiscalRuleInTx()` — variante transactionnelle pour booking-actions
+- Actions serveur `lib/finance/fiscal-rules-actions.ts` — createDraft / activate (advisory lock + overlap check dans 1 transaction) / deactivate — super_admin only pour les écritures
+- `FiscalSnapshot` étendu : `fiscal_rule_id` + `fiscal_rule_version` (rétrocompatibles)
+- Correction gap Omra : `fiscalSnapshot: buildPendingFiscalSnapshot(...)` dans l'INSERT reservations
+- Interface `/admin/accounting/fiscal-rules` — liste scrollable + dialogs CRUD
+- Tests T1–T17 : 2718 pass, 0 fail ; TypeScript 0 erreurs
+- Gap documenté (non corrigé) : Activity B2B — `activityPartnerBookingSchema` sans `expectedTotalTnd`, dérive impossible côté serveur sans modification frontend
 
 ---
 

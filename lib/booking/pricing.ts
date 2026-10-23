@@ -165,6 +165,8 @@ export type FiscalSnapshot = {
   taxRuleRef: string | null
   capturedAt: string
   fiscalNote: string | null
+  fiscal_rule_id: string | null
+  fiscal_rule_version: number | null
 }
 
 /** Snapshot à partir d'un PriceBreakdown (base HT connue). */
@@ -174,6 +176,8 @@ export function buildFiscalSnapshot(
   serviceCategory: string,
   taxRuleRef: string | null,
   fiscalNote: string | null = null,
+  fiscalRuleId: string | null = null,
+  fiscalRuleVersion: number | null = null,
 ): FiscalSnapshot {
   return {
     status: "determined",
@@ -188,6 +192,8 @@ export function buildFiscalSnapshot(
     taxRuleRef,
     capturedAt: new Date().toISOString(),
     fiscalNote,
+    fiscal_rule_id: fiscalRuleId,
+    fiscal_rule_version: fiscalRuleVersion,
   }
 }
 
@@ -201,6 +207,8 @@ export function buildFiscalSnapshotFromTtc(
   serviceCategory: string,
   taxRuleRef: string | null,
   fiscalNote: string | null = null,
+  fiscalRuleId: string | null = null,
+  fiscalRuleVersion: number | null = null,
 ): FiscalSnapshot {
   const subtotalTnd = round2(totalTnd / (1 + vatRate / 100))
   const vatTnd = round2(totalTnd - subtotalTnd)
@@ -217,6 +225,8 @@ export function buildFiscalSnapshotFromTtc(
     taxRuleRef,
     capturedAt: new Date().toISOString(),
     fiscalNote,
+    fiscal_rule_id: fiscalRuleId,
+    fiscal_rule_version: fiscalRuleVersion,
   }
 }
 
@@ -239,5 +249,7 @@ export function buildPendingFiscalSnapshot(
     taxRuleRef: null,
     capturedAt: new Date().toISOString(),
     fiscalNote,
+    fiscal_rule_id: null,
+    fiscal_rule_version: null,
   }
 }

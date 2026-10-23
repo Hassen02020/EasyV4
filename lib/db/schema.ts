@@ -24,6 +24,7 @@
 import { sql } from "drizzle-orm"
 import {
   commissionSettlements,
+  fiscalRules,
   marginRules,
   marginType,
   walletTxType,
@@ -3933,6 +3934,7 @@ export {
   reservationStatusHistory,
   commissionSettlements,
   commissionSettlementEntries,
+  fiscalRules,
   walletAccountType,
   walletTxType,
   walletTxStatusV6,
@@ -3957,6 +3959,8 @@ export {
   type NewCommissionSettlement,
   type CommissionSettlementEntry,
   type NewCommissionSettlementEntry,
+  type FiscalRule,
+  type NewFiscalRule,
 } from "./schema/financials"
 
 /* -------------------------------------------------------------------------- */

@@ -652,6 +652,66 @@ export const commissionSettlementEntries = pgTable(
 )
 
 /* -------------------------------------------------------------------------- */
+/* Fiscal Rules Engine (TAX-RULES-SUPERADMIN-01, LOT 5)                        */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Table des règles fiscales — gérée par super_admin uniquement.
+ * Résolution : 4 passes wildcard (country×module > country×* > *×module > *×*)
+ * Cycle de vie : draft → active (avec validation_ref) → closed
+ * Chevauchement interdit côté applicatif + advisory lock.
+ */
+export const fiscalRules = pgTable(
+  "fiscal_rules",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    /** Code pays ISO-3166-1 alpha-2 ('TN') ou wildcard '*'. */
+    country: varchar("country", { length: 2 }).notNull(),
+    /** Module métier (reservationModule enum) ou wildcard '*'. */
+    module: varchar("module", { length: 32 }).notNull(),
+    /** Classification : 'standard'|'zero_rated'|'exempt'|'out_of_scope' */
+    fiscalClassification: varchar("fiscal_classification", {
+      length: 16,
+    }).notNull(),
+    /** Taux en % (ex: 19.00). 0 si zero_rated, null non utilisé (toujours présent). */
+    vatRate: decimal("vat_rate", { precision: 5, scale: 2 }).notNull(),
+    /** Cycle de vie : 'draft'|'active'|'closed' */
+    status: varchar("status", { length: 8 }).notNull().default("draft"),
+    effectiveFrom: timestamp("effective_from", {
+      withTimezone: true,
+    })
+      .notNull()
+      .defaultNow(),
+    effectiveTo: timestamp("effective_to", { withTimezone: true }),
+    /** Version monotone (1, 2, 3…) pour traçabilité snapshot. */
+    version: integer("version").notNull(),
+    /** Référence de validation obligatoire à l'activation (ex: "Note interne 2026-10"). */
+    validationRef: text("validation_ref"),
+    note: text("note"),
+    /** UUID de l'utilisateur super_admin créateur (FK vers users.id, non enforced ici pour éviter la dép circulaire). */
+    createdBy: uuid("created_by").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    /** UUID du super_admin ayant activé la règle. */
+    activatedBy: uuid("activated_by"),
+    activatedAt: timestamp("activated_at", { withTimezone: true }),
+  },
+  (t) => [
+    index("fiscal_rules_lookup_idx").on(
+      t.country,
+      t.module,
+      t.status,
+      t.effectiveFrom,
+    ),
+    index("fiscal_rules_status_idx").on(t.status),
+  ],
+)
+
+export type FiscalRule = typeof fiscalRules.$inferSelect
+export type NewFiscalRule = typeof fiscalRules.$inferInsert
+
+/* -------------------------------------------------------------------------- */
 /* Type Exports                                                                 */
 /* -------------------------------------------------------------------------- */
 

@@ -34,7 +34,7 @@ Un seul chantier actif à la fois ; il est indiqué dans ROADMAP.md (section "Ch
 
 ---
 
-## TAX-RULES-SUPERADMIN-01 — FISCAL SNAPSHOT — CLÔTURÉ LOT 1-5 (2026-10-23)
+## TAX-RULES-SUPERADMIN-01 — FISCAL SNAPSHOT — CLÔTURÉ LOT 1-6 (2026-10-23)
 
 **Objectif** : garantir que le montant présenté au client, le montant payé, la réservation
 enregistrée et la facture racontent exactement la même histoire financière.
@@ -62,6 +62,24 @@ enregistrée et la facture racontent exactement la même histoire financière.
 - Interface `/admin/accounting/fiscal-rules` — liste scrollable + dialogs CRUD
 - Tests T1–T17 : 2718 pass, 0 fail ; TypeScript 0 erreurs
 - Gap documenté (non corrigé) : Activity B2B — `activityPartnerBookingSchema` sans `expectedTotalTnd`, dérive impossible côté serveur sans modification frontend
+
+**LOT 6 — DONE** (branche `claude/easy2book-v6-modernization-7gyb5v`, 2026-10-23)
+
+- Wiring 6 call-sites fail-closed : hotel B2B (`lib/booking/actions.ts`), hotel B2C
+  (`lib/booking/guest-actions.ts`), package B2C + B2B (`lib/packages/booking-actions.ts`),
+  activité B2B (`lib/activities/booking-actions.ts`), activité B2C
+  (`lib/activities/guest-booking-actions.ts`) → `getActiveFiscalRuleInTx()` + `throw new
+  Error("FISCAL_RULE_NOT_FOUND")` si aucune règle active
+- Wiring 3 call-sites pending-fallback : voiture (`lib/cars/actions.ts`), transfert
+  (`lib/transfers/actions.ts`), vol (`lib/vols/booking-request-action.ts`) →
+  `getActiveFiscalRuleInTx()` + `buildFiscalSnapshotFromTtc(...)` si règle trouvée, sinon
+  `buildPendingFiscalSnapshot(...)` (jamais un taux inventé)
+- `parseFloat(fiscalRule.vatRate)` partout (Drizzle renvoie `numeric` en `string`)
+- Tests T18–T22 : wiring assertions source-code sur les 9 call-sites
+- 2682 pass, 0 fail ; TypeScript 0 erreurs
+- **Pré-requis déploiement** : la Direction doit créer et activer au moins une règle par
+  module fail-closed (hotel, package, activity) via `/admin/accounting/fiscal-rules` AVANT
+  de déployer LOT 6 en production, sous peine de blocage des réservations de ces modules.
 
 ---
 

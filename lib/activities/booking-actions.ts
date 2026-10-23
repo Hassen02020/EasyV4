@@ -45,6 +45,7 @@ import { recordReservationTransition } from "@/lib/admin/reservation-status-hist
 import { recordReservationFinancials } from "@/lib/finance/reservation-financials"
 import { creditPlatformCommission } from "@/lib/finance/platform-commission"
 import { computePriceBreakdown, buildFiscalSnapshot } from "@/lib/booking/pricing"
+import { getActiveFiscalRuleInTx } from "@/lib/finance/fiscal-rules"
 import {
   activityPartnerBookingSchema,
   validateChildAgesAgainstTariffRules,
@@ -178,6 +179,8 @@ export async function createActivityBooking(
 
         // --- 5. Réservation ---
         const publicRef = await nextActivityPublicRef(tx, agencyId)
+        const fiscalRule = await getActiveFiscalRuleInTx(tx, "TN", "activity", new Date())
+        if (!fiscalRule) throw new Error("FISCAL_RULE_NOT_FOUND")
         const [reservation] = await tx
           .insert(reservations)
           .values({
@@ -194,10 +197,12 @@ export async function createActivityBooking(
             depositPaid: "0",
             fiscalSnapshot: buildFiscalSnapshot(
               breakdown,
-              19,
+              parseFloat(fiscalRule.vatRate),
               "activity",
-              null,
-              "taux_provisoire_19_pct",
+              fiscalRule.validationRef,
+              fiscalRule.note,
+              fiscalRule.id,
+              fiscalRule.version,
             ),
             providerPayload: {
               activityId: booking.activityId,

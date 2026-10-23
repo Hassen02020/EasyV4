@@ -58,6 +58,7 @@ import {
   paymentMethodSchema,
 } from "./schemas"
 import { computePriceBreakdown, priceDrifted, buildFiscalSnapshot } from "./pricing"
+import { getActiveFiscalRuleInTx } from "@/lib/finance/fiscal-rules"
 import { confirmHotelWithProvider, nextPublicRef } from "./actions"
 import { authoritativeUnitPrice } from "./hotel-provider-booking"
 import { getDefaultAgencyId } from "@/lib/agencies/default-agency"
@@ -588,6 +589,9 @@ async function runCreateGuestReservation(
               ? new Date(Date.now() + ONLINE_PAYMENT_WINDOW_MS)
               : null
 
+        const fiscalRule = await getActiveFiscalRuleInTx(tx, "TN", "hotel", new Date())
+        if (!fiscalRule) throw new Error("FISCAL_RULE_NOT_FOUND")
+
         let inserted: {
           id: string
           publicRef: string
@@ -618,10 +622,12 @@ async function runCreateGuestReservation(
                 guestIdempotencyKey: idempotencyKey,
                 fiscalSnapshot: buildFiscalSnapshot(
                   breakdown,
-                  19,
+                  parseFloat(fiscalRule.vatRate),
                   "hotel",
-                  null,
-                  "taux_provisoire_19_pct",
+                  fiscalRule.validationRef,
+                  fiscalRule.note,
+                  fiscalRule.id,
+                  fiscalRule.version,
                 ),
                 providerPayload: {
                   offerId: draft.offerId,

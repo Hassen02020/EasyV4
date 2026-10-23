@@ -29,7 +29,8 @@ import {
 } from "@/lib/db/schema/flights"
 import { getDefaultAgencyId } from "@/lib/agencies/default-agency"
 import { nextPublicRef } from "@/lib/booking/actions"
-import { buildPendingFiscalSnapshot } from "@/lib/booking/pricing"
+import { buildPendingFiscalSnapshot, buildFiscalSnapshotFromTtc } from "@/lib/booking/pricing"
+import { getActiveFiscalRuleInTx } from "@/lib/finance/fiscal-rules"
 import { resolveCheckoutPromoCore } from "@/lib/crm/promo-checkout-core"
 import { applyPromoDiscountCore } from "@/lib/finance/promo-discount-core"
 import type { CanonicalItinerary } from "./canonical"
@@ -290,6 +291,12 @@ export async function createFlightBookingRequest(
       const destination =
         lastItinSeg?.destination ?? firstItinSeg?.destination ?? ""
 
+      const fiscalRuleFlight = await getActiveFiscalRuleInTx(tx, "TN", "flight", new Date())
+      const flightFiscalSnapshot = fiscalRuleFlight
+        ? buildFiscalSnapshotFromTtc(parseFloat(finalSellingAmount), parseFloat(fiscalRuleFlight.vatRate), "flight",
+            fiscalRuleFlight.validationRef, fiscalRuleFlight.note, fiscalRuleFlight.id, fiscalRuleFlight.version)
+        : buildPendingFiscalSnapshot(parseFloat(finalSellingAmount), "flight", "taux_non_déterminé")
+
       const reservationRows = await tx
         .insert(reservations)
         .values({
@@ -302,11 +309,7 @@ export async function createFlightBookingRequest(
           originalCurrency: snap.sellingCurrency ?? "TND",
           originalAmount: finalSellingAmount,
           tndAmount: finalSellingAmount,
-          fiscalSnapshot: buildPendingFiscalSnapshot(
-            parseFloat(finalSellingAmount),
-            "flight",
-            "taux_non_déterminé",
-          ),
+          fiscalSnapshot: flightFiscalSnapshot,
           providerPayload: {
             offerLabel:
               origin && destination ? `Vol ${origin} → ${destination}` : "Vol",

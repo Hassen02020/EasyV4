@@ -16,6 +16,7 @@ import {
 import type { BookingDraft, TravelerInput } from "./schemas"
 import { bookingDraftSchema, travelerSchemaWithIdRule } from "./schemas"
 import { computePriceBreakdown, buildFiscalSnapshot } from "./pricing"
+import { getActiveFiscalRuleInTx } from "@/lib/finance/fiscal-rules"
 import { decodeDraft } from "./draft-store"
 import { debitPartnerCredit } from "@/lib/pro/booking-actions"
 import { getMarginsForAgency } from "@/lib/pro/server-context"
@@ -590,6 +591,9 @@ export async function createReservationFromDraft(input: {
 
         const publicRef = await nextPublicRef(tx, agencyId)
 
+        const fiscalRule = await getActiveFiscalRuleInTx(tx, "TN", "hotel", new Date())
+        if (!fiscalRule) throw new Error("FISCAL_RULE_NOT_FOUND")
+
         let inserted: {
           id: string
           publicRef: string
@@ -619,10 +623,12 @@ export async function createReservationFromDraft(input: {
                 guestIdempotencyKey: idempotencyKey,
                 fiscalSnapshot: buildFiscalSnapshot(
                   breakdown,
-                  19,
+                  parseFloat(fiscalRule.vatRate),
                   "hotel",
-                  null,
-                  "taux_provisoire_19_pct",
+                  fiscalRule.validationRef,
+                  fiscalRule.note,
+                  fiscalRule.id,
+                  fiscalRule.version,
                 ),
                 providerPayload: {
                   offerId: draft.offerId,

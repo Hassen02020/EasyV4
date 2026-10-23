@@ -14,6 +14,8 @@
  *  T15    : Wiring — fiscal_rule_id/version propagés dans les builders
  *  T16    : fiscal_rule_id = null pour les snapshots pending
  *  T17    : Wiring — omra corrigé (fiscalSnapshot dans INSERT)
+ *  T18–T22: Wiring LOT 6 — call-sites hotel/package/activity fail-closed,
+ *           car/transfer/flight pending-fallback
  */
 
 import assert from "node:assert/strict"
@@ -270,5 +272,51 @@ describe("FISCAL-RULES-01 : schema export", () => {
   test("T17 — fiscalRules exporté depuis schema.ts", () => {
     assert.match(schemaSrc, /fiscalRules/)
     assert.match(schemaSrc, /FiscalRule/)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// T18–T22 : Wiring LOT 6 — call-sites fail-closed et pending-fallback
+// ---------------------------------------------------------------------------
+
+describe("FISCAL-RULES-01 LOT 6 : wiring call-sites", () => {
+  const hotelB2B = readSrc("lib/booking/actions.ts")
+  const hotelB2C = readSrc("lib/booking/guest-actions.ts")
+  const pkgActions = readSrc("lib/packages/booking-actions.ts")
+  const activityB2B = readSrc("lib/activities/booking-actions.ts")
+  const activityB2C = readSrc("lib/activities/guest-booking-actions.ts")
+  const cars = readSrc("lib/cars/actions.ts")
+  const transfers = readSrc("lib/transfers/actions.ts")
+  const flights = readSrc("lib/vols/booking-request-action.ts")
+
+  test("T18 — hotel B2B+B2C importent getActiveFiscalRuleInTx et échouent si pas de règle", () => {
+    assert.match(hotelB2B, /getActiveFiscalRuleInTx/)
+    assert.match(hotelB2B, /FISCAL_RULE_NOT_FOUND/)
+    assert.match(hotelB2C, /getActiveFiscalRuleInTx/)
+    assert.match(hotelB2C, /FISCAL_RULE_NOT_FOUND/)
+  })
+
+  test("T19 — packages B2B+B2C importent getActiveFiscalRuleInTx et échouent si pas de règle", () => {
+    assert.match(pkgActions, /getActiveFiscalRuleInTx/)
+    assert.match(pkgActions, /FISCAL_RULE_NOT_FOUND/)
+  })
+
+  test("T20 — activités B2B+B2C importent getActiveFiscalRuleInTx et échouent si pas de règle", () => {
+    assert.match(activityB2B, /getActiveFiscalRuleInTx/)
+    assert.match(activityB2B, /FISCAL_RULE_NOT_FOUND/)
+    assert.match(activityB2C, /getActiveFiscalRuleInTx/)
+    assert.match(activityB2C, /FISCAL_RULE_NOT_FOUND/)
+  })
+
+  test("T21 — car et transfer importent getActiveFiscalRuleInTx avec fallback pending", () => {
+    assert.match(cars, /getActiveFiscalRuleInTx/)
+    assert.match(cars, /buildPendingFiscalSnapshot/)
+    assert.match(transfers, /getActiveFiscalRuleInTx/)
+    assert.match(transfers, /buildPendingFiscalSnapshot/)
+  })
+
+  test("T22 — vols importent getActiveFiscalRuleInTx avec fallback pending", () => {
+    assert.match(flights, /getActiveFiscalRuleInTx/)
+    assert.match(flights, /buildPendingFiscalSnapshot/)
   })
 })

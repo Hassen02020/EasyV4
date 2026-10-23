@@ -33,7 +33,8 @@ import {
 } from "@/lib/db/schema"
 import { debitPartnerCredit } from "@/lib/pro/booking-actions"
 import { calculateCarPrice } from "./pricing"
-import { buildPendingFiscalSnapshot } from "@/lib/booking/pricing"
+import { buildPendingFiscalSnapshot, buildFiscalSnapshotFromTtc } from "@/lib/booking/pricing"
+import { getActiveFiscalRuleInTx } from "@/lib/finance/fiscal-rules"
 import { recordReservationFinancials } from "@/lib/finance/reservation-financials"
 import { creditPlatformCommission } from "@/lib/finance/platform-commission"
 import { recordReservationTransition } from "@/lib/admin/reservation-status-history"
@@ -258,6 +259,12 @@ export async function createCarBooking(
       const customerId = customer.id
       const publicRef = await nextPublicRef(tx, agencyId)
 
+      const fiscalRuleCar = await getActiveFiscalRuleInTx(tx, "TN", "car_rental", new Date())
+      const carFiscalSnapshot = fiscalRuleCar
+        ? buildFiscalSnapshotFromTtc(totalTnd, parseFloat(fiscalRuleCar.vatRate), "car_rental",
+            fiscalRuleCar.validationRef, fiscalRuleCar.note, fiscalRuleCar.id, fiscalRuleCar.version)
+        : buildPendingFiscalSnapshot(totalTnd, "car_rental", "taux_non_déterminé")
+
       const [reservation] = await tx
         .insert(reservations)
         .values({
@@ -272,11 +279,7 @@ export async function createCarBooking(
           tndAmount: String(totalTnd),
           depositAmount: String(totalTnd),
           depositPaid: "0",
-          fiscalSnapshot: buildPendingFiscalSnapshot(
-            totalTnd,
-            "car_rental",
-            "taux_non_déterminé",
-          ),
+          fiscalSnapshot: carFiscalSnapshot,
           providerPayload: {
             categoryId: input.categoryId,
             categoryName: category?.name,

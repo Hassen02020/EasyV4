@@ -19,15 +19,16 @@ import {
   processNewLead,
   autoConvertLead,
   notifyStaleLeads,
-  // MUTUELLE-CONCURRENCY-COMPLETE-01 (CAS-C) — processMutuelleConfirmed était
-  // exporté depuis lib/inngest/functions/index.ts mais jamais enregistré ici :
-  // gap préexistant, non lié à ce correctif (même défaut constaté sur
-  // processPackageConfirmed/processActivityConfirmed/deliverCampaign, hors
-  // périmètre, non corrigés ici). Sans cet enregistrement, aucune fonction
-  // Mutuelle (email existant + facture CAS-C) ne s'exécute jamais.
   processMutuelleConfirmed,
   recoverMutuelleMissingInvoices,
   processNetworkConfirmed,
+  // INNGEST-ROUTE-WIRING-GAP-01 — ces 4 fonctions étaient exportées depuis
+  // lib/inngest/functions/index.ts mais jamais enregistrées ici depuis leur
+  // création. Sans enregistrement, Inngest cloud ne peut pas les appeler.
+  processPackageConfirmed,
+  processActivityConfirmed,
+  processCarConfirmed,
+  deliverCampaign,
 } from "@/lib/inngest/functions"
 
 export const { GET, POST, PUT } = serve({
@@ -46,5 +47,9 @@ export const { GET, POST, PUT } = serve({
     processMutuelleConfirmed,
     recoverMutuelleMissingInvoices,
     processNetworkConfirmed,
+    processPackageConfirmed,
+    processActivityConfirmed,
+    processCarConfirmed,
+    deliverCampaign,
   ],
 })

@@ -136,6 +136,12 @@ Error("FISCAL_RULE_NOT_FOUND")` si aucune règle active
 
 ## Chantier actif
 
+> **Aucun chantier actif** — PACKAGE-DRIFT-01 clos (2026-10-24).
+> Prochain chantier à définir après OBSERVE/AUDIT/PROPOSE + GO explicite.
+> Programme E2B-GUEST-COMMERCE-WALLET-MASTER-01 en cours d'observation (2026-10-24).
+
+---
+
 ### ACTIVITY-B2C-DRIFT-01 — CLÔTURÉ (2026-10-24)
 
 **Objectif** : activer la garde anti-drift de prix (CART-DRIFT-01) sur le chemin de réservation
@@ -316,6 +322,65 @@ branche `claude/easy2book-v6-modernization-7gyb5v`.
 
 **Preuves** : 10/10 invariants ACTIVITY-B2B-DRIFT-01 verts, typecheck 0 erreur, lint 0 erreur,
 commit `20e73e5`, branche `claude/easy2book-v6-modernization-7gyb5v`.
+
+---
+
+### PACKAGE-DRIFT-01 — CLÔTURÉ (2026-10-24)
+
+**Objectif** : activer la garde anti-drift de prix (CART-DRIFT-01) sur les deux chemins de
+réservation Package — B2C guest (`createGuestPackageBooking`) et B2B partenaire
+(`createPackageBooking`). La garde `priceDrifted()` était câblée en B2C mais inerte
+(`expectedTotalTnd` jamais transmis) ; complètement absente en B2B.
+
+**Cause racine B2C** : `PackageGuestBookingForm` calculait `totalPrice = adultPrice × adults +
+childPrice × children` (HT), tandis que le serveur calcule TTC via `computePriceBreakdown`.
+Transmettre HT comme `expectedTotalTnd` aurait causé des faux positifs systématiques.
+
+**Cause racine B2B** : aucun champ `expectedTotalTnd` dans `packagePartnerBookingSchema`, aucune
+garde dans la fonction interne de `booking-actions.ts`, aucun `vatRatePct` fourni au composant
+`authorized-products-list.tsx`.
+
+**Solution** :
+- `page.tsx` (B2C) → `getActiveFiscalRule` → `vatRatePct` prop → form calcule TTC via
+  `computePriceBreakdown` → `expectedTotalTnd` transmis → garde serveur active.
+- `packagePartnerBookingSchema` → `expectedTotalTnd: z.number().optional()`.
+- `booking-actions.ts` → garde `priceDrifted` AVANT `.insert()` en B2B + catch `PriceChanged` +
+  code `FISCAL_RULE_NOT_FOUND`.
+- `product-booking-options-actions.ts` → `vatRatePct` dans `kind="departure"` via
+  `getActiveFiscalRuleInTx` (sans fallback codé en dur).
+- `authorized-products-list.tsx` → `expectedPackageTotal` via `computePriceBreakdown` +
+  transmission à `createPackageBooking`.
+
+**Fallback documenté** : si `vatRatePct` absent → `expectedPackageTotal` non calculé →
+`expectedTotalTnd` absent → garde inactive (priceDrifted retourne false sur undefined).
+Acceptable : le serveur lève `FISCAL_RULE_NOT_FOUND` si la règle fiscale est réellement absente
+(fail-closed LOT 6). Documenté test T10.
+
+**NOT VERIFIED** : test E2E exécutant `createPackageBooking`/`createGuestPackageBooking` avec
+`expectedTotalTnd` drifté et vérifiant que `PRICE_CHANGED` est levé ET qu'aucune ligne n'est
+insérée en DB. Les tests T5+T6 (structurels) prouvent la position de la garde et la présence du
+code d'erreur, mais ne l'exécutent pas avec une vraie DB.
+
+**Changements** :
+
+- `app/(public)/[locale]/packages/[slug]/book/page.tsx` [EXTEND] — +import `getActiveFiscalRule`,
+  +fetch `fiscalRule`, +`vatRatePct` dans `getBookablePackage` return, +prop `vatRatePct`
+- `components/packages/package-guest-booking-form.tsx` [EXTEND] — +prop `vatRatePct?: number`,
+  +import `computePriceBreakdown`, +calcul `priceBreakdown` TTC, +`expectedTotalTnd` dans submit
+  et cart
+- `lib/packages/schemas.ts` [EXTEND] — +`expectedTotalTnd: z.number().optional()` dans
+  `packagePartnerBookingSchema`
+- `lib/packages/booking-actions.ts` [EXTEND] — +garde `priceDrifted` B2B avant `.insert()`,
+  +catch `PriceChanged` B2B, +`FISCAL_RULE_NOT_FOUND` dans map d'erreurs
+- `lib/b2b/product-booking-options-actions.ts` [EXTEND] — +`vatRatePct?: number` dans
+  `kind="departure"`, +`getActiveFiscalRuleInTx` pour packages
+- `components/pro/authorized-products-list.tsx` [EXTEND] — +`expectedPackageTotal` via
+  `computePriceBreakdown`, +`expectedTotalTnd` dans `createPackageBooking`
+- `lib/packages/__tests__/package-drift.test.ts` [CREATE] — 10 tests (T1–T8 structurels +
+  T9 parité fallback 50 % enfant + T10 bypass silencieux documenté)
+
+**Preuves** : 10/10 tests PACKAGE-DRIFT-01 verts, `tsc --noEmit` 0 erreur, Prettier clean,
+commit `f35540e`, branche `claude/easy2book-v6-modernization-7gyb5v`.
 
 ---
 

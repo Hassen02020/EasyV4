@@ -198,10 +198,12 @@ Error("FISCAL_RULE_NOT_FOUND")` si aucune règle active
 absence d'écritures financières et comportements aux limites.
 
 **Fichiers** :
+
 - `lib/finance/__tests__/create-customer-profile.integration.test.ts` — 9 tests T1–T9
 - `lib/booking/__tests__/link-guest-customer.integration.test.ts` — 6 tests T1–T6
 
 **Résultats** :
+
 - Typecheck `tsc --noEmit` : 0 erreur
 - 15/15 SKIP en CI (DATABASE_URL absent — comportement attendu, même pattern que les tests existants)
 - Aucune écriture en production, aucune migration, aucun déploiement

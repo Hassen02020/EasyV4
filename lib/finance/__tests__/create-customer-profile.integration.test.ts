@@ -106,18 +106,18 @@ test("WALLET-GUEST-INTEGRATION T1: resolveOrCreateLinkedCustomer crée un custom
     assert.ok(customerId, "customerId non vide")
 
     const [row] = await withSystemContext((tx) =>
-      tx
-        .select()
-        .from(customers)
-        .where(eq(customers.id, customerId))
-        .limit(1),
+      tx.select().from(customers).where(eq(customers.id, customerId)).limit(1),
     )
     assert.ok(row, "row customer introuvable après création")
     assert.equal(row.agencyId, agencyId)
     assert.equal(row.firstName, "Alice")
     assert.equal(row.lastName, "Martin")
     assert.equal(row.email, email)
-    assert.equal(row.authUserId, null, "authUserId doit être null (aucun linkedAuthUserId)")
+    assert.equal(
+      row.authUserId,
+      null,
+      "authUserId doit être null (aucun linkedAuthUserId)",
+    )
   } finally {
     await cleanupAgency(agencyId)
   }
@@ -149,9 +149,12 @@ test("WALLET-GUEST-INTEGRATION T2: deux appels identiques retournent le même cu
     assert.equal(id1, id2, "second appel doit retourner le même ID")
 
     const rows = await withSystemContext((tx) =>
-      tx.select().from(customers).where(
-        and(eq(customers.agencyId, agencyId), eq(customers.email, email)),
-      ),
+      tx
+        .select()
+        .from(customers)
+        .where(
+          and(eq(customers.agencyId, agencyId), eq(customers.email, email)),
+        ),
     )
     assert.equal(rows.length, 1, "une seule row en base (pas de doublon)")
   } finally {
@@ -186,7 +189,11 @@ test("WALLET-GUEST-INTEGRATION T3: même email, agencyIds différents → 2 cust
       }),
     )
 
-    assert.notEqual(idA, idB, "deux IDs distincts pour deux agences différentes")
+    assert.notEqual(
+      idA,
+      idB,
+      "deux IDs distincts pour deux agences différentes",
+    )
 
     const rowA = await withSystemContext((tx) =>
       tx.select().from(customers).where(eq(customers.id, idA)).limit(1),

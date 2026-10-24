@@ -118,7 +118,11 @@ test("WALLET-GUEST-INTEGRATION T1: linkGuestCustomerToAuth — guest sans authUs
       linkGuestCustomerToAuth(tx, { agencyId, email, userId }),
     )
 
-    assert.deepEqual(result, { linked: true }, "doit retourner { linked: true }")
+    assert.deepEqual(
+      result,
+      { linked: true },
+      "doit retourner { linked: true }",
+    )
 
     // Vérifier que authUserId a bien été posé en base
     const [row] = await withSystemContext((tx) =>
@@ -204,10 +208,7 @@ test("WALLET-GUEST-INTEGRATION T3: linkGuestCustomerToAuth — 2 rows guest mêm
 
     // Vérifier qu'aucun authUserId n'a été posé
     const rows = await withSystemContext((tx) =>
-      tx
-        .select()
-        .from(customers)
-        .where(eq(customers.agencyId, agencyId)),
+      tx.select().from(customers).where(eq(customers.agencyId, agencyId)),
     )
     for (const row of rows) {
       assert.equal(
@@ -253,7 +254,11 @@ test("WALLET-GUEST-INTEGRATION T4: linkGuestCustomerToAuth — email case-insens
     const [row] = await withSystemContext((tx) =>
       tx.select().from(customers).where(eq(customers.id, customerId)).limit(1),
     )
-    assert.equal(row?.authUserId, userId, "authUserId posé malgré casse différente")
+    assert.equal(
+      row?.authUserId,
+      userId,
+      "authUserId posé malgré casse différente",
+    )
   } finally {
     await cleanupAgency(agencyId)
   }

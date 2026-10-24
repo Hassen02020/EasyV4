@@ -26,7 +26,7 @@ export type SubmitTopUpResult =
 
 /** Message affiché quand la recharge en ligne n'est pas configurée sur ce
  * déploiement (aucune clé Paymee) — aucune demande n'est alors créée. */
-export const TOPUP_ONLINE_UNAVAILABLE_ERROR =
+const TOPUP_ONLINE_UNAVAILABLE_ERROR =
   "La recharge en ligne n'est pas disponible pour le moment. Veuillez réessayer plus tard ou contacter notre agence."
 
 export async function submitCustomerTopUp(

@@ -26,3 +26,13 @@ test("la recharge est initiée avec purpose wallet_topup et la locale du client"
   assert.match(actionSrc, /purpose: "wallet_topup"/)
   assert.match(actionSrc, /locale,/)
 })
+
+test('module "use server" : n\'exporte que des fonctions async et des types', () => {
+  // Next refuse tout autre export (constante, objet) : le module entier
+  // devient vide côté client et le build échoue (CI, commit 94566fde).
+  const exports = actionSrc.match(/^export\s+(\S+\s+\S+)/gm) ?? []
+  assert.ok(exports.length > 0)
+  for (const e of exports) {
+    assert.match(e, /^export\s+(async function|type|interface)\b/, e)
+  }
+})

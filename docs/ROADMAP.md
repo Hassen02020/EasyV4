@@ -150,6 +150,7 @@ Error("FISCAL_RULE_NOT_FOUND")` si aucune règle active
 **Commit** : `2d8aeda` sur `claude/easy2book-v6-modernization-7gyb5v`. Fichiers : `lib/public/module-nav.ts` (nouveau, source unique des 8 modules + filtrage d'activation), `components/booking-engine.tsx` (consomme la source, logique inchangée), `components/header-wrapper.tsx` (lecture `public_module_visuals`, délai 1 s + repli), `components/header.tsx` (rangée desktop, section mobile, `aria-current`, `aria-expanded`/`aria-controls`), `lib/public/__tests__/module-nav.test.ts`.
 
 **Preuves (serveur local, env factice, DB injoignable → repli « 8 modules »)** :
+
 - 66/66 contrôles de rendu (FR/EN/AR) : 8 liens dans l'ordre, chaque `/{locale}/{module}` → 200 sans redirection ; liens header existants intacts (`/`, `/bookings`, `/panier`, `/compte`) ; onglets du moteur : 8, même ordre et mêmes libellés ; `aria-current` correct sur `/hotels` et `/hotels-monde` ; mobile : `aria-expanded` false→true au clavier (Entrée), 8 liens, clic → `/{locale}/omra`, menu refermé.
 - Débordement : aucun défilement horizontal de la page ; rangée modules à 1024 px = largeur disponible (scrollWidth = clientWidth) en FR/EN/AR.
 - Captures baseline/après : 1440, 1280, 1024, 390 px × 3 locales + menus mobiles.
@@ -159,6 +160,7 @@ Error("FISCAL_RULE_NOT_FOUND")` si aucune règle active
 **NOT VERIFIED** : filtrage avec une vraie table `public_module_visuals` (module désactivé) au rendu — couvert uniquement par le test unitaire ; CI ; preview Vercel (accès API 403) ; production.
 
 **Écarts constatés hors périmètre (non corrigés)** :
+
 - `app/(public)/[locale]/hotels/[id]/page.tsx` importe `Header` directement, sans wrapper : y affiche toujours les 8 modules (repli), sans tenir compte de l'activation.
 - Footer « Nos Services » : 6 liens codés en dur, sans tenir compte de l'activation.
 - Libellé « Devise » non traduit dans le menu (visible en AR).
@@ -173,6 +175,7 @@ Error("FISCAL_RULE_NOT_FOUND")` si aucune règle active
 **Commit** : `7a1c5de` sur `claude/easy2book-v6-modernization-7gyb5v` — `components/footer-client.tsx` (1 ligne), `app/sitemap.ts` (1 ligne).
 
 **Preuves (serveur `next dev` local, env factice, DB injoignable → sitemap en repli pages statiques)** :
+
 - Routage : `localePrefix: "always"` (`i18n/routing.ts`) ; `/hotels` → **307** → `/fr/hotels`.
 - `/fr/hotels`, `/en/hotels`, `/ar/hotels` : **HTTP 200** ; `<html lang dir>` = fr/ltr, en/ltr, ar/rtl.
 - `/sitemap.xml` généré : 15 entrées (14 + 1), `<loc>/fr/hotels</loc>`, hreflang fr/en/ar/x-default → `/fr|en|ar/hotels`.
@@ -184,6 +187,7 @@ Error("FISCAL_RULE_NOT_FOUND")` si aucune règle active
 **Correction de rapport** : la première clôture annonçait la vérification du sitemap alors que la commande avait échoué (texte de repli `echo` pris pour un résultat). Vérification refaite réellement ci-dessus.
 
 **Registre des anomalies storefront (audit 2026-10-24) — en attente, un GO par chantier** :
+
 - A02 — `/hotels` absent du sitemap → **corrigé** (ce chantier).
 - A03 — `metadata` statique hardcodée FR sur les pages modules : `<title>` « Hôtels Tunisie | Easy2Book » servi aussi en EN/AR (constaté au rendu).
 - A04 — 55 clés `messages/en.json` identiques au FR ; 2 dans `ar.json`.

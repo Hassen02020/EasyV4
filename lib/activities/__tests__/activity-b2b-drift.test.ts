@@ -85,9 +85,15 @@ test("ACTIVITY-B2B-DRIFT-01: code PRICE_CHANGED dans la map d'erreurs de booking
 // ─── 6. vatRatePct dans BookableOption (session kind) ────────────────────────
 
 test("ACTIVITY-B2B-DRIFT-01: vatRatePct présent dans le type BookableOption (session)", () => {
-  const sessionBlockIdx = optionsSrc.indexOf("kind: \"session\"")
-  assert.ok(sessionBlockIdx !== -1, "bloc session non trouvé dans BookableOption")
-  assert.match(optionsSrc.slice(sessionBlockIdx, sessionBlockIdx + 800), /vatRatePct/)
+  const sessionBlockIdx = optionsSrc.indexOf('kind: "session"')
+  assert.ok(
+    sessionBlockIdx !== -1,
+    "bloc session non trouvé dans BookableOption",
+  )
+  assert.match(
+    optionsSrc.slice(sessionBlockIdx, sessionBlockIdx + 800),
+    /vatRatePct/,
+  )
 })
 
 // ─── 7. getActiveFiscalRuleInTx importé dans product-booking-options-actions ─
@@ -110,11 +116,11 @@ test("ACTIVITY-B2B-DRIFT-01: vatRatePct calculé depuis fiscalRule (parseFloat(f
 
 test("ACTIVITY-B2B-DRIFT-01: expectedTotalTnd transmis dans l'appel createActivityBooking du composant", () => {
   const callIdx = componentSrc.indexOf("createActivityBooking(")
-  assert.ok(callIdx !== -1, "createActivityBooking non trouvé dans le composant")
-  assert.match(
-    componentSrc.slice(callIdx, callIdx + 400),
-    /expectedTotalTnd/,
+  assert.ok(
+    callIdx !== -1,
+    "createActivityBooking non trouvé dans le composant",
   )
+  assert.match(componentSrc.slice(callIdx, callIdx + 400), /expectedTotalTnd/)
 })
 
 // ─── 10. computePriceBreakdown importé dans authorized-products-list.tsx ─────

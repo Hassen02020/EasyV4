@@ -143,6 +143,7 @@ Omra B2B (`createOmraBooking`) — même invariant que ACTIVITY-B2B-DRIFT-01. Pr
 variation du prix allotment entre l'affichage dans `OmraPartnerBookingForm` et le débit wallet.
 
 **Contraintes GO** :
+
 - Même calcul des deux côtés : `pricePerPilgrim × pilgrimCount` sans arrondi supplémentaire
   (prix Omra stocké TTC en base, pas de `computePriceBreakdown` côté client).
 - Garde positionnée AVANT toute écriture persistée (insert customers, réservation, debitPartnerCredit).
@@ -150,6 +151,7 @@ variation du prix allotment entre l'affichage dans `OmraPartnerBookingForm` et l
   `false` sur `undefined`).
 
 **Changements** :
+
 - `lib/omra/booking-actions.ts` [EXTEND] — +1 champ `expectedTotalTnd?: number` dans
   `OmraBookingInput`, +1 import `priceDrifted`, +1 garde `if (priceDrifted(...)) throw PRICE_CHANGED`
   AVANT insert customers, +1 entrée PRICE_CHANGED dans la map d'erreurs
@@ -158,6 +160,7 @@ variation du prix allotment entre l'affichage dans `OmraPartnerBookingForm` et l
 - `lib/omra/__tests__/omra-b2b-drift.test.ts` [CREATE] — 7 invariants statiques
 
 **Callers identifiés** :
+
 - `OmraPartnerBookingForm` (components/omra/omra-partner-booking-form.tsx) — ÉTENDU
 - `createOmraBooking` appelé directement depuis `/pro/sandbox` (données mockées, démo) :
   `expectedTotalTnd` absent → garde skip acceptable
@@ -173,11 +176,13 @@ branche `claude/easy2book-v6-modernization-7gyb5v`.
 `expectedTotalTnd`, dérive de prix impossible à détecter côté serveur sans modification frontend.
 
 **Contraintes GO** :
+
 - Même base de calcul serveur/client (vatRatePct transmis avec les options via le moteur fiscal réel).
 - Garde positionnée AVANT tout effet financier (débit wallet, INSERT reservation, payment).
 - Tous les callers actifs identifiés ; comportement sur `undefined` explicitement documenté.
 
 **Changements** :
+
 - `lib/activities/schemas.ts` [EXTEND] — +1 champ `expectedTotalTnd?: number` avec JSDoc
 - `lib/activities/booking-actions.ts` [EXTEND] — +1 import `priceDrifted`, +1 guard
   `if (priceDrifted(booking.expectedTotalTnd, totalTnd)) throw PRICE_CHANGED` AVANT
@@ -191,6 +196,7 @@ branche `claude/easy2book-v6-modernization-7gyb5v`.
 - `lib/activities/__tests__/activity-b2b-drift.test.ts` [CREATE] — 10 invariants statiques
 
 **Callers identifiés** :
+
 - `authorized-products-list.tsx` — ÉTENDU (transmet `expectedTotalTnd`)
 - `lib/journeys/journey-actions.ts` — NON modifié ; chemin serveur-serveur, pas de vue client,
   garde skip acceptable (`priceDrifted` retourne `false` sur `undefined`)

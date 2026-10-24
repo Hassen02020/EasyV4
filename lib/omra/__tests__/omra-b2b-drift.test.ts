@@ -36,10 +36,7 @@ const componentSrc = readFileSync(
 test("OMRA-B2B-DRIFT-01: expectedTotalTnd présent dans OmraBookingInput", () => {
   const ifaceIdx = bookingSrc.indexOf("OmraBookingInput")
   assert.ok(ifaceIdx !== -1, "OmraBookingInput non trouvé")
-  assert.match(
-    bookingSrc.slice(ifaceIdx, ifaceIdx + 600),
-    /expectedTotalTnd/,
-  )
+  assert.match(bookingSrc.slice(ifaceIdx, ifaceIdx + 600), /expectedTotalTnd/)
 })
 
 // ─── 2. Import de priceDrifted ────────────────────────────────────────────────
@@ -92,8 +89,5 @@ test("OMRA-B2B-DRIFT-01: code PRICE_CHANGED dans la map d'erreurs", () => {
 test("OMRA-B2B-DRIFT-01: expectedTotalTnd transmis dans l'appel createOmraBooking du composant", () => {
   const callIdx = componentSrc.indexOf("createOmraBooking(")
   assert.ok(callIdx !== -1, "createOmraBooking non trouvé dans le composant")
-  assert.match(
-    componentSrc.slice(callIdx, callIdx + 300),
-    /expectedTotalTnd/,
-  )
+  assert.match(componentSrc.slice(callIdx, callIdx + 300), /expectedTotalTnd/)
 })

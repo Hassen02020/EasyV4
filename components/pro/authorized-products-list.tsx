@@ -39,10 +39,7 @@ import {
 import { createPackageBooking } from "@/lib/packages/booking-actions"
 import { createActivityBooking } from "@/lib/activities/booking-actions"
 import { createNetworkProductBooking } from "@/lib/network/product-booking-actions"
-import {
-  computePriceBreakdown,
-  formatMoney,
-} from "@/lib/booking/pricing"
+import { computePriceBreakdown, formatMoney } from "@/lib/booking/pricing"
 
 const TYPE_LABEL: Record<AuthorizedProductRow["productType"], string> = {
   package: "Voyage Organisé",
@@ -399,7 +396,7 @@ function BookingInlineForm({ product }: { product: AuthorizedProductRow }) {
       {product.productType === "activity" && expectedActivityTotal != null ? (
         <p className="text-muted-foreground text-sm">
           Total estimé :{" "}
-          <span className="font-medium text-foreground">
+          <span className="text-foreground font-medium">
             {formatMoney(expectedActivityTotal)}
           </span>{" "}
           (TTC, débit compte de dépôt)

@@ -31,6 +31,7 @@ import { calculateTransferPrice } from "./pricing"
 import {
   buildPendingFiscalSnapshot,
   buildFiscalSnapshotFromTtc,
+  priceDrifted,
 } from "@/lib/booking/pricing"
 import { getActiveFiscalRuleInTx } from "@/lib/finance/fiscal-rules"
 import { sendEvent } from "@/lib/inngest/client"
@@ -62,6 +63,13 @@ export interface TransferBookingInput {
     civicId?: string
   }
   // createdByUserId résolu depuis la session serveur
+  /**
+   * TRANSFERS-CARS-DRIFT-01 — prix de référence affiché. Absent dans le
+   * flux journey (B2B serveur-à-serveur) : la garde saute silencieusement.
+   * Limite connue : aucune protection anti-drift B2B certifiée par ce
+   * chantier.
+   */
+  expectedTotalTnd?: number
 }
 
 export type TransferBookingResult =
@@ -155,6 +163,11 @@ export async function createTransferBooking(
       }
 
       const totalTnd = pricing.totalTnd
+      if (priceDrifted(input.expectedTotalTnd, totalTnd)) {
+        throw new Error(
+          `PRICE_CHANGED: prix affiché ${input.expectedTotalTnd} TND → prix réel ${totalTnd} TND`,
+        )
+      }
 
       /* ------------------------------------------------------------------
        * 2. Récupérer les noms des zones (pour le providerPayload)
@@ -465,6 +478,9 @@ export async function createTransferBooking(
       NO_PRICING: "Aucun tarif configuré pour cet itinéraire et ce véhicule",
       INSUFFICIENT_BALANCE: "Solde wallet insuffisant",
       WALLET_DEBIT_FAILED: "Erreur lors du débit wallet",
+      PRICE_CHANGED:
+        msg.match(/PRICE_CHANGED: (.+)/)?.[1] ??
+        "Le prix a changé, veuillez recharger la page.",
     }
 
     const code = Object.keys(codes).find((k) => msg.startsWith(k))

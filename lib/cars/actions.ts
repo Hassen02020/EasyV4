@@ -36,6 +36,7 @@ import { calculateCarPrice } from "./pricing"
 import {
   buildPendingFiscalSnapshot,
   buildFiscalSnapshotFromTtc,
+  priceDrifted,
 } from "@/lib/booking/pricing"
 import { getActiveFiscalRuleInTx } from "@/lib/finance/fiscal-rules"
 import { recordReservationFinancials } from "@/lib/finance/reservation-financials"
@@ -65,6 +66,13 @@ export interface CarBookingInput {
     birthDate?: string // YYYY-MM-DD
   }
   // createdByUserId résolu depuis la session serveur
+  /**
+   * TRANSFERS-CARS-DRIFT-01 — prix de référence affiché. Absent dans le
+   * flux journey (B2B serveur-à-serveur) : la garde saute silencieusement.
+   * Limite connue : aucune protection anti-drift B2B certifiée par ce
+   * chantier.
+   */
+  expectedTotalTnd?: number
 }
 
 export type CarBookingResult =
@@ -229,6 +237,11 @@ export async function createCarBooking(
       }
 
       const totalTnd = pricing.totalTnd
+      if (priceDrifted(input.expectedTotalTnd, totalTnd)) {
+        throw new Error(
+          `PRICE_CHANGED: prix affiché ${input.expectedTotalTnd} TND → prix réel ${totalTnd} TND`,
+        )
+      }
 
       const [category] = await tx
         .select({ name: carCategories.name })
@@ -538,6 +551,9 @@ export async function createCarBooking(
       NO_AVAILABILITY: "Aucun véhicule disponible pour ces dates",
       INSUFFICIENT_BALANCE: "Solde wallet insuffisant",
       WALLET_DEBIT_FAILED: "Erreur lors du débit wallet",
+      PRICE_CHANGED:
+        msg.match(/PRICE_CHANGED: (.+)/)?.[1] ??
+        "Le prix a changé, veuillez recharger la page.",
     }
 
     const code = Object.keys(codes).find((k) => msg.startsWith(k))

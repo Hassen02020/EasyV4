@@ -189,6 +189,7 @@ export function OmraGuestBookingForm({
         booking: { ...data, policyAccepted },
         paymentMethod: method,
         campaignId,
+        expectedTotalTnd: totalPrice,
       })
       if (!result.ok) {
         setSubmitError(result.error)

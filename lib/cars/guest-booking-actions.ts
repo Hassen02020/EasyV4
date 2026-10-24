@@ -34,6 +34,7 @@ import { creditPlatformCommission } from "@/lib/finance/platform-commission"
 import { resolveCheckoutPromoCore } from "@/lib/crm/promo-checkout-core"
 import { applyPromoDiscountCore } from "@/lib/finance/promo-discount-core"
 import { getDefaultAgencyId } from "@/lib/agencies/default-agency"
+import { priceDrifted } from "@/lib/booking/pricing"
 import { withGuestIdempotency } from "@/lib/booking/guest-idempotency"
 import { resolveLinkedAuthUserId } from "@/lib/booking/customer-identity"
 
@@ -64,6 +65,13 @@ export interface GuestCarBookingInput {
    * partir du contact réel du conducteur.
    */
   campaignId?: string
+  /**
+   * TRANSFERS-CARS-DRIFT-01 — prix affiché côté client au moment de la
+   * soumission. Comparé au prix recalculé côté serveur AVANT promotion
+   * et toute écriture persistée. Absent dans les flux B2B (journey) —
+   * la garde saute silencieusement.
+   */
+  expectedTotalTnd?: number
 }
 
 export type CreateGuestCarBookingResult =
@@ -260,6 +268,11 @@ async function runCreateGuestCarBooking(
         // recordReservationFinancials ci-dessous) — `supplierPriceTnd`
         // omis, jamais fabriqué.
         let totalTnd = pricing.totalTnd
+        if (priceDrifted(input.expectedTotalTnd, totalTnd)) {
+          throw new Error(
+            `PRICE_CHANGED: prix affiché ${input.expectedTotalTnd} TND → prix réel ${totalTnd} TND`,
+          )
+        }
         if (input.campaignId) {
           const checkoutPromo = await resolveCheckoutPromoCore(tx, {
             agencyId,
@@ -507,6 +520,9 @@ async function runCreateGuestCarBooking(
     const codes: Record<string, string> = {
       NO_PRICING: "Aucun tarif configuré pour cette catégorie et ce lieu",
       NO_AVAILABILITY: "Aucun véhicule disponible pour ces dates",
+      PRICE_CHANGED:
+        msg.match(/PRICE_CHANGED: (.+)/)?.[1] ??
+        "Le prix a changé, veuillez recharger la page.",
     }
     const code = Object.keys(codes).find((k) => msg.startsWith(k))
     return {

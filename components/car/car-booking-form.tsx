@@ -185,6 +185,7 @@ export function CarBookingForm({
         insuranceLevel: data.insuranceLevel,
         driver: data.driver,
         campaignId,
+        expectedTotalTnd: pricing?.totalTnd,
       })
 
       if (!result.ok) {

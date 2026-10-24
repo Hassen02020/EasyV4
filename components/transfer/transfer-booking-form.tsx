@@ -199,6 +199,7 @@ export function TransferBookingForm({
         flightArrivalAt: data.flightArrivalAt,
         customer: data.customer,
         campaignId,
+        expectedTotalTnd: pricing?.totalTnd,
       })
 
       if (!result.ok) {

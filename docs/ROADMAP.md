@@ -136,11 +136,8 @@ Error("FISCAL_RULE_NOT_FOUND")` si aucune règle active
 
 ## Chantier actif
 
-> **WALLET-BOOTSTRAP-01 — DONE (2026-10-24)**
-> Commit `b83dc65` · branche `claude/easy2book-v6-modernization-7gyb5v`
->
-> **Prochain chantier à définir** : GUEST-CUSTOMER-LINKING-01 (lier bookings guest au compte post-auth).
-> En attente GO explicite après OBSERVE/AUDIT/PROPOSE.
+> **Aucun chantier actif** — Programme E2B-GUEST-COMMERCE-WALLET-MASTER-01 clos (2026-10-24).
+> Prochain chantier à définir après OBSERVE/AUDIT/PROPOSE + GO explicite.
 
 ---
 
@@ -165,6 +162,44 @@ Error("FISCAL_RULE_NOT_FOUND")` si aucune règle active
 **Commit** : `b83dc65` · branche `claude/easy2book-v6-modernization-7gyb5v`
 
 **NOT VERIFIED** : déploiement production (pipeline `main` → Vercel) — non encore mergé.
+
+---
+
+### GUEST-CUSTOMER-LINKING-01 — CLÔTURÉ (2026-10-24)
+
+**Objectif** : lier les bookings guest au compte créé ultérieurement (post-auth callback).
+
+**Problème** : un utilisateur réservant en guest puis créant un compte conservait
+`customers.authUserId = NULL` → wallet bloqué malgré booking existant.
+
+**Solution** :
+- `linkGuestCustomerToAuth` ajoutée dans `lib/booking/customer-identity.ts` —
+  tenant-scoped (filtre agencyId), refuse d'écraser un authUserId existant
+  (WHERE authUserId IS NULL), gère les collisions (>1 candidat → skip + warn,
+  jamais liaison hasardeuse), case-insensitive sur email (ilike).
+- `app/api/auth/callback/route.ts` étendu — appel best-effort après
+  `exchangeCodeForSession`, user.email résolu via `supabase.auth.getUser`
+  (jamais depuis le query string), échec silencieux (try/catch).
+
+**Tests** : 10/10 statiques (T1–T10) — fichier `lib/booking/__tests__/guest-customer-linking.test.ts`.
+**TypeScript** : 0 erreur (`pnpm tsc --noEmit`).
+**Commit** : `b7329c4` · branche `claude/easy2book-v6-modernization-7gyb5v`
+
+**NOT VERIFIED** : déploiement production — non encore mergé sur `main`.
+
+---
+
+### WALLET-CHECKOUT-RESUME-01 — N/A (2026-10-24)
+
+**Audit** : déjà entièrement implémenté — aucune modification nécessaire.
+
+- `components/booking/checkout-form.tsx` : option `"wallet"` dans `METHODS` (L90-94),
+  balance affichée (L269-278), désactivée si balance < total (L236), validation `onSubmit` (L186-193).
+- `app/(public)/[locale]/booking/checkout/page.tsx` : `walletBalanceTnd` résolu côté serveur
+  via `resolveLinkedAuthUserId` + `getCustomerWalletBalance` (L105-120), transmis à `CheckoutForm` (L206).
+- `lib/booking/guest-actions.ts:813` : `debitCustomerWallet` exécuté dans la transaction.
+
+Classé **N/A** — SEARCH → VERIFY → REUSE (aucune création nécessaire).
 
 ---
 

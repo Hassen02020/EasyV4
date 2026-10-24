@@ -19,11 +19,13 @@ import { catalogActivities, catalogActivitySessions } from "@/lib/db/schema"
 import { getDefaultAgencyId } from "@/lib/agencies/default-agency"
 import { ActivityGuestBookingForm } from "@/components/activities/activity-guest-booking-form"
 import { BookingSteps } from "@/components/booking/booking-steps"
+import { getActiveFiscalRule } from "@/lib/finance/fiscal-rules"
 
 async function getBookableActivity(slug: string) {
   const agencyId = await getDefaultAgencyId()
   if (!agencyId) return null
-  return withSystemContext(async (db) => {
+  const fiscalRule = await getActiveFiscalRule("TN", "activity", new Date())
+  const activityData = await withSystemContext(async (db) => {
     const [activity] = await db
       .select()
       .from(catalogActivities)
@@ -65,6 +67,11 @@ async function getBookableActivity(slug: string) {
 
     return { activity, sessions }
   })
+  if (!activityData) return null
+  return {
+    ...activityData,
+    vatRatePct: fiscalRule ? parseFloat(fiscalRule.vatRate) : undefined,
+  }
 }
 
 export default async function ActivityBookPage({
@@ -79,7 +86,7 @@ export default async function ActivityBookPage({
   const { session, campaign } = await searchParams
   const result = await getBookableActivity(slug)
   if (!result) notFound()
-  const { activity, sessions } = result
+  const { activity, sessions, vatRatePct } = result
   const t = await getTranslations("Attractions")
 
   if (sessions.length === 0) {
@@ -127,6 +134,7 @@ export default async function ActivityBookPage({
                   : undefined,
               }))}
               campaignId={campaign}
+              vatRatePct={vatRatePct}
             />
           </div>
         </div>

@@ -40,6 +40,7 @@ import {
   ShoppingCart,
 } from "lucide-react"
 import { createGuestActivityBooking } from "@/lib/activities/guest-booking-actions"
+import { computePriceBreakdown } from "@/lib/booking/pricing"
 import {
   activityGuestBookingSchema,
   type ActivityGuestBookingInput,
@@ -67,6 +68,13 @@ interface ActivityGuestBookingFormProps {
   defaultSessionId?: string
   /** CAMPAIGN-LINK-01 — indice optionnel depuis ?campaign=<uuid> dans l'URL. */
   campaignId?: string
+  /**
+   * ACTIVITY-B2C-DRIFT-01 — taux TVA actif (%) issu de getActiveFiscalRule.
+   * Requis pour calculer le TTC réel et activer la garde anti-drift de prix.
+   * Absent si aucune règle fiscale active n'est trouvée — la garde reste
+   * silencieusement inactive (comportement antérieur au fix).
+   */
+  vatRatePct?: number
 }
 
 export function ActivityGuestBookingForm({
@@ -75,6 +83,7 @@ export function ActivityGuestBookingForm({
   sessions,
   defaultSessionId,
   campaignId,
+  vatRatePct,
 }: ActivityGuestBookingFormProps) {
   const router = useRouter()
   const cart = useCart()
@@ -162,6 +171,21 @@ export function ActivityGuestBookingForm({
   const childPrice = selectedSession?.childPriceTnd ?? adultPrice * 0.5
   const totalPrice = adultPrice * watchedAdults + childPrice * watchedChildren
 
+  // ACTIVITY-B2C-DRIFT-01 — TTC réel via computePriceBreakdown (même logique
+  // que le serveur). Sans vatRatePct (règle fiscale absente), on reste sur HT.
+  const totalTtcBreakdown =
+    vatRatePct !== undefined && adultPrice > 0
+      ? computePriceBreakdown({
+          unitPriceTnd: adultPrice,
+          adults: watchedAdults,
+          children: watchedChildren,
+          unitChildPriceTnd: selectedSession?.childPriceTnd,
+          depositPercent: 100,
+          vatRate: vatRatePct,
+        })
+      : null
+  const displayTotal = totalTtcBreakdown?.totalTnd ?? totalPrice
+
   function setChildrenCount(n: number) {
     form.setValue("children", n)
     const ages = [...watchedChildrenAges]
@@ -193,6 +217,7 @@ export function ActivityGuestBookingForm({
         booking: { ...data, policyAccepted },
         paymentMethod: method,
         campaignId,
+        expectedTotalTnd: totalTtcBreakdown?.totalTnd,
       })
       if (!result.ok) {
         setSubmitError(result.error)
@@ -216,7 +241,7 @@ export function ActivityGuestBookingForm({
     cart.add({
       module: "activity",
       title: activityTitle,
-      priceTnd: totalPrice,
+      priceTnd: displayTotal,
       booking: { ...data, policyAccepted },
     })
     toast.success(t("addedToCartToast"))
@@ -560,7 +585,7 @@ export function ActivityGuestBookingForm({
             <div className="flex items-center justify-between text-lg">
               <span className="font-semibold">{t("totalTtc")}</span>
               <span className="font-bold text-teal-700">
-                {totalPrice.toFixed(3)} DT
+                {displayTotal.toFixed(3)} DT
               </span>
             </div>
           </CardContent>

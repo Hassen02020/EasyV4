@@ -136,6 +136,50 @@ Error("FISCAL_RULE_NOT_FOUND")` si aucune règle active
 
 ## Chantier actif
 
+### ACTIVITY-B2C-DRIFT-01 — CLÔTURÉ (2026-10-24)
+
+**Objectif** : activer la garde anti-drift de prix (CART-DRIFT-01) sur le chemin de réservation
+Activité / Attraction B2C guest. `priceDrifted()` dans `guest-booking-actions.ts:275` était câblée
+mais inerte — `activity-guest-booking-form.tsx` ne transmettait jamais `expectedTotalTnd`.
+
+**Cause racine** : le form calculait `totalPrice = adultPrice × adults + childPrice × children`
+(HT), tandis que le serveur calcule `computePriceBreakdown(vatRate=19%).totalTnd` (TTC = HT × 1.19).
+Transmettre HT comme `expectedTotalTnd` aurait causé des faux positifs permanents sur toute
+réservation.
+
+**Solution** : `vatRatePct` fetchée côté pages server (`activities/[slug]/book/page.tsx` et
+`attractions/[slug]/book/page.tsx`) via `getActiveFiscalRule("TN","activity",new Date())`, passée
+comme prop au form, form calcule TTC via `computePriceBreakdown` identique au serveur.
+
+**Fallback documenté** : si `vatRatePct` absent (règle fiscale null) → `expectedTotalTnd` non
+transmis → garde silencieusement inactive. Acceptable car règle seed active en prod couvre
+`activity` ; si règle disparaît, serveur lève `FISCAL_RULE_NOT_FOUND` (fail-closed LOT 6).
+
+**Changements** :
+
+- `components/activities/activity-guest-booking-form.tsx` [EXTEND] — +prop `vatRatePct?: number`,
+  +import `computePriceBreakdown`, +calcul `totalTtcBreakdown` TTC, +`expectedTotalTnd` dans
+  `createGuestActivityBooking`, +`priceTnd: displayTotal` (TTC) dans `onAddToCart`
+- `app/(public)/[locale]/activities/[slug]/book/page.tsx` [EXTEND] — +import
+  `getActiveFiscalRule`, +fetch `fiscalRule`, +`vatRatePct` dans `getBookableActivity` return,
+  +prop passée à `<ActivityGuestBookingForm>`
+- `app/(public)/[locale]/attractions/[slug]/book/page.tsx` [EXTEND] — idem (parcours parallèle)
+- `lib/activities/__tests__/activity-b2c-drift.test.ts` [CREATE] — 12 tests (8 statiques +
+  2 comportementaux purs sur `computePriceBreakdown`/`priceDrifted` + 2 harness TTC→TTC)
+
+**NOT VERIFIED** : test E2E exécutant `createGuestActivityBooking` avec `expectedTotalTnd` drifté
+et vérifiant que `PRICE_CHANGED` est levé ET qu'aucune ligne n'est insérée en DB. Les tests T6+T7
+(structurels) prouvent la position de la garde avant `.insert()` et la présence du code d'erreur,
+mais ne l'exécutent pas avec une vraie DB. Aucun test E2E activité n'existe dans le codebase
+(`e2e-guest` couvre uniquement `b2c-hotel-guest-create-live.spec.ts`).
+
+**Preuves** : 12/12 tests ACTIVITY-B2C-DRIFT-01 verts, `tsc --noEmit` 0 erreur, Prettier clean,
+commit `429477a`, CI GitHub run #40089497531 10/10 jobs success (format ✓ lint ✓ typecheck ✓
+test ✓ build ✓ financial-e2e ✓ e2e-guest ✓ lighthouse ✓ playwright-a11y ✓ Supabase-skipped),
+Vercel preview Ready, branche `claude/easy2book-v6-modernization-7gyb5v`, PR #259.
+
+---
+
 ### TRANSFERS-CARS-DRIFT-01 — CLÔTURÉ (2026-10-24)
 
 **Objectif** : ajouter la garde anti-drift de prix (CART-DRIFT-01) aux 4 actions de réservation

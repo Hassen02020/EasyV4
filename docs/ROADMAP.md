@@ -152,6 +152,7 @@ lecture (solde, historique transactions) avait zéro test d'intégration DB.
 **Fichier créé** : `lib/finance/__tests__/topup-state-machine.integration.test.ts`
 
 **Scénarios (T1–T7)** :
+
 - T1 : solde initial 0, historique vide, aucun wallet_account créé
 - T2 : solde correct après crédit unique (100 TND)
 - T3 : solde cumulé après crédits successifs (50 + 30 = 80 TND)
@@ -161,6 +162,7 @@ lecture (solde, historique transactions) avait zéro test d'intégration DB.
 - T7 : demande pending ne crédite pas (0 entrée wallet_ledger)
 
 **Résultats** :
+
 - Typecheck `tsc --noEmit` : 0 erreur
 - Invariants statiques `r9-02-b2c-topup-invariants.test.ts` : 13/13 pass
 - Tests T1–T7 : 7/7 SKIP (DATABASE_URL absent en CI — comportement attendu)

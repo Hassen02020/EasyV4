@@ -166,7 +166,10 @@ test("T2 — solde correct après un crédit unique de 100 TND", async (t) => {
       idempotencyKey: randomUUID(),
       description: "T2 — crédit test intégration",
     })
-    assert.ok(result.ok, `creditCustomerWallet a échoué : ${JSON.stringify(result)}`)
+    assert.ok(
+      result.ok,
+      `creditCustomerWallet a échoué : ${JSON.stringify(result)}`,
+    )
 
     const balance = await getCustomerWalletBalance(f.customerId)
     assert.equal(balance, 100, "solde doit être 100 après crédit de 100 TND")
@@ -232,9 +235,17 @@ test("T4 — historique : 1 entrée, type=credit, category=recharge, montant cor
 
     const entry = txs[0]!
     assert.equal(entry.type, "credit", "type doit être credit")
-    assert.equal(entry.category, "recharge", "category doit être recharge pour online_card")
+    assert.equal(
+      entry.category,
+      "recharge",
+      "category doit être recharge pour online_card",
+    )
     assert.equal(entry.amount, 200, "montant doit être 200 TND")
-    assert.equal(entry.balanceBefore, 0, "balanceBefore doit être 0 (premier crédit)")
+    assert.equal(
+      entry.balanceBefore,
+      0,
+      "balanceBefore doit être 0 (premier crédit)",
+    )
     assert.equal(entry.balanceAfter, 200, "balanceAfter doit être 200")
     assert.ok(entry.id, "id doit être présent")
     assert.ok(entry.createdAt instanceof Date, "createdAt doit être une Date")
@@ -321,7 +332,11 @@ test("T6 — isolation : crédit agence A invisible depuis agence B", async (t) 
     assert.equal(balanceB, 0, "solde customerB doit rester 0 (isolation)")
 
     const txsB = await getCustomerWalletTransactions(fB.customerId)
-    assert.deepEqual(txsB, [], "historique customerB doit être vide (isolation)")
+    assert.deepEqual(
+      txsB,
+      [],
+      "historique customerB doit être vide (isolation)",
+    )
   } finally {
     await Promise.all([cleanupFixture(fA), cleanupFixture(fB)])
   }
@@ -353,10 +368,18 @@ test("T7 — demande pending n'entraîne aucun crédit wallet", async (t) => {
 
     // Aucun crédit ne doit avoir été appliqué
     const balance = await getCustomerWalletBalance(f.customerId)
-    assert.equal(balance, 0, "solde doit rester 0 — demande pending non validée")
+    assert.equal(
+      balance,
+      0,
+      "solde doit rester 0 — demande pending non validée",
+    )
 
     const txs = await getCustomerWalletTransactions(f.customerId)
-    assert.deepEqual(txs, [], "historique doit être vide — pas de crédit avant webhook")
+    assert.deepEqual(
+      txs,
+      [],
+      "historique doit être vide — pas de crédit avant webhook",
+    )
 
     // Vérification directe : aucun wallet_account créé
     const ledgerRows = await withSystemContext((tx) =>

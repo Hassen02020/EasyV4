@@ -141,15 +141,45 @@ Error("FISCAL_RULE_NOT_FOUND")` si aucune règle active
 > - FOOTER-HOTELS-FIX-01 et HEADER-MODULE-NAV-01 : **fusionnés dans `main`** (PR #263, merge `c656e40d`, CI verte sur la tête de PR). Production : NOT VERIFIED (accès Vercel 403).
 > - I18N-METADATA-01 (lot 2) : titres/descriptions (A03) **fusionnés** (PR #264, merge `e12afcfc`, sur la tête `1c0df69` — sans la canonical). Canonical (A10) **fusionnée** séparément (PR #265, merge `b782f290`, tête `05855c8`).
 > - **Décision A10 (2026-10-24, propriétaire)** : canonical auto-référente localisée (variante b) — chaque locale est une page équivalente à indexer.
-> - DEST-CARD-FALLBACK-01 (lot 1, A08) : « Code testé », PR ouverte, merge par le propriétaire en attente.
+> - DEST-CARD-FALLBACK-01 (lot 1, A08) : **fusionné** (PR #267, merge `ed96f254`).
+> - I18N-HEADER-STRINGS-01 (lot 3) : « Code testé », PR ouverte, merge par le propriétaire en attente.
 > - Production de tous ces chantiers : NOT VERIFIED (accès Vercel 403).
 >
-> Programme wallet : WALLET-GUEST-INTEGRATION-TESTS-01 **fusionné** (PR #261, merge `8bcef2cc`) — 15/15 tests exécutés réellement sur PostgreSQL jetable local. WALLET-TOPUP-STATE-01 clos, PR #262 — 7/7 tests exécutés réellement sur PostgreSQL jetable local (0 skip, 2026-10-24), merge par le propriétaire en attente. WALLET-JOURNEY-AUDIT-01 et suivants : inchangés, en attente.
+> Programme wallet : WALLET-GUEST-INTEGRATION-TESTS-01 **fusionné** (PR #261, merge `8bcef2cc`) et WALLET-TOPUP-STATE-01 **fusionné** (PR #262, merge `efa4ccbc`) — 15/15 et 7/7 tests exécutés réellement sur PostgreSQL jetable local (hors CI : fichiers absents du job `financial-e2e`). WALLET-JOURNEY-AUDIT-01 et suivants : inchangés, en attente.
+>
+> Signalements propriétaire 2026-10-24 (audit lecture seule, aucune correction) :
+>
+> - Recharge wallet B2C Paymee en échec sur la preview (`customer_topup_requests` 1000 TND `failed`, sans token Paymee, aucun mouvement financier) — cause exacte NOT VERIFIED (logs Vercel 403). **La preview écrit dans la base de production.**
+> - Contact footer : WhatsApp/adresse/réseaux sociaux NULL en production (`agencies` Easy2Book + `public_site_settings`) — données jamais saisies, aucun défaut de code.
+> - Recharge multi-moyens B2C : fiche WALLET-B2C-RECHARGE-METHODS-01 (EXTEND du modèle B2B `walletRechargeRequests`) en attente des décisions propriétaire a)–d).
+>
 > Aucune exécution sans GO explicite.
 
 ---
 
-### DEST-CARD-FALLBACK-01 — CODE TESTÉ (2026-10-24) — PUBLIC STOREFRONT EXCELLENCE, lot 1 (A08)
+### I18N-HEADER-STRINGS-01 — CODE TESTÉ (2026-10-24) — PUBLIC STOREFRONT EXCELLENCE, lot 3 (A04 revalidé)
+
+**Objectif** : plus aucune chaîne codée en dur dans le header public (texte visible et `aria-label`), dans les 3 langues.
+
+**Constat (baseline au rendu FR/EN/AR)** : « Devise », « Changer de devise », « Changer devise de TND vers EUR », « Switch language », « Toggle menu », « … — retour à l'accueil » identiques dans les 3 locales. `Common.statusNoShow` = « No-show » en arabe. Revalidation A04 : les 72 valeurs EN identiques au FR sont légitimes (termes internationaux, noms propres) ; les vrais trous étaient ces chaînes hors fichiers de traduction.
+
+**Implémentation** : 6 clés `Common` (`currency`, `changeCurrency`, `changeCurrencyFromTo`, `switchLanguage`, `toggleMenu`, `backToHome`) en FR/EN/AR ; `components/currency-switcher.tsx`, `language-switcher.tsx`, `header.tsx` passent par `useTranslations` ; `ar.json` `statusNoShow` = « لم يحضر » ; libellé devise mobile `text-left` → `text-start` (RTL).
+
+**Preuves (serveur local, env factice)** :
+
+- Rendu FR/EN/AR, desktop et menu mobile : texte et `aria-label` de chaque contrôle dans la langue de la page (ex. AR : « العملة TND », « تغيير اللغة », « فتح القائمة أو إغلاقها ») ; aucune des 6 anciennes chaînes en EN/AR.
+- Bascule de devise (TND → EUR) et de langue (FR → EN, EN → AR, AR → EN) fonctionnelles.
+- Aucun débordement du header ni de la page à 1024, 1280 et 1440 px dans les 3 locales.
+- Parité des clés FR/EN/AR : 1241 clés chacune.
+- `tsc --noEmit`, ESLint, `prettier --check .` (dépôt entier) : propres ; suite 3400 tests, 0 échec, 460 ignorés (tests DB).
+
+**NOT VERIFIED** : CI ; preview ; production.
+
+**Hors périmètre, noté** : « En savoir plus sur Turquie » (grammaire selon le type de destination) ; « Car » en EN (libellé produit).
+
+---
+
+### DEST-CARD-FALLBACK-01 — FUSIONNÉ (PR #267, `ed96f254`, 2026-10-24) — PUBLIC STOREFRONT EXCELLENCE, lot 1 (A08)
 
 **Objectif** : une destination mise en avant sans offre réservable ne doit plus être une carte sans issue.
 

@@ -136,7 +136,7 @@ Error("FISCAL_RULE_NOT_FOUND")` si aucune règle active
 
 ## Chantier actif
 
-> **Aucun chantier actif** — Programme E2B-GUEST-COMMERCE-WALLET-MASTER-01 clos (2026-10-24).
+> **Aucun chantier actif** — WALLET-GUEST-INTEGRATION-TESTS-01 clos (2026-10-24). PR #261 ouverte.
 > Prochain chantier à définir après OBSERVE/AUDIT/PROPOSE + GO explicite.
 
 ---
@@ -187,7 +187,29 @@ Error("FISCAL_RULE_NOT_FOUND")` si aucune règle active
 **TypeScript** : 0 erreur (`pnpm tsc --noEmit`).
 **Commit** : `b7329c4` · branche `claude/easy2book-v6-modernization-7gyb5v`
 
-**NOT VERIFIED** : déploiement production — non encore mergé sur `main`.
+**NOT VERIFIED** : déploiement production — non encore mergé sur `main` (fusionné dans PR #260 le 2026-10-24).
+
+---
+
+### WALLET-GUEST-INTEGRATION-TESTS-01 — CLOS (2026-10-24)
+
+**Objectif** : couvrir par des tests d'intégration réels (Postgres, rôle `app_runtime`) la logique
+`resolveOrCreateLinkedCustomer` et `linkGuestCustomerToAuth`, vérifier isolation tenant, RLS,
+absence d'écritures financières et comportements aux limites.
+
+**Fichiers** :
+- `lib/finance/__tests__/create-customer-profile.integration.test.ts` — 9 tests T1–T9
+- `lib/booking/__tests__/link-guest-customer.integration.test.ts` — 6 tests T1–T6
+
+**Résultats** :
+- Typecheck `tsc --noEmit` : 0 erreur
+- 15/15 SKIP en CI (DATABASE_URL absent — comportement attendu, même pattern que les tests existants)
+- Aucune écriture en production, aucune migration, aucun déploiement
+
+**Commit** : `0253234` · branche `claude/wallet-guest-integration-tests-01` · **PR #261**
+
+**NOT VERIFIED** : exécution réelle des tests contre Postgres (DATABASE_URL non disponible en CI).
+À valider localement ou via un environnement de test avec DATABASE_URL configuré.
 
 ---
 

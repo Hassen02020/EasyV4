@@ -27,6 +27,7 @@ import {
   catalogActivities,
   catalogActivitySessions,
 } from "@/lib/db/schema"
+import { getActiveFiscalRuleInTx } from "@/lib/finance/fiscal-rules"
 
 export type BookableOption =
   | {
@@ -47,6 +48,12 @@ export type BookableOption =
       capacityLeft: number
       adultPriceTnd: number
       childPriceTnd?: number
+      /**
+       * CART-DRIFT-01 (ACTIVITY-B2B-DRIFT-01) — taux de TVA réel (%) issu du
+       * moteur fiscal serveur, transmis au client pour que computePriceBreakdown
+       * côté client utilise la même base de calcul que createActivityBooking.
+       */
+      vatRatePct: number
     }
 
 export type GetBookableOptionsResult =
@@ -162,6 +169,16 @@ export async function getBookableOptionsForProduct(
             ),
           )
           .orderBy(catalogActivitySessions.sessionDate)
+        // CART-DRIFT-01 (ACTIVITY-B2B-DRIFT-01) — récupération du taux TVA
+        // réel pour que le client calcule le même total que le serveur.
+        const fiscalRule = await getActiveFiscalRuleInTx(
+          tx,
+          "TN",
+          "activity",
+          new Date(),
+        )
+        const vatRatePct = fiscalRule ? parseFloat(fiscalRule.vatRate) : 19
+
         const now = new Date()
         const options: BookableOption[] = rows
           .filter((s) => {
@@ -182,6 +199,7 @@ export async function getBookableOptionsForProduct(
             childPriceTnd: s.childPriceTnd
               ? parseFloat(s.childPriceTnd)
               : undefined,
+            vatRatePct,
           }))
         return { ok: true, options }
       },

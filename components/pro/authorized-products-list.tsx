@@ -39,6 +39,10 @@ import {
 import { createPackageBooking } from "@/lib/packages/booking-actions"
 import { createActivityBooking } from "@/lib/activities/booking-actions"
 import { createNetworkProductBooking } from "@/lib/network/product-booking-actions"
+import {
+  computePriceBreakdown,
+  formatMoney,
+} from "@/lib/booking/pricing"
 
 const TYPE_LABEL: Record<AuthorizedProductRow["productType"], string> = {
   package: "Voyage Organisé",
@@ -173,6 +177,25 @@ function BookingInlineForm({ product }: { product: AuthorizedProductRow }) {
     })
   }
 
+  // CART-DRIFT-01 (ACTIVITY-B2B-DRIFT-01) — même base de calcul que le serveur.
+  // Dérivé à chaque render depuis la session sélectionnée (vatRatePct inclus)
+  // pour que le montant affiché et le montant transmis soient toujours identiques.
+  const selectedSession =
+    product.productType === "activity"
+      ? options?.find((o) => o.id === optionId)
+      : undefined
+  const expectedActivityTotal =
+    selectedSession?.kind === "session"
+      ? computePriceBreakdown({
+          unitPriceTnd: selectedSession.adultPriceTnd,
+          adults,
+          children,
+          unitChildPriceTnd: selectedSession.childPriceTnd,
+          depositPercent: 100,
+          vatRate: selectedSession.vatRatePct,
+        }).totalTnd
+      : undefined
+
   function handleSubmit() {
     setSubmitError(null)
     if (!isNetwork && !optionId) {
@@ -215,6 +238,7 @@ function BookingInlineForm({ product }: { product: AuthorizedProductRow }) {
               customerLastName: lastName,
               customerPhone: phone,
               customerEmail: email,
+              expectedTotalTnd: expectedActivityTotal,
             })
       if (!result.ok) {
         setSubmitError(result.error)
@@ -372,6 +396,15 @@ function BookingInlineForm({ product }: { product: AuthorizedProductRow }) {
           />
         </div>
       </div>
+      {product.productType === "activity" && expectedActivityTotal != null ? (
+        <p className="text-muted-foreground text-sm">
+          Total estimé :{" "}
+          <span className="font-medium text-foreground">
+            {formatMoney(expectedActivityTotal)}
+          </span>{" "}
+          (TTC, débit compte de dépôt)
+        </p>
+      ) : null}
       <Button onClick={handleSubmit} disabled={isPending} size="sm">
         {isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
         Confirmer la réservation (débit compte de dépôt)

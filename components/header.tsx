@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Link } from "@/i18n/navigation"
+import { Link, usePathname } from "@/i18n/navigation"
 import { HelpCircle, CalendarCheck, User, Menu, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Easy2BookLogo } from "@/components/easy2book-logo"
@@ -11,6 +11,11 @@ import type { Locale } from "@/lib/locale"
 import { useTranslations } from "next-intl"
 import { createBrowserSupabase } from "@/lib/supabase/client"
 import { CartBadgeLink } from "@/components/cart/cart-badge-link"
+import {
+  getVisiblePublicModules,
+  type PublicModuleVisual,
+} from "@/lib/public/module-nav"
+import { cn } from "@/lib/utils"
 
 interface HeaderProps {
   currentLocale?: Locale
@@ -22,6 +27,8 @@ interface HeaderProps {
   logoUrl?: string | null
   /** Téléphone de contact résolu depuis la BDD par HeaderWrapper ; absent = lien désactivé. */
   contactPhone?: string | null
+  /** Activation des modules (public_module_visuals) ; vide = tous les modules. */
+  modules?: Pick<PublicModuleVisual, "moduleSlug" | "enabled">[]
 }
 
 export function Header({
@@ -30,10 +37,15 @@ export function Header({
   brandName,
   logoUrl,
   contactPhone,
+  modules = [],
 }: HeaderProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [loggedIn, setLoggedIn] = useState(!!isLoggedIn)
   const t = useTranslations("Common")
+  const pathname = usePathname()
+  const visibleModules = getVisiblePublicModules(modules)
+  const isActive = (href: string) =>
+    pathname === href || pathname.startsWith(`${href}/`)
 
   useEffect(() => {
     if (isLoggedIn !== undefined) return
@@ -143,6 +155,8 @@ export function Header({
             className="lg:hidden"
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
             aria-label="Toggle menu"
+            aria-expanded={mobileMenuOpen}
+            aria-controls="mobile-menu"
           >
             {mobileMenuOpen ? (
               <X className="size-6" />
@@ -153,10 +167,71 @@ export function Header({
         </div>
       </div>
 
+      {/* Desktop module navigation */}
+      <nav
+        aria-label={t("nosServices")}
+        className="border-border hidden border-t lg:block"
+      >
+        <ul className="no-scrollbar mx-auto flex max-w-7xl gap-1 overflow-x-auto px-4 sm:px-6 lg:px-8">
+          {visibleModules.map((module) => {
+            const Icon = module.icon
+            const active = isActive(module.href)
+            return (
+              <li key={module.id} className="shrink-0">
+                <Link
+                  href={module.href}
+                  aria-current={active ? "page" : undefined}
+                  className={cn(
+                    "flex items-center gap-1.5 border-b-2 px-3 py-2.5 text-sm font-medium whitespace-nowrap transition-colors",
+                    active
+                      ? "border-accent text-sidebar"
+                      : "text-muted-foreground hover:text-foreground border-transparent",
+                  )}
+                >
+                  <Icon className="size-4" />
+                  {t(module.labelKey)}
+                </Link>
+              </li>
+            )
+          })}
+        </ul>
+      </nav>
+
       {/* Mobile Menu */}
       {mobileMenuOpen && (
-        <div className="border-border bg-card border-t lg:hidden">
+        <div
+          id="mobile-menu"
+          className="border-border bg-card border-t lg:hidden"
+        >
           <nav className="mx-auto max-w-7xl space-y-1 px-4 py-4">
+            <p className="text-muted-foreground px-4 pt-1 pb-1 text-xs font-semibold tracking-wide uppercase">
+              {t("nosServices")}
+            </p>
+            <ul className="grid grid-cols-2 gap-1">
+              {visibleModules.map((module) => {
+                const Icon = module.icon
+                const active = isActive(module.href)
+                return (
+                  <li key={module.id}>
+                    <Link
+                      href={module.href}
+                      aria-current={active ? "page" : undefined}
+                      onClick={() => setMobileMenuOpen(false)}
+                      className={cn(
+                        "flex items-center gap-2 rounded-lg px-4 py-3 text-sm font-medium transition-colors",
+                        active
+                          ? "bg-muted text-sidebar"
+                          : "text-foreground hover:bg-muted",
+                      )}
+                    >
+                      <Icon className="text-sidebar size-5 shrink-0" />
+                      <span>{t(module.labelKey)}</span>
+                    </Link>
+                  </li>
+                )
+              })}
+            </ul>
+            <div className="border-border border-t pt-2" />
             <LanguageSwitcher currentLocale={currentLocale} variant="mobile" />
             <CurrencySwitcher variant="mobile" />
             {contactPhone && (

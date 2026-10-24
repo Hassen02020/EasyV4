@@ -130,6 +130,7 @@ export function OmraPartnerBookingForm({
         packageId: data.packageId,
         departureDate: data.departureDate,
         pilgrims: data.pilgrims,
+        expectedTotalTnd: totalPrice,
       })
       if (!result.ok) {
         setSubmitError(result.error)

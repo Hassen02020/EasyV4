@@ -136,6 +136,37 @@ Error("FISCAL_RULE_NOT_FOUND")` si aucune règle active
 
 ## Chantier actif
 
+### OMRA-B2B-DRIFT-01 — CLÔTURÉ (2026-10-24)
+
+**Objectif** : ajouter la garde anti-drift de prix (CART-DRIFT-01) au chemin de réservation
+Omra B2B (`createOmraBooking`) — même invariant que ACTIVITY-B2B-DRIFT-01. Protège contre une
+variation du prix allotment entre l'affichage dans `OmraPartnerBookingForm` et le débit wallet.
+
+**Contraintes GO** :
+- Même calcul des deux côtés : `pricePerPilgrim × pilgrimCount` sans arrondi supplémentaire
+  (prix Omra stocké TTC en base, pas de `computePriceBreakdown` côté client).
+- Garde positionnée AVANT toute écriture persistée (insert customers, réservation, debitPartnerCredit).
+- Appels serveur-serveur sans `expectedTotalTnd` documentés et acceptés (`priceDrifted` retourne
+  `false` sur `undefined`).
+
+**Changements** :
+- `lib/omra/booking-actions.ts` [EXTEND] — +1 champ `expectedTotalTnd?: number` dans
+  `OmraBookingInput`, +1 import `priceDrifted`, +1 garde `if (priceDrifted(...)) throw PRICE_CHANGED`
+  AVANT insert customers, +1 entrée PRICE_CHANGED dans la map d'erreurs
+- `components/omra/omra-partner-booking-form.tsx` [EXTEND] — +1 `expectedTotalTnd: totalPrice`
+  dans l'appel `createOmraBooking`
+- `lib/omra/__tests__/omra-b2b-drift.test.ts` [CREATE] — 7 invariants statiques
+
+**Callers identifiés** :
+- `OmraPartnerBookingForm` (components/omra/omra-partner-booking-form.tsx) — ÉTENDU
+- `createOmraBooking` appelé directement depuis `/pro/sandbox` (données mockées, démo) :
+  `expectedTotalTnd` absent → garde skip acceptable
+
+**Preuves** : 7/7 invariants OMRA-B2B-DRIFT-01 verts, typecheck 0 erreur,
+branche `claude/easy2book-v6-modernization-7gyb5v`.
+
+---
+
 ### ACTIVITY-B2B-DRIFT-01 — CLÔTURÉ (2026-10-24)
 
 **Objectif** : combler le gap documenté LOT 5 — `activityPartnerBookingSchema` sans

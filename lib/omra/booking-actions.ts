@@ -37,7 +37,7 @@ import { sendEvent } from "@/lib/inngest/client"
 import { recordReservationTransition } from "@/lib/admin/reservation-status-history"
 import { recordReservationFinancials } from "@/lib/finance/reservation-financials"
 import { creditPlatformCommission } from "@/lib/finance/platform-commission"
-import { buildFiscalSnapshotFromTtc } from "@/lib/booking/pricing"
+import { buildFiscalSnapshotFromTtc, priceDrifted } from "@/lib/booking/pricing"
 import { getActiveFiscalRuleInTx } from "@/lib/finance/fiscal-rules"
 
 /* -------------------------------------------------------------------------- */
@@ -48,6 +48,13 @@ export interface OmraBookingInput {
   packageId: string
   departureDate: string // YYYY-MM-DD
   pilgrims: OmraPilgrimInput[]
+  /**
+   * CART-DRIFT-01 (OMRA-B2B-DRIFT-01) — total TTC affiché à l'agent au
+   * moment de la soumission, transmis pour comparaison avec le prix recalculé
+   * côté serveur. Absent pour les appels serveur-serveur : priceDrifted
+   * retourne false sur undefined, la garde est ignorée sans erreur.
+   */
+  expectedTotalTnd?: number
   // agencyId et createdByUserId résolus depuis la session serveur
 }
 
@@ -235,6 +242,14 @@ export async function createOmraBooking(
           ? parseFloat(allotment.overridePrice)
           : parseFloat(pkg.basePrice)
         const totalTnd = pricePerPilgrim * pilgrimCount
+
+        // CART-DRIFT-01 (OMRA-B2B-DRIFT-01) — détecte un repricing entre
+        // l'affichage et le débit. Exécuté avant tout effet financier (client,
+        // réservation, debitPartnerCredit). Absent si chemin serveur-serveur :
+        // priceDrifted retourne false sur undefined.
+        if (priceDrifted(input.expectedTotalTnd, totalTnd)) {
+          throw new Error("PRICE_CHANGED")
+        }
 
         /* ------------------------------------------------------------------
          * 5. Créer le client (premier pèlerin comme contact principal)
@@ -535,6 +550,8 @@ export async function createOmraBooking(
       ALLOTMENT_NOT_ACTIVE: "Cet allotement n'est plus actif",
       INSUFFICIENT_STOCK:
         msg.match(/INSUFFICIENT_STOCK: (.+)/)?.[1] ?? "Stock insuffisant",
+      PRICE_CHANGED:
+        "Le tarif de ce programme Omra a changé. Veuillez vérifier le nouveau montant avant de confirmer.",
       INSUFFICIENT_BALANCE: "Solde wallet insuffisant",
       WALLET_DEBIT_FAILED: "Erreur lors du débit wallet",
     }

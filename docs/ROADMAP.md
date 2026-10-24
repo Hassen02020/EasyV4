@@ -136,10 +136,33 @@ Error("FISCAL_RULE_NOT_FOUND")` si aucune règle active
 
 ## Chantier actif
 
-> **Aucun chantier en exécution** — FOOTER-HOTELS-FIX-01 clos (2026-10-24, commit `7a1c5de`, non mergé dans `main`).
-> Programme PUBLIC STOREFRONT EXCELLENCE : prochain chantier proposé = `I18N-METADATA-01` (A03), **en attente de GO**.
+> **Aucun chantier en exécution.** PUBLIC STOREFRONT EXCELLENCE : FOOTER-HOTELS-FIX-01 (`7a1c5de`) et HEADER-MODULE-NAV-01 (`2d8aeda`) au niveau « Code testé », PR ouverte, merge par le propriétaire en attente.
+> Décision attendue avant le lot 2 : stratégie de canonical multilingue (recommandation : canonical auto-référente localisée).
 > Programme wallet (WALLET-JOURNEY-AUDIT-01 et suivants) : inchangé, en attente.
 > Aucune exécution sans GO explicite.
+
+---
+
+### HEADER-MODULE-NAV-01 — CODE TESTÉ (2026-10-24) — PUBLIC STOREFRONT EXCELLENCE, lot 1 (A07 + A11)
+
+**Objectif** : accès direct aux modules depuis le header sur toutes les pages, desktop et mobile.
+
+**Commit** : `2d8aeda` sur `claude/easy2book-v6-modernization-7gyb5v`. Fichiers : `lib/public/module-nav.ts` (nouveau, source unique des 8 modules + filtrage d'activation), `components/booking-engine.tsx` (consomme la source, logique inchangée), `components/header-wrapper.tsx` (lecture `public_module_visuals`, délai 1 s + repli), `components/header.tsx` (rangée desktop, section mobile, `aria-current`, `aria-expanded`/`aria-controls`), `lib/public/__tests__/module-nav.test.ts`.
+
+**Preuves (serveur local, env factice, DB injoignable → repli « 8 modules »)** :
+- 66/66 contrôles de rendu (FR/EN/AR) : 8 liens dans l'ordre, chaque `/{locale}/{module}` → 200 sans redirection ; liens header existants intacts (`/`, `/bookings`, `/panier`, `/compte`) ; onglets du moteur : 8, même ordre et mêmes libellés ; `aria-current` correct sur `/hotels` et `/hotels-monde` ; mobile : `aria-expanded` false→true au clavier (Entrée), 8 liens, clic → `/{locale}/omra`, menu refermé.
+- Débordement : aucun défilement horizontal de la page ; rangée modules à 1024 px = largeur disponible (scrollWidth = clientWidth) en FR/EN/AR.
+- Captures baseline/après : 1440, 1280, 1024, 390 px × 3 locales + menus mobiles.
+- Tests unitaires : 6/6 (`module-nav.test.ts`) ; suite complète 3375 tests, 0 échec, 438 ignorés (tests DB, `DATABASE_URL` absent).
+- `tsc --noEmit`, ESLint, Prettier : propres.
+
+**NOT VERIFIED** : filtrage avec une vraie table `public_module_visuals` (module désactivé) au rendu — couvert uniquement par le test unitaire ; CI ; preview Vercel (accès API 403) ; production.
+
+**Écarts constatés hors périmètre (non corrigés)** :
+- `app/(public)/[locale]/hotels/[id]/page.tsx` importe `Header` directement, sans wrapper : y affiche toujours les 8 modules (repli), sans tenir compte de l'activation.
+- Footer « Nos Services » : 6 liens codés en dur, sans tenir compte de l'activation.
+- Libellé « Devise » non traduit dans le menu (visible en AR).
+- `aria-label="Toggle menu"` du bouton mobile : non traduit.
 
 ---
 

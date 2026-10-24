@@ -54,4 +54,5 @@ Tant que l'étape 3 n'est pas faite, **toutes les Previews refusent de démarrer
 ## Vérification
 
 - Tests : `node --import tsx --test lib/__tests__/env-isolation.test.ts`.
-- Une Preview mal configurée répond HTTP 503 (`[env] DÉMARRAGE REFUSÉ — déploiement non isolé de la production`) sur toutes les routes ; la liste des variables en cause figure dans les logs Vercel.
+- Une Preview mal configurée **échoue dès le build Vercel** (le pré-rendu des pages lit la base : `Error occurred prerendering page … [env] DÉMARRAGE REFUSÉ — déploiement non isolé de la production`) — rien n'est déployé, aucune lecture de la base de production au build. Constaté sur `dpl_8xYi2vKXXwAs5QYKJxsHQh973Egy` (commit 21ea970e, 2026-10-24). Avant cette garde, chaque build Preview lisait la base de production pendant le pré-rendu.
+- Si un déploiement non isolé démarrait malgré tout, il répondrait HTTP 503 (`[env] DÉMARRAGE REFUSÉ — déploiement non isolé de la production`) sur toutes les routes ; la liste des variables en cause figure dans les logs Vercel.

@@ -139,15 +139,15 @@ Error("FISCAL_RULE_NOT_FOUND")` si aucune règle active
 > **Aucun chantier en exécution.** PUBLIC STOREFRONT EXCELLENCE :
 >
 > - FOOTER-HOTELS-FIX-01 et HEADER-MODULE-NAV-01 : **fusionnés dans `main`** (PR #263, merge `c656e40d`, CI verte sur la tête de PR). Production : NOT VERIFIED (accès Vercel 403).
-> - I18N-METADATA-01 (lot 2, A03) : « Code testé », PR ouverte, merge par le propriétaire en attente.
-> - Décision toujours attendue : canonical multilingue (A10) — variante (b) recommandée, non appliquée faute de choix explicite.
+> - I18N-METADATA-01 (lot 2) : titres/descriptions (A03) **fusionnés** (PR #264, merge `e12afcfc`, fusionnée sur la tête `1c0df69`). Canonical (A10, commit `cd4f538`) **non incluse dans ce merge** — poussée une minute avant, sans CI ; à reporter dans une nouvelle PR.
+> - **Décision A10 (2026-10-24, propriétaire)** : canonical auto-référente localisée (variante b) — chaque locale est une page équivalente à indexer.
 >
-> Programme wallet (WALLET-JOURNEY-AUDIT-01 et suivants) : inchangé, en attente. PR #261 / #262 : correctif `format` poussé, CI en cours.
+> Programme wallet (WALLET-JOURNEY-AUDIT-01 et suivants) : inchangé, en attente. PR #261 / #262 : CI verte (`format` corrigé), merge par le propriétaire en attente.
 > Aucune exécution sans GO explicite.
 
 ---
 
-### I18N-METADATA-01 — CODE TESTÉ (2026-10-24) — PUBLIC STOREFRONT EXCELLENCE, lot 2 (A03)
+### I18N-METADATA-01 — CODE TESTÉ (2026-10-24) — PUBLIC STOREFRONT EXCELLENCE, lot 2 (A03 + A10)
 
 **Objectif** : `<title>` et meta description localisés FR/EN/AR sur les 8 pages catalogue des modules.
 
@@ -155,7 +155,7 @@ Error("FISCAL_RULE_NOT_FOUND")` si aucune règle active
 
 **Écart à la fiche, justifié** : `/hotels` utilise `heroTitle`/`heroSubtitle` et non `searchMetaTitle`/`searchMetaDescription`, déjà utilisés par `/hotels/search` (éviter deux pages au même titre).
 
-**Canonical (A10)** : **non traitée** — variante (a) appliquée faute de choix explicite entre (a) et (b). Canonical toujours absente, comme avant.
+**Canonical (A10)** : variante (b) choisie par le propriétaire — `alternates.canonical` = entrée de la locale courante de `buildLanguageAlternates(href)` (même source `getPathname()` que les hreflang), rendue en URL absolue via `metadataBase` (`siteOrigin()`). Premier commit (`554aafe`) livré sans canonical, ajoutée ensuite sur décision.
 
 **Preuves (serveur local, env factice, DB injoignable)** :
 
@@ -163,10 +163,11 @@ Error("FISCAL_RULE_NOT_FOUND")` si aucune règle active
 - Baseline avant modification : titre et description FR sur les 24 rendus (A03 confirmé au rendu).
 - `/sitemap.xml` : identique octet par octet à la baseline.
 - `/hotels/search` (FR/EN/AR) : titre inchangé et distinct de `/hotels`.
+- Canonical, 24/24 rendus : une seule `<link rel="canonical">` ; URL absolue = URL de la page dans sa locale ; égale au hreflang de cette locale ; GET de la canonical → 200 sans redirection ; titres, descriptions et hreflang inchangés ; sitemap identique ; `/hotels/search` sans canonical (hors périmètre, inchangé).
 - Tests : 3/3 (`lib/seo/__tests__/module-metadata.test.ts`) ; suite complète 3378 tests, 0 échec, 438 ignorés (tests DB).
 - `tsc --noEmit`, ESLint, `prettier --check .` (dépôt entier) : propres.
 
-**NOT VERIFIED** : CI ; preview ; production.
+**NOT VERIFIED** : CI du commit canonical ; preview ; production — dont l'origine réelle des canonicals (`NEXT_PUBLIC_SITE_URL` en production, `localhost` en local).
 
 **Hors périmètre, noté** : nom de marque « Easy2Book » codé en dur dans les titres (aussi pour les agences en marque blanche, préexistant) ; pages légales/compte/panier toujours en métadonnées statiques FR ; canonical de `destinations/[slug]` à confirmer au rendu (DB ou preview nécessaire).
 

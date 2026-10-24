@@ -15,6 +15,7 @@
  */
 
 import { z } from "zod"
+import { checkDeploymentIsolation } from "@/lib/env-isolation"
 
 /* -------------------------------------------------------------------------- */
 /* Schéma critique — toute valeur manquante empêche le démarrage               */
@@ -96,6 +97,11 @@ export function validateEnv(): void {
         )
       }
     }
+  }
+
+  // --- Isolation Preview / Production (PREVIEW-PROD-ISOLATION-01) ---
+  for (const isolationError of checkDeploymentIsolation(process.env)) {
+    errors.push(`  ✗ ${isolationError}`)
   }
 
   // --- Variables d'avertissement ---

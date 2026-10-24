@@ -136,8 +136,9 @@ Error("FISCAL_RULE_NOT_FOUND")` si aucune règle active
 
 ## Chantier actif
 
-> **Aucun chantier actif** — Programme E2B-GUEST-COMMERCE-WALLET-MASTER-01 clos (2026-10-24).
-> Prochain chantier à définir après OBSERVE/AUDIT/PROPOSE + GO explicite.
+> **En attente de GO** — WALLET-JOURNEY-AUDIT-01 proposé (2026-10-24).
+> PR #260 fusionnée. 6 chantiers identifiés par l'utilisateur. Fiche chantier #1 ci-dessous.
+> Aucune exécution sans GO explicite.
 
 ---
 
@@ -162,7 +163,8 @@ Error("FISCAL_RULE_NOT_FOUND")` si aucune règle active
 **TypeScript** : 0 erreur (`pnpm tsc --noEmit`).
 **Commit** : `b83dc65` · branche `claude/easy2book-v6-modernization-7gyb5v`
 
-**NOT VERIFIED** : déploiement production (pipeline `main` → Vercel) — non encore mergé.
+**PR #260 fusionnée sur `main` le 2026-10-24** (SHA `1261ef9246901374d1cbac9ee9ef3c69a42dd405`).
+**NOT VERIFIED** : déploiement Vercel production `easy2book-new` — accès Vercel 403 au moment de la clôture ; à confirmer sur le dashboard.
 
 ---
 
@@ -187,7 +189,8 @@ Error("FISCAL_RULE_NOT_FOUND")` si aucune règle active
 **TypeScript** : 0 erreur (`pnpm tsc --noEmit`).
 **Commit** : `b7329c4` · branche `claude/easy2book-v6-modernization-7gyb5v`
 
-**NOT VERIFIED** : déploiement production — non encore mergé sur `main`.
+**PR #260 fusionnée sur `main` le 2026-10-24** (SHA `1261ef9246901374d1cbac9ee9ef3c69a42dd405`).
+**NOT VERIFIED** : déploiement Vercel production `easy2book-new` — accès Vercel 403 au moment de la clôture ; à confirmer sur le dashboard.
 
 ---
 

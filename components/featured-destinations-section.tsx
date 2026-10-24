@@ -29,12 +29,13 @@ function primaryBookingHref(
 }
 
 export async function FeaturedDestinationsSection() {
-  const [featuredDests, t, rawLocale] = await Promise.all([
+  const [featuredDests, t, tDest, rawLocale] = await Promise.all([
     Promise.race([
       getFeaturedDestinations().catch(() => []),
       new Promise<never[]>((r) => setTimeout(() => r([]), 1000)),
     ]),
     getTranslations("FeaturedDestinations"),
+    getTranslations("Destinations"),
     getLocale(),
   ])
 
@@ -111,9 +112,18 @@ export async function FeaturedDestinationsSection() {
                         <ArrowRight className="h-3 w-3" />
                       </Link>
                     ) : (
-                      <span className="text-xs text-slate-400 dark:text-slate-500">
-                        {t("comingSoon")}
-                      </span>
+                      <div className="flex flex-col items-start gap-2">
+                        <span className="text-xs text-slate-400 dark:text-slate-500">
+                          {t("comingSoon")}
+                        </span>
+                        <Link
+                          href={`/destinations/${dest.slug}`}
+                          className="inline-flex items-center gap-1 text-xs font-semibold text-rose-600 underline-offset-4 hover:underline dark:text-rose-400"
+                        >
+                          {tDest("learnMoreAbout", { city: displayName })}
+                          <ArrowRight className="h-3 w-3" />
+                        </Link>
+                      </div>
                     )}
                   </div>
                 </div>

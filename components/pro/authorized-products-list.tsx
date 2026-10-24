@@ -174,9 +174,7 @@ function BookingInlineForm({ product }: { product: AuthorizedProductRow }) {
     })
   }
 
-  // CART-DRIFT-01 (ACTIVITY-B2B-DRIFT-01) — même base de calcul que le serveur.
-  // Dérivé à chaque render depuis la session sélectionnée (vatRatePct inclus)
-  // pour que le montant affiché et le montant transmis soient toujours identiques.
+  // CART-DRIFT-01 — même base de calcul que le serveur, dérivé à chaque render.
   const selectedSession =
     product.productType === "activity"
       ? options?.find((o) => o.id === optionId)
@@ -190,6 +188,24 @@ function BookingInlineForm({ product }: { product: AuthorizedProductRow }) {
           unitChildPriceTnd: selectedSession.childPriceTnd,
           depositPercent: 100,
           vatRate: selectedSession.vatRatePct,
+        }).totalTnd
+      : undefined
+
+  // CART-DRIFT-01 (PACKAGE-DRIFT-01) — idem pour packages.
+  const selectedDeparture =
+    product.productType === "package"
+      ? options?.find((o) => o.id === optionId)
+      : undefined
+  const expectedPackageTotal =
+    selectedDeparture?.kind === "departure" &&
+    selectedDeparture.vatRatePct !== undefined
+      ? computePriceBreakdown({
+          unitPriceTnd: selectedDeparture.adultPriceTnd,
+          adults,
+          children,
+          unitChildPriceTnd: selectedDeparture.childPriceTnd,
+          depositPercent: 100,
+          vatRate: selectedDeparture.vatRatePct,
         }).totalTnd
       : undefined
 
@@ -224,6 +240,7 @@ function BookingInlineForm({ product }: { product: AuthorizedProductRow }) {
               customerLastName: lastName,
               customerPhone: phone,
               customerEmail: email,
+              expectedTotalTnd: expectedPackageTotal,
             })
           : await createActivityBooking({
               activityId: product.productId,

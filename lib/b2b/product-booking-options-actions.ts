@@ -38,6 +38,14 @@ export type BookableOption =
       seatsLeft: number
       adultPriceTnd: number
       childPriceTnd?: number
+      /**
+       * CART-DRIFT-01 (PACKAGE-DRIFT-01) — taux de TVA réel (%) issu du
+       * moteur fiscal serveur, transmis au client pour que computePriceBreakdown
+       * côté client utilise la même base de calcul que createPackageBooking.
+       * Défini pour les packages, absent pour les omra (leur garde est gérée
+       * séparément via OMRA-B2B-DRIFT-01).
+       */
+      vatRatePct?: number
     }
   | {
       kind: "session"
@@ -98,6 +106,16 @@ export async function getBookableOptionsForProduct(
               ),
             )
             .orderBy(catalogPackageDepartures.departureDate)
+          // CART-DRIFT-01 (PACKAGE-DRIFT-01) — taux TVA réel pour calcul TTC client.
+          const fiscalRulePkg = await getActiveFiscalRuleInTx(
+            tx,
+            "TN",
+            "package",
+            new Date(),
+          )
+          const vatRatePctPkg = fiscalRulePkg
+            ? parseFloat(fiscalRulePkg.vatRate)
+            : undefined
           const options: BookableOption[] = rows
             .map((d) => ({
               kind: "departure" as const,
@@ -109,6 +127,7 @@ export async function getBookableOptionsForProduct(
               childPriceTnd: d.childPriceTnd
                 ? parseFloat(d.childPriceTnd)
                 : undefined,
+              vatRatePct: vatRatePctPkg,
             }))
             .filter((o) => o.seatsLeft > 0)
           return { ok: true, options }

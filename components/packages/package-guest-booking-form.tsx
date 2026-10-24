@@ -48,6 +48,7 @@ import {
   packageGuestBookingSchema,
   type PackageGuestBookingInput,
 } from "@/lib/packages/schemas"
+import { computePriceBreakdown } from "@/lib/booking/pricing"
 import type { GuestPaymentMethod } from "@/lib/booking/guest-actions"
 import { CancellationPolicyDisplay } from "@/components/booking/cancellation-policy-display"
 import type { ResolvedPolicy } from "@/lib/booking/policy-engine"
@@ -69,6 +70,12 @@ interface PackageGuestBookingFormProps {
   defaultDepartureId?: string
   /** CAMPAIGN-LINK-01 — indice optionnel depuis ?campaign=<uuid> dans l'URL. */
   campaignId?: string
+  /**
+   * CART-DRIFT-01 (PACKAGE-DRIFT-01) — taux de TVA réel (%) issu du moteur
+   * fiscal serveur, transmis par la page pour que computePriceBreakdown côté
+   * client utilise la même base de calcul que createGuestPackageBooking.
+   */
+  vatRatePct?: number
 }
 
 function getMethods(t: ReturnType<typeof useTranslations>): {
@@ -105,6 +112,7 @@ export function PackageGuestBookingForm({
   departures,
   defaultDepartureId,
   campaignId,
+  vatRatePct,
 }: PackageGuestBookingFormProps) {
   const router = useRouter()
   const cart = useCart()
@@ -164,7 +172,24 @@ export function PackageGuestBookingForm({
   const selectedDeparture = departures.find((d) => d.id === watchedDepartureId)
   const adultPrice = selectedDeparture?.adultPriceTnd ?? 0
   const childPrice = selectedDeparture?.childPriceTnd ?? adultPrice * 0.5
-  const totalPrice = adultPrice * watchedAdults + childPrice * watchedChildren
+  // CART-DRIFT-01 (PACKAGE-DRIFT-01) — TTC calculé avec la même formule et le
+  // même taux TVA que le serveur (createGuestPackageBooking). Quand vatRatePct
+  // est absent (règle fiscale indisponible à la page), on affiche le HT en
+  // fallback et on n'envoie pas expectedTotalTnd (guard côté serveur inactive,
+  // comportement identique à l'état pré-fix — server fail-closed FISCAL_RULE_NOT_FOUND).
+  const priceBreakdown =
+    vatRatePct !== undefined && selectedDeparture != null
+      ? computePriceBreakdown({
+          unitPriceTnd: adultPrice,
+          adults: watchedAdults,
+          children: watchedChildren,
+          unitChildPriceTnd: selectedDeparture.childPriceTnd ?? undefined,
+          vatRate: vatRatePct,
+        })
+      : null
+  const displayTotal =
+    priceBreakdown?.totalTnd ??
+    adultPrice * watchedAdults + childPrice * watchedChildren
 
   function setChildrenCount(n: number) {
     form.setValue("children", n)
@@ -197,6 +222,7 @@ export function PackageGuestBookingForm({
         booking: { ...data, policyAccepted },
         paymentMethod: method,
         campaignId,
+        expectedTotalTnd: priceBreakdown?.totalTnd,
       })
       if (!result.ok) {
         setSubmitError(result.error)
@@ -220,7 +246,7 @@ export function PackageGuestBookingForm({
     cart.add({
       module: "package",
       title: packageTitle,
-      priceTnd: totalPrice,
+      priceTnd: displayTotal,
       booking: { ...data, policyAccepted },
     })
     toast.success(t("addedToCartToast"))
@@ -563,7 +589,7 @@ export function PackageGuestBookingForm({
             <div className="flex items-center justify-between text-lg">
               <span className="font-semibold">{t("totalTtc")}</span>
               <span className="font-bold text-violet-700">
-                {totalPrice.toFixed(3)} DT
+                {displayTotal.toFixed(3)} DT
               </span>
             </div>
           </CardContent>

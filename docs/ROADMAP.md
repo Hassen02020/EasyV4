@@ -139,7 +139,7 @@ Error("FISCAL_RULE_NOT_FOUND")` si aucune règle active
 > **Aucun chantier en exécution.** PUBLIC STOREFRONT EXCELLENCE :
 >
 > - FOOTER-HOTELS-FIX-01 et HEADER-MODULE-NAV-01 : **fusionnés dans `main`** (PR #263, merge `c656e40d`, CI verte sur la tête de PR). Production : NOT VERIFIED (accès Vercel 403).
-> - I18N-METADATA-01 (lot 2, A03 + A10) : « Code testé », PR #264 ouverte, merge par le propriétaire en attente.
+> - I18N-METADATA-01 (lot 2) : titres/descriptions (A03) **fusionnés** (PR #264, merge `e12afcfc`, fusionnée sur la tête `1c0df69`). Canonical (A10, commit `cd4f538`) **non incluse dans ce merge** — poussée une minute avant, sans CI ; à reporter dans une nouvelle PR.
 > - **Décision A10 (2026-10-24, propriétaire)** : canonical auto-référente localisée (variante b) — chaque locale est une page équivalente à indexer.
 >
 > Programme wallet (WALLET-JOURNEY-AUDIT-01 et suivants) : inchangé, en attente. PR #261 / #262 : CI verte (`format` corrigé), merge par le propriétaire en attente.

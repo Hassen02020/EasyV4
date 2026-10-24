@@ -136,7 +136,7 @@ Error("FISCAL_RULE_NOT_FOUND")` si aucune règle active
 
 ## Chantier actif
 
-### TRANSFERS-CARS-DRIFT-01 — EN ATTENTE CI (2026-10-24)
+### TRANSFERS-CARS-DRIFT-01 — CLÔTURÉ (2026-10-24)
 
 **Objectif** : ajouter la garde anti-drift de prix (CART-DRIFT-01) aux 4 actions de réservation
 Transfert et Voiture (2 B2C + 2 B2B).
@@ -163,10 +163,9 @@ Transfert et Voiture (2 B2C + 2 B2B).
 - `components/car/car-booking-form.tsx` [EXTEND] — +`expectedTotalTnd: pricing?.totalTnd`
 - `lib/transfers/__tests__/transfers-cars-drift.test.ts` [CREATE] — 27 tests (statiques + harness)
 
-**Preuves locales** : 27/27 tests verts, `tsc --noEmit` 0 erreur, Prettier clean,
-commit `0551a9c`, branche `claude/easy2book-v6-modernization-7gyb5v`.
-
-**NOT VERIFIED** : CI GitHub sur commit `0551a9c` — à confirmer.
+**Preuves** : 27/27 tests verts, `tsc --noEmit` 0 erreur, Prettier clean,
+commit `0551a9c`, CI GitHub run #724 `success` sur SHA `f9ec3b3` (HEAD PR #258),
+branche `claude/easy2book-v6-modernization-7gyb5v`.
 
 ---
 

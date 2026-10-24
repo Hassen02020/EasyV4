@@ -142,7 +142,8 @@ Error("FISCAL_RULE_NOT_FOUND")` si aucune règle active
 > - I18N-METADATA-01 (lot 2) : titres/descriptions (A03) **fusionnés** (PR #264, merge `e12afcfc`, sur la tête `1c0df69` — sans la canonical). Canonical (A10) **fusionnée** séparément (PR #265, merge `b782f290`, tête `05855c8`).
 > - **Décision A10 (2026-10-24, propriétaire)** : canonical auto-référente localisée (variante b) — chaque locale est une page équivalente à indexer.
 > - DEST-CARD-FALLBACK-01 (lot 1, A08) : **fusionné** (PR #267, merge `ed96f254`).
-> - I18N-HEADER-STRINGS-01 (lot 3) : « Code testé », PR ouverte, merge par le propriétaire en attente.
+> - I18N-HEADER-STRINGS-01 (lot 3) : **fusionné** (PR #268, merge `2baf6942`).
+> - **PREVIEW-PROD-ISOLATION-01 (P0)** : « Code testé » (gardes au démarrage), commit sur la branche, aucune PR ; projet Supabase de Preview et variables Vercel Preview à configurer par le propriétaire (`docs/ops/PREVIEW_ISOLATION.md`).
 > - Production de tous ces chantiers : NOT VERIFIED (accès Vercel 403).
 >
 > Programme wallet : WALLET-GUEST-INTEGRATION-TESTS-01 **fusionné** (PR #261, merge `8bcef2cc`) et WALLET-TOPUP-STATE-01 **fusionné** (PR #262, merge `efa4ccbc`) — 15/15 et 7/7 tests exécutés réellement sur PostgreSQL jetable local (hors CI : fichiers absents du job `financial-e2e`). WALLET-JOURNEY-AUDIT-01 et suivants : inchangés, en attente.
@@ -157,7 +158,37 @@ Error("FISCAL_RULE_NOT_FOUND")` si aucune règle active
 
 ---
 
-### I18N-HEADER-STRINGS-01 — CODE TESTÉ (2026-10-24) — PUBLIC STOREFRONT EXCELLENCE, lot 3 (A04 revalidé)
+### PREVIEW-PROD-ISOLATION-01 — CODE TESTÉ (2026-10-24) — P0
+
+**Constat (prouvé)** : la Preview Vercel écrit dans la base de production (ligne `customer_topup_requests` créée depuis la Preview le 2026-10-24 20:45) ; Supabase n'a qu'une branche (`main` = production) ; le code ne distinguait jamais Preview et Production (`VERCEL_ENV` non utilisé, gardes basées sur `NODE_ENV`, qui vaut `production` en Preview).
+
+**Décisions propriétaire** : projet Supabase de Preview séparé ; garde au démarrage en échec fermé ; Paymee sandbox uniquement en Preview.
+
+**Implémentation** : `lib/env-isolation.ts` (fonction pure `checkDeploymentIsolation`) appelée par `validateEnv()` (`lib/env.ts`, `instrumentation.ts`). Environnement déterminé par `VERCEL_ENV` ; `VERCEL=1` sans `VERCEL_ENV` valide = refus. En Preview : `PREVIEW_SUPABASE_PROJECT_REF` obligatoire et ≠ production ; `DATABASE_URL`, `NEXT_PUBLIC_SUPABASE_URL` (et `DATABASE_DIRECT_URL` si définie) doivent désigner ce projet et ne jamais contenir la référence de production ; `PAYMEE_ENVIRONMENT` jamais `production`, explicitement `sandbox` si une clé est définie ; `PAYMEE_BASE_URL` sandbox uniquement ; Stripe `sk_test_` uniquement ; SPS interdit. Production, développement et local : comportement inchangé. Documentation : `docs/ops/PREVIEW_ISOLATION.md`.
+
+**Preuves** :
+
+- Tests unitaires `lib/__tests__/env-isolation.test.ts` : 8/8 (Preview isolée autorisée ; base ou Supabase de production bloqués, y compris référence cachée dans l'utilisateur ; Paymee production/ambigu bloqué ; Stripe live et SPS bloqués ; variables manquantes ou non identifiables bloquées ; production et local inchangés ; aucun secret dans les messages).
+- Démarrage réel du serveur (aucune URL vers un hôte de production joignable) — avant : Preview + base « production » + Paymee production → HTTP 200 ; après : même configuration → `DÉMARRAGE REFUSÉ` (6 motifs) ; Preview isolée → HTTP 200 ; Production → HTTP 200 ; `VERCEL=1` sans `VERCEL_ENV` → refusé.
+- `tsc --noEmit`, ESLint, `prettier --check .` : propres ; suite 3408 tests, 0 échec, 460 ignorés.
+
+**NOT VERIFIED** : CI ; configuration réelle Vercel Preview/Production (API Vercel 403) ; isolation effective tant que le projet Supabase de Preview n'existe pas. **Conséquence attendue après merge : toutes les Previews refusent de démarrer jusqu'à la configuration Preview (étape propriétaire).**
+
+**Hors périmètre (non modifié)** : routage du webhook Paymee (WALLET-PAYMEE-INIT-01) ; variables Vercel ; données de production.
+
+---
+
+### WALLET-B2C-RECHARGE-METHODS-01 — AUDIT (2026-10-24), conception en attente des décisions propriétaire
+
+- Carte : Paymee seul adaptateur réel, **non opérationnel** (initialisation en échec ; webhook des recharges routé vers la route des réservations → aucun crédit possible). Stripe et SPS : vérification de webhook seulement, aucune création de paiement.
+- Virement : flux B2B existant (`wallet_recharge_requests`, validation super_admin sous `FOR UPDATE`), mais il crédite `agencies.deposit_balance`, pas le wallet client ; absent du B2C.
+- Dépôt bancaire : valeur `bank_deposit` dans la taxonomie B2C, aucun flux. Espèces en agence : B2B et paiements de réservation, aucun reçu numéroté produit. D17 : aucune intégration (commentaire « futur »). Zitouna Pay / e-Dinar : enum déprécié, aucun code.
+- Écarts : aucune coordonnée de paiement (RIB, D17, agence) en base ; justificatif B2B demandé mais aucun champ d'envoi ; `customer_topup_requests` sans méthode, justificatif, validateur ni motif de rejet.
+- Conception proposée : étendre `customer_topup_requests` (pas de second grand livre), crédit unique via `creditCustomerWallet` (clé d'idempotence = id de la demande), validation par rôle financier sous verrou, moyens masqués tant que leurs coordonnées officielles ne sont pas configurées, D17 en déclaration manuelle uniquement si la procédure existe, recharge réservée aux clients authentifiés.
+
+---
+
+### I18N-HEADER-STRINGS-01 — FUSIONNÉ (PR #268, `2baf6942`, 2026-10-24) — PUBLIC STOREFRONT EXCELLENCE, lot 3 (A04 revalidé)
 
 **Objectif** : plus aucune chaîne codée en dur dans le header public (texte visible et `aria-label`), dans les 3 langues.
 

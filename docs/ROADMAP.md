@@ -136,14 +136,43 @@ Error("FISCAL_RULE_NOT_FOUND")` si aucune règle active
 
 ## Chantier actif
 
-> **Aucun chantier en exécution.** PUBLIC STOREFRONT EXCELLENCE : FOOTER-HOTELS-FIX-01 (`7a1c5de`) et HEADER-MODULE-NAV-01 (`2d8aeda`) au niveau « Code testé », PR ouverte, merge par le propriétaire en attente.
-> Décision attendue avant le lot 2 : stratégie de canonical multilingue (recommandation : canonical auto-référente localisée).
-> Programme wallet (WALLET-JOURNEY-AUDIT-01 et suivants) : inchangé, en attente.
+> **Aucun chantier en exécution.** PUBLIC STOREFRONT EXCELLENCE :
+>
+> - FOOTER-HOTELS-FIX-01 et HEADER-MODULE-NAV-01 : **fusionnés dans `main`** (PR #263, merge `c656e40d`, CI verte sur la tête de PR). Production : NOT VERIFIED (accès Vercel 403).
+> - I18N-METADATA-01 (lot 2, A03) : « Code testé », PR ouverte, merge par le propriétaire en attente.
+> - Décision toujours attendue : canonical multilingue (A10) — variante (b) recommandée, non appliquée faute de choix explicite.
+>
+> Programme wallet (WALLET-JOURNEY-AUDIT-01 et suivants) : inchangé, en attente. PR #261 / #262 : correctif `format` poussé, CI en cours.
 > Aucune exécution sans GO explicite.
 
 ---
 
-### HEADER-MODULE-NAV-01 — CODE TESTÉ (2026-10-24) — PUBLIC STOREFRONT EXCELLENCE, lot 1 (A07 + A11)
+### I18N-METADATA-01 — CODE TESTÉ (2026-10-24) — PUBLIC STOREFRONT EXCELLENCE, lot 2 (A03)
+
+**Objectif** : `<title>` et meta description localisés FR/EN/AR sur les 8 pages catalogue des modules.
+
+**Implémentation** : `lib/seo/module-metadata.ts` (nouveau) — `buildModuleMetadata(namespace, href)` : titre = `heroTitle` (+ « | Easy2Book » si la marque n'y figure pas déjà), description = `heroSubtitle`, `alternates.languages` inchangé. Les 8 `page.tsx` (hotels, hotels-monde, omra, packages, attractions, vols, transferts, car) passent de `export const metadata` (FR codé en dur) à `generateMetadata()`. Aucune nouvelle clé i18n : textes déjà traduits et déjà affichés dans le hero de chaque page.
+
+**Écart à la fiche, justifié** : `/hotels` utilise `heroTitle`/`heroSubtitle` et non `searchMetaTitle`/`searchMetaDescription`, déjà utilisés par `/hotels/search` (éviter deux pages au même titre).
+
+**Canonical (A10)** : **non traitée** — variante (a) appliquée faute de choix explicite entre (a) et (b). Canonical toujours absente, comme avant.
+
+**Preuves (serveur local, env factice, DB injoignable)** :
+
+- 24/24 rendus (8 pages × FR/EN/AR) : HTTP 200 ; un seul `<title>` = `heroTitle` (+ marque) ; description = `heroSubtitle` ; `heroTitle` présent en `<h1>` et `heroSubtitle` présent dans la page ; hreflang identiques à la baseline ; canonical absente, comme dans la baseline.
+- Baseline avant modification : titre et description FR sur les 24 rendus (A03 confirmé au rendu).
+- `/sitemap.xml` : identique octet par octet à la baseline.
+- `/hotels/search` (FR/EN/AR) : titre inchangé et distinct de `/hotels`.
+- Tests : 3/3 (`lib/seo/__tests__/module-metadata.test.ts`) ; suite complète 3378 tests, 0 échec, 438 ignorés (tests DB).
+- `tsc --noEmit`, ESLint, `prettier --check .` (dépôt entier) : propres.
+
+**NOT VERIFIED** : CI ; preview ; production.
+
+**Hors périmètre, noté** : nom de marque « Easy2Book » codé en dur dans les titres (aussi pour les agences en marque blanche, préexistant) ; pages légales/compte/panier toujours en métadonnées statiques FR ; canonical de `destinations/[slug]` à confirmer au rendu (DB ou preview nécessaire).
+
+---
+
+### HEADER-MODULE-NAV-01 — FUSIONNÉ (PR #263, `c656e40d`, 2026-10-24) — PUBLIC STOREFRONT EXCELLENCE, lot 1 (A07 + A11)
 
 **Objectif** : accès direct aux modules depuis le header sur toutes les pages, desktop et mobile.
 
@@ -168,7 +197,7 @@ Error("FISCAL_RULE_NOT_FOUND")` si aucune règle active
 
 ---
 
-### FOOTER-HOTELS-FIX-01 — CLOS (2026-10-24) — PUBLIC STOREFRONT EXCELLENCE
+### FOOTER-HOTELS-FIX-01 — FUSIONNÉ (PR #263, `c656e40d`, 2026-10-24) — PUBLIC STOREFRONT EXCELLENCE
 
 **Objectif** : corriger le lien footer « Hôtels Tunisie » (`href: "/"` → `"/hotels"`) et aligner le sitemap (`/hotels` absent de `STATIC_PATHS`, seul module manquant).
 

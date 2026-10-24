@@ -9,13 +9,10 @@ import { Footer } from "@/components/footer"
 import { WorldHotelSearch } from "@/components/hotels-monde/world-hotel-search"
 import { ModuleHero } from "@/components/module-hero"
 import { getPublicModuleVisual } from "@/lib/public/site-content"
-import { buildLanguageAlternates } from "@/lib/seo/alternate-languages"
+import { buildModuleMetadata } from "@/lib/seo/module-metadata"
 
-export const metadata = {
-  title: "Hôtels Monde | Easy2Book",
-  description:
-    "Réservez des hôtels partout dans le monde. Plus de 1 million d'établissements. Meilleur prix garanti.",
-  alternates: { languages: buildLanguageAlternates("/hotels-monde") },
+export function generateMetadata() {
+  return buildModuleMetadata("HotelsMonde", "/hotels-monde")
 }
 
 interface HotelsMondeSearchParams {

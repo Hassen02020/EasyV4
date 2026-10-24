@@ -11,15 +11,12 @@ import { TransferSearch } from "@/components/transfer/transfer-search"
 import { ModuleHero } from "@/components/module-hero"
 import { getPublicModuleVisual } from "@/lib/public/site-content"
 import { getActiveTransferZones } from "@/lib/transfers/catalog"
-import { buildLanguageAlternates } from "@/lib/seo/alternate-languages"
+import { buildModuleMetadata } from "@/lib/seo/module-metadata"
 
 export const dynamic = "force-dynamic"
 
-export const metadata = {
-  title: "Transferts Aéroport | Easy2Book",
-  description:
-    "Transferts privés et partagés depuis/vers les aéroports tunisiens. Réservation immédiate, chauffeur professionnel.",
-  alternates: { languages: buildLanguageAlternates("/transferts") },
+export function generateMetadata() {
+  return buildModuleMetadata("Transferts", "/transferts")
 }
 
 interface TransfertsSearchParams {

@@ -217,7 +217,7 @@ export function FooterClient({
               <ul className="space-y-2 text-sm text-white/70">
                 {(
                   [
-                    { key: "tabHotelsTunisie", href: "/" },
+                    { key: "tabHotelsTunisie", href: "/hotels" },
                     { key: "tabHotelsMonde", href: "/hotels-monde" },
                     { key: "tabOmraty", href: "/omra" },
                     { key: "tabVoyages", href: "/packages" },

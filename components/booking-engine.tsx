@@ -5,10 +5,7 @@ import { useRouter } from "@/i18n/navigation"
 import { useState } from "react"
 
 import {
-  Building2,
-  Globe,
   Moon,
-  Briefcase,
   MapPin,
   CalendarDays,
   Users,
@@ -16,10 +13,7 @@ import {
   Minus,
   Clock,
   Search,
-  Compass,
-  Plane,
   Navigation,
-  Car,
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -63,6 +57,13 @@ import {
 import { DestinationAutocomplete } from "@/components/destination-autocomplete"
 import { DateRangePicker } from "@/components/hotel-search/date-range-picker"
 import { formatDateIso, isValidStayRange } from "@/lib/hotels/date-utils"
+import {
+  PUBLIC_MODULES,
+  getVisiblePublicModules,
+  type PublicModule,
+  type PublicModuleId,
+  type PublicModuleVisual,
+} from "@/lib/public/module-nav"
 
 const HotelsTunisieSearch = dynamic(
   () =>
@@ -76,59 +77,7 @@ const HotelsTunisieSearch = dynamic(
   },
 )
 
-/**
- * Navigation commerciale (Phase 13, Partie 20) : le périmètre de lancement
- * prioritaire est Hôtels Tunisie / Hôtels Monde / Omraty / Voyages
- * Organisés / Attractions — Vols/Transferts/Car restent des modules réels
- * (code et pages intacts, atteignables directement via /vols, /transferts,
- * /car) mais ne sont plus mis en avant dans l'onglet de recherche
- * principal, pour ne pas disperser l'effort commercial. Attractions a un
- * vrai parcours public complet (/attractions, /attractions/[slug],
- * /attractions/[slug]/book) — plus de raison de l'exclure ici.
- */
-const tabsConfig = [
-  {
-    id: "hotels-tunisie",
-    labelKey: "tabHotelsTunisie",
-    icon: Building2,
-    href: "/hotels",
-  },
-  {
-    id: "hotels-monde",
-    labelKey: "tabHotelsMonde",
-    icon: Globe,
-    href: "/hotels-monde",
-  },
-  { id: "omraty", labelKey: "tabOmraty", icon: Moon, href: "/omra" },
-  {
-    id: "voyages-organises",
-    labelKey: "tabVoyages",
-    icon: Briefcase,
-    href: "/packages",
-  },
-  {
-    id: "attractions",
-    labelKey: "tabAttractions",
-    icon: Compass,
-    href: "/attractions",
-  },
-  { id: "vols", labelKey: "tabVols", icon: Plane, href: "/vols" },
-  {
-    id: "transferts",
-    labelKey: "tabTransferts",
-    icon: Navigation,
-    href: "/transferts",
-  },
-  { id: "car", labelKey: "tabCar", icon: Car, href: "/car" },
-] as const
-
-type TabId = (typeof tabsConfig)[number]["id"]
-type PublicModuleVisual = {
-  moduleSlug: string
-  enabled: boolean
-  sortOrder: number
-  heroImageUrl: string | null
-}
+type TabId = PublicModuleId
 
 // Catalogue minimal nécessaire au mini-formulaire homepage — pas le shape
 // complet de `CatalogTransferZone`/`CarLocation` (lib/db/schema), juste
@@ -177,7 +126,7 @@ function TabPills({
 }: {
   activeTab: TabId
   onSelect: (id: TabId) => void
-  visibleTabs: Array<(typeof tabsConfig)[number]>
+  visibleTabs: PublicModule[]
   className?: string
 }) {
   const t = useTranslations("Common")
@@ -228,24 +177,15 @@ export function BookingEngine({
   transferZones?: CatalogTransferZoneLite[]
   carLocations?: CarLocationLite[]
 }) {
-  const enabledModules = modules
-    .filter((module) => module.enabled)
-    .sort((a, b) => a.sortOrder - b.sortOrder)
-  // When DB is unavailable modules arrives as []; fall back to showing all tabs
-  // so the booking engine is always usable regardless of DB state.
-  const visibleTabs =
-    enabledModules.length > 0
-      ? tabsConfig.filter((tab) =>
-          enabledModules.some((module) => module.moduleSlug === tab.id),
-        )
-      : [...tabsConfig]
+  const enabledModules = modules.filter((module) => module.enabled)
+  const visibleTabs = getVisiblePublicModules(modules)
   const firstTab = visibleTabs[0]?.id ?? "hotels-tunisie"
   const [activeTab, setActiveTab] = useState<TabId>(firstTab)
   const [mobileOpen, setMobileOpen] = useState(false)
   const t = useTranslations("Common")
   const tHome = useTranslations("Home")
 
-  const activeTabConfig = tabsConfig.find((tab) => tab.id === activeTab)!
+  const activeTabConfig = PUBLIC_MODULES.find((tab) => tab.id === activeTab)!
   const activeModule = enabledModules.find(
     (module) => module.moduleSlug === activeTab,
   )

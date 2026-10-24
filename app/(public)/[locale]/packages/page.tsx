@@ -20,7 +20,7 @@ import {
 import { and, eq, gte, ilike, inArray, sql, arrayContains } from "drizzle-orm"
 import { getDefaultAgencyId } from "@/lib/agencies/default-agency"
 import { getCoverMediaForProducts } from "@/lib/media/query"
-import { buildLanguageAlternates } from "@/lib/seo/alternate-languages"
+import { buildModuleMetadata } from "@/lib/seo/module-metadata"
 import { PACKAGE_DESTINATION_SEARCH_TERMS } from "@/lib/destinations/package-search-terms"
 import { paginateOffset } from "@/lib/admin/pagination"
 import { getPublicModuleVisual } from "@/lib/public/site-content"
@@ -29,11 +29,8 @@ export const dynamic = "force-dynamic"
 
 const PAGE_SIZE = 12
 
-export const metadata = {
-  title: "Voyages Organisés | Easy2Book",
-  description:
-    "Circuits et voyages organisés au départ de Tunisie. Istanbul, Dubaï, Paris, Rome et plus. Tout inclus.",
-  alternates: { languages: buildLanguageAlternates("/packages") },
+export function generateMetadata() {
+  return buildModuleMetadata("Packages", "/packages")
 }
 
 interface SearchFilters {

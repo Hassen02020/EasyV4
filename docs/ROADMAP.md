@@ -136,6 +136,42 @@ Error("FISCAL_RULE_NOT_FOUND")` si aucune règle active
 
 ## Chantier actif
 
+### OMRA-B2C-DRIFT-01 — CLÔTURÉ (2026-10-24)
+
+**Objectif** : ajouter la garde anti-drift de prix (CART-DRIFT-01) au chemin de réservation
+Omra B2C (`createGuestOmraBooking`) — même invariant que OMRA-B2B-DRIFT-01 adapté au tunnel
+guest. Protège contre une variation du prix allotment entre l'affichage dans
+`OmraGuestBookingForm` et les écritures financières.
+
+**Contraintes GO** :
+
+1. Transmettre `expectedTotalTnd` au niveau du wrapper `createGuestOmraBooking`, sans modifier
+   `OmraGuestBookingInput`.
+2. Vérifier l'ordre d'exécution réel : garde de prix, puis promotion, puis écritures de
+   réservation et opérations financières.
+3. Tester les appels sans `expectedTotalTnd` : comportement historique explicite et maîtrisé
+   (`priceDrifted` retourne `false` sur `undefined`).
+4. Ne pas confondre 7 tests statiques avec une preuve complète — vérifier aussi le comportement
+   (priceDrifted(100, 200) → true ; priceDrifted(undefined, 200) → false).
+5. Ne déclarer certifié qu'après vérification SHA, tests et CI sur le commit exact.
+
+**Changements** :
+
+- `lib/omra/guest-booking-actions.ts` [EXTEND] — +`priceDrifted` dans import
+  `@/lib/booking/pricing`, +`expectedTotalTnd?: number` dans wrapper `createGuestOmraBooking`,
+  passage vers `runCreateGuestOmraBooking`, +paramètre `expectedTotalTnd: number | undefined`
+  dans la fonction interne, +garde `if (priceDrifted(expectedTotalTnd, totalTnd)) throw PRICE_CHANGED`
+  AVANT promo et AVANT tout insert, +entrée `PRICE_CHANGED` dans la map d'erreurs
+- `components/omra/omra-guest-booking-form.tsx` [EXTEND] — +`expectedTotalTnd: totalPrice`
+  dans l'appel `createGuestOmraBooking`
+- `lib/omra/__tests__/omra-b2c-drift.test.ts` [CREATE] — 7 invariants statiques + 2 tests
+  comportementaux (priceDrifted directement importé)
+
+**Preuves** : 9/9 tests OMRA-B2C-DRIFT-01 verts, typecheck 0 erreur, Prettier clean,
+branche `claude/easy2book-v6-modernization-7gyb5v`.
+
+---
+
 ### OMRA-B2B-DRIFT-01 — CLÔTURÉ (2026-10-24)
 
 **Objectif** : ajouter la garde anti-drift de prix (CART-DRIFT-01) au chemin de réservation

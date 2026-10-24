@@ -64,7 +64,7 @@ import { recordReservationFinancials } from "@/lib/finance/reservation-financial
 import { creditPlatformCommission } from "@/lib/finance/platform-commission"
 import { resolveCheckoutPromoCore } from "@/lib/crm/promo-checkout-core"
 import { applyPromoDiscountCore } from "@/lib/finance/promo-discount-core"
-import { buildFiscalSnapshotFromTtc } from "@/lib/booking/pricing"
+import { buildFiscalSnapshotFromTtc, priceDrifted } from "@/lib/booking/pricing"
 import { getActiveFiscalRuleInTx } from "@/lib/finance/fiscal-rules"
 
 export type CreateGuestOmraBookingResult =
@@ -92,6 +92,8 @@ export async function createGuestOmraBooking(input: {
    * champ seul.
    */
   campaignId?: string
+  /** OMRA-B2C-DRIFT-01 — snapshot du total TTC affiché au client. */
+  expectedTotalTnd?: number
 }): Promise<CreateGuestOmraBookingResult> {
   if (!process.env.DATABASE_URL) {
     return { ok: false, error: "Base de données non configurée" }
@@ -147,6 +149,7 @@ export async function createGuestOmraBooking(input: {
       input.paymentMethod,
       linkedAuthUserId,
       input.campaignId,
+      input.expectedTotalTnd,
     ),
   )
 }
@@ -156,6 +159,7 @@ async function runCreateGuestOmraBooking(
   paymentMethod: GuestPaymentMethod,
   linkedAuthUserId: string | null,
   campaignId: string | undefined,
+  expectedTotalTnd: number | undefined,
 ): Promise<CreateGuestOmraBookingResult> {
   const agencyId = await getDefaultAgencyId()
   if (!agencyId) {
@@ -224,6 +228,18 @@ async function runCreateGuestOmraBooking(
         // voir recordReservationFinancials ci-dessous) —
         // `supplierPriceTnd` omis, jamais fabriqué.
         let totalTnd = round2(pricePerPilgrim * pilgrimCount)
+
+        // OMRA-B2C-DRIFT-01 — garde anti-drift : rejet AVANT promo et
+        // AVANT toute écriture persistante. `priceDrifted` retourne
+        // false si expectedTotalTnd est undefined (flux serveur-à-serveur
+        // non concernés). Même formule des deux côtés : pricePerPilgrim
+        // × pilgrimCount, round2 appliqué côté serveur uniquement.
+        if (priceDrifted(expectedTotalTnd, totalTnd)) {
+          throw new Error(
+            `PRICE_CHANGED: prix affiché ${expectedTotalTnd} TND → prix réel ${totalTnd} TND`,
+          )
+        }
+
         if (campaignId) {
           const checkoutPromo = await resolveCheckoutPromoCore(tx, {
             agencyId,
@@ -566,6 +582,9 @@ async function runCreateGuestOmraBooking(
       ALLOTMENT_NOT_ACTIVE: "Ce départ n'est plus ouvert à la réservation",
       INSUFFICIENT_STOCK:
         msg.match(/INSUFFICIENT_STOCK: (.+)/)?.[1] ?? "Stock insuffisant",
+      PRICE_CHANGED:
+        msg.match(/PRICE_CHANGED: (.+)/)?.[1] ??
+        "Le prix a changé, veuillez recharger la page.",
     }
     const code = Object.keys(codes).find((k) => msg.startsWith(k))
     return {

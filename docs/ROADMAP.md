@@ -139,15 +139,41 @@ Error("FISCAL_RULE_NOT_FOUND")` si aucune règle active
 > **Aucun chantier en exécution.** PUBLIC STOREFRONT EXCELLENCE :
 >
 > - FOOTER-HOTELS-FIX-01 et HEADER-MODULE-NAV-01 : **fusionnés dans `main`** (PR #263, merge `c656e40d`, CI verte sur la tête de PR). Production : NOT VERIFIED (accès Vercel 403).
-> - I18N-METADATA-01 (lot 2) : titres/descriptions (A03) **fusionnés** (PR #264, merge `e12afcfc`, fusionnée sur la tête `1c0df69`). Canonical (A10, commit `cd4f538`) **non incluse dans ce merge** — poussée une minute avant, sans CI ; à reporter dans une nouvelle PR.
+> - I18N-METADATA-01 (lot 2) : titres/descriptions (A03) **fusionnés** (PR #264, merge `e12afcfc`, sur la tête `1c0df69` — sans la canonical). Canonical (A10) **fusionnée** séparément (PR #265, merge `b782f290`, tête `05855c8`).
 > - **Décision A10 (2026-10-24, propriétaire)** : canonical auto-référente localisée (variante b) — chaque locale est une page équivalente à indexer.
+> - DEST-CARD-FALLBACK-01 (lot 1, A08) : « Code testé », PR ouverte, merge par le propriétaire en attente.
+> - Production de tous ces chantiers : NOT VERIFIED (accès Vercel 403).
 >
 > Programme wallet (WALLET-JOURNEY-AUDIT-01 et suivants) : inchangé, en attente. PR #261 / #262 : CI verte (`format` corrigé), merge par le propriétaire en attente.
 > Aucune exécution sans GO explicite.
 
 ---
 
-### I18N-METADATA-01 — CODE TESTÉ (2026-10-24) — PUBLIC STOREFRONT EXCELLENCE, lot 2 (A03 + A10)
+### DEST-CARD-FALLBACK-01 — CODE TESTÉ (2026-10-24) — PUBLIC STOREFRONT EXCELLENCE, lot 1 (A08)
+
+**Objectif** : une destination mise en avant sans offre réservable ne doit plus être une carte sans issue.
+
+**Implémentation** : `components/featured-destinations-section.tsx` — sans référence de réservation active, la mention « Bientôt disponible » est **conservée** (recommandation appliquée, aucun choix contraire exprimé) et un lien `Destinations.learnMoreAbout` (clé existante, FR/EN/AR) mène à `/destinations/{slug}`. Carte avec offre (« Réserver ») inchangée. Aucune nouvelle clé i18n, aucune requête modifiée.
+
+**Preuves — base PostgreSQL 16 JETABLE locale** (scratchpad, port 55432, détruite après ; aucun accès production) : schéma `drizzle-kit push` + 126 migrations manuelles appliquées / 17 tolérées « already exists » (procédure identique au job CI `financial-e2e`) ; app servie avec `app_runtime` (non-BYPASSRLS). Données de test : destinations réelles issues des migrations, `istanbul` (3 références actives) et `turquie` (aucune) passées `is_featured` en local uniquement.
+
+- Baseline (FR/EN/AR) : carte Turquie = texte « Bientôt disponible / Coming soon / قريباً », aucun lien (A08 confirmé au rendu).
+- Après : carte Turquie = mention conservée + 1 lien vers `/{locale}/destinations/turquie` (« En savoir plus sur Turquie » / « Learn more about Turkey » / « اعرف المزيد عن تركيا ») ; GET → 200 sans redirection dans les 3 locales.
+- Carte Istanbul : identique à la baseline (lien `/{locale}/hotels-monde?destination=istanbul`, libellé inchangé).
+- Aucune destination en vedette : section absente dans les 3 locales (pas de régression).
+- Captures avant/après FR/EN/AR ; RTL : flèche du nouveau lien orientée vers la gauche en arabe.
+- `tsc --noEmit`, ESLint, `prettier --check .` (dépôt entier) : propres ; suite 3378 tests, 0 échec, 438 ignorés.
+
+**NOT VERIFIED** : CI ; preview ; production ; rendu avec les vraies destinations en vedette de production.
+
+**Écarts notés hors périmètre** :
+
+- Libellé « En savoir plus sur Turquie » : la clé existante est pensée pour une ville ; pour un pays, le français correct serait « sur la Turquie ».
+- Flèche du bouton « Réserver » non inversée en arabe (préexistant).
+
+---
+
+### I18N-METADATA-01 — FUSIONNÉ (PR #264 + #265, 2026-10-24) — PUBLIC STOREFRONT EXCELLENCE, lot 2 (A03 + A10)
 
 **Objectif** : `<title>` et meta description localisés FR/EN/AR sur les 8 pages catalogue des modules.
 

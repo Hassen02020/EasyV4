@@ -1,5 +1,5 @@
 import type { Metadata } from "next"
-import { getTranslations } from "next-intl/server"
+import { getLocale, getTranslations } from "next-intl/server"
 import { buildLanguageAlternates } from "@/lib/seo/alternate-languages"
 
 const BRAND = "Easy2Book"
@@ -21,15 +21,21 @@ export function withBrandSuffix(title: string): string {
 /**
  * Métadonnées localisées d'une page catalogue de module : titre et description
  * = textes du hero déjà affichés sur la page (heroTitle / heroSubtitle).
+ * Canonical auto-référente : chaque locale est une page équivalente à indexer
+ * (hreflang réciproques), elle se déclare donc elle-même canonique.
  */
 export async function buildModuleMetadata(
   namespace: ModuleMetadataNamespace,
   href: string,
 ): Promise<Metadata> {
-  const t = await getTranslations(namespace)
+  const [t, locale] = await Promise.all([
+    getTranslations(namespace),
+    getLocale(),
+  ])
+  const languages = buildLanguageAlternates(href)
   return {
     title: withBrandSuffix(t("heroTitle")),
     description: t("heroSubtitle"),
-    alternates: { languages: buildLanguageAlternates(href) },
+    alternates: { canonical: languages[locale], languages },
   }
 }

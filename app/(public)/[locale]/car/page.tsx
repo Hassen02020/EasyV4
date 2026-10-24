@@ -25,15 +25,12 @@ import { ModuleHero } from "@/components/module-hero"
 import { getPublicModuleVisual } from "@/lib/public/site-content"
 import { CarSearch } from "@/components/car/car-search"
 import { getActiveCarCatalog } from "@/lib/cars/catalog"
-import { buildLanguageAlternates } from "@/lib/seo/alternate-languages"
+import { buildModuleMetadata } from "@/lib/seo/module-metadata"
 
 export const dynamic = "force-dynamic"
 
-export const metadata = {
-  title: "Location de Voiture | Easy2Book",
-  description:
-    "Louez une voiture en Tunisie au meilleur prix. Berline, SUV, minibus. Prise en charge aéroport ou agence.",
-  alternates: { languages: buildLanguageAlternates("/car") },
+export function generateMetadata() {
+  return buildModuleMetadata("Car", "/car")
 }
 
 interface CarSearchParams {

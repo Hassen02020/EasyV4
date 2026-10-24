@@ -33,7 +33,7 @@ import {
 import { Input } from "@/components/ui/input"
 import { getDefaultAgencyId } from "@/lib/agencies/default-agency"
 import { getCoverMediaForProducts } from "@/lib/media/query"
-import { buildLanguageAlternates } from "@/lib/seo/alternate-languages"
+import { buildModuleMetadata } from "@/lib/seo/module-metadata"
 import { paginateOffset } from "@/lib/admin/pagination"
 import { MapPin, Clock, Compass, ChevronRight } from "lucide-react"
 import { ModuleHero } from "@/components/module-hero"
@@ -43,11 +43,8 @@ export const dynamic = "force-dynamic"
 
 const PAGE_SIZE = 12
 
-export const metadata = {
-  title: "Attractions | Easy2Book",
-  description:
-    "Excursions, visites guidées et activités à réserver en ligne en Tunisie.",
-  alternates: { languages: buildLanguageAlternates("/attractions") },
+export function generateMetadata() {
+  return buildModuleMetadata("Attractions", "/attractions")
 }
 
 interface AttractionsPageResult {

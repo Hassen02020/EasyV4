@@ -136,8 +136,97 @@ Error("FISCAL_RULE_NOT_FOUND")` si aucune règle active
 
 ## Chantier actif
 
-> **Aucun chantier actif** — WALLET-TOPUP-STATE-01 clos (2026-10-24). PR #262 ouverte.
-> Prochain chantier à définir après OBSERVE/AUDIT/PROPOSE + GO explicite.
+> **Aucun chantier en exécution.** PUBLIC STOREFRONT EXCELLENCE :
+>
+> - FOOTER-HOTELS-FIX-01 et HEADER-MODULE-NAV-01 : **fusionnés dans `main`** (PR #263, merge `c656e40d`, CI verte sur la tête de PR). Production : NOT VERIFIED (accès Vercel 403).
+> - I18N-METADATA-01 (lot 2) : titres/descriptions (A03) **fusionnés** (PR #264, merge `e12afcfc`, fusionnée sur la tête `1c0df69`). Canonical (A10, commit `cd4f538`) **non incluse dans ce merge** — poussée une minute avant, sans CI ; à reporter dans une nouvelle PR.
+> - **Décision A10 (2026-10-24, propriétaire)** : canonical auto-référente localisée (variante b) — chaque locale est une page équivalente à indexer.
+>
+> Programme wallet : WALLET-TOPUP-STATE-01 clos, PR #262 — tests T1–T7 exécutés réellement sur PostgreSQL jetable local (7/7, 0 skip, 2026-10-24), merge par le propriétaire en attente. WALLET-JOURNEY-AUDIT-01 et suivants : inchangés, en attente.
+> Aucune exécution sans GO explicite.
+
+---
+
+### I18N-METADATA-01 — CODE TESTÉ (2026-10-24) — PUBLIC STOREFRONT EXCELLENCE, lot 2 (A03 + A10)
+
+**Objectif** : `<title>` et meta description localisés FR/EN/AR sur les 8 pages catalogue des modules.
+
+**Implémentation** : `lib/seo/module-metadata.ts` (nouveau) — `buildModuleMetadata(namespace, href)` : titre = `heroTitle` (+ « | Easy2Book » si la marque n'y figure pas déjà), description = `heroSubtitle`, `alternates.languages` inchangé. Les 8 `page.tsx` (hotels, hotels-monde, omra, packages, attractions, vols, transferts, car) passent de `export const metadata` (FR codé en dur) à `generateMetadata()`. Aucune nouvelle clé i18n : textes déjà traduits et déjà affichés dans le hero de chaque page.
+
+**Écart à la fiche, justifié** : `/hotels` utilise `heroTitle`/`heroSubtitle` et non `searchMetaTitle`/`searchMetaDescription`, déjà utilisés par `/hotels/search` (éviter deux pages au même titre).
+
+**Canonical (A10)** : variante (b) choisie par le propriétaire — `alternates.canonical` = entrée de la locale courante de `buildLanguageAlternates(href)` (même source `getPathname()` que les hreflang), rendue en URL absolue via `metadataBase` (`siteOrigin()`). Premier commit (`554aafe`) livré sans canonical, ajoutée ensuite sur décision.
+
+**Preuves (serveur local, env factice, DB injoignable)** :
+
+- 24/24 rendus (8 pages × FR/EN/AR) : HTTP 200 ; un seul `<title>` = `heroTitle` (+ marque) ; description = `heroSubtitle` ; `heroTitle` présent en `<h1>` et `heroSubtitle` présent dans la page ; hreflang identiques à la baseline ; canonical absente, comme dans la baseline.
+- Baseline avant modification : titre et description FR sur les 24 rendus (A03 confirmé au rendu).
+- `/sitemap.xml` : identique octet par octet à la baseline.
+- `/hotels/search` (FR/EN/AR) : titre inchangé et distinct de `/hotels`.
+- Canonical, 24/24 rendus : une seule `<link rel="canonical">` ; URL absolue = URL de la page dans sa locale ; égale au hreflang de cette locale ; GET de la canonical → 200 sans redirection ; titres, descriptions et hreflang inchangés ; sitemap identique ; `/hotels/search` sans canonical (hors périmètre, inchangé).
+- Tests : 3/3 (`lib/seo/__tests__/module-metadata.test.ts`) ; suite complète 3378 tests, 0 échec, 438 ignorés (tests DB).
+- `tsc --noEmit`, ESLint, `prettier --check .` (dépôt entier) : propres.
+
+**NOT VERIFIED** : CI du commit canonical ; preview ; production — dont l'origine réelle des canonicals (`NEXT_PUBLIC_SITE_URL` en production, `localhost` en local).
+
+**Hors périmètre, noté** : nom de marque « Easy2Book » codé en dur dans les titres (aussi pour les agences en marque blanche, préexistant) ; pages légales/compte/panier toujours en métadonnées statiques FR ; canonical de `destinations/[slug]` à confirmer au rendu (DB ou preview nécessaire).
+
+---
+
+### HEADER-MODULE-NAV-01 — FUSIONNÉ (PR #263, `c656e40d`, 2026-10-24) — PUBLIC STOREFRONT EXCELLENCE, lot 1 (A07 + A11)
+
+**Objectif** : accès direct aux modules depuis le header sur toutes les pages, desktop et mobile.
+
+**Commit** : `2d8aeda` sur `claude/easy2book-v6-modernization-7gyb5v`. Fichiers : `lib/public/module-nav.ts` (nouveau, source unique des 8 modules + filtrage d'activation), `components/booking-engine.tsx` (consomme la source, logique inchangée), `components/header-wrapper.tsx` (lecture `public_module_visuals`, délai 1 s + repli), `components/header.tsx` (rangée desktop, section mobile, `aria-current`, `aria-expanded`/`aria-controls`), `lib/public/__tests__/module-nav.test.ts`.
+
+**Preuves (serveur local, env factice, DB injoignable → repli « 8 modules »)** :
+
+- 66/66 contrôles de rendu (FR/EN/AR) : 8 liens dans l'ordre, chaque `/{locale}/{module}` → 200 sans redirection ; liens header existants intacts (`/`, `/bookings`, `/panier`, `/compte`) ; onglets du moteur : 8, même ordre et mêmes libellés ; `aria-current` correct sur `/hotels` et `/hotels-monde` ; mobile : `aria-expanded` false→true au clavier (Entrée), 8 liens, clic → `/{locale}/omra`, menu refermé.
+- Débordement : aucun défilement horizontal de la page ; rangée modules à 1024 px = largeur disponible (scrollWidth = clientWidth) en FR/EN/AR.
+- Captures baseline/après : 1440, 1280, 1024, 390 px × 3 locales + menus mobiles.
+- Tests unitaires : 6/6 (`module-nav.test.ts`) ; suite complète 3375 tests, 0 échec, 438 ignorés (tests DB, `DATABASE_URL` absent).
+- `tsc --noEmit`, ESLint, Prettier : propres.
+
+**NOT VERIFIED** : filtrage avec une vraie table `public_module_visuals` (module désactivé) au rendu — couvert uniquement par le test unitaire ; CI ; preview Vercel (accès API 403) ; production.
+
+**Écarts constatés hors périmètre (non corrigés)** :
+
+- `app/(public)/[locale]/hotels/[id]/page.tsx` importe `Header` directement, sans wrapper : y affiche toujours les 8 modules (repli), sans tenir compte de l'activation.
+- Footer « Nos Services » : 6 liens codés en dur, sans tenir compte de l'activation.
+- Libellé « Devise » non traduit dans le menu (visible en AR).
+- `aria-label="Toggle menu"` du bouton mobile : non traduit.
+
+---
+
+### FOOTER-HOTELS-FIX-01 — FUSIONNÉ (PR #263, `c656e40d`, 2026-10-24) — PUBLIC STOREFRONT EXCELLENCE
+
+**Objectif** : corriger le lien footer « Hôtels Tunisie » (`href: "/"` → `"/hotels"`) et aligner le sitemap (`/hotels` absent de `STATIC_PATHS`, seul module manquant).
+
+**Commit** : `7a1c5de` sur `claude/easy2book-v6-modernization-7gyb5v` — `components/footer-client.tsx` (1 ligne), `app/sitemap.ts` (1 ligne).
+
+**Preuves (serveur `next dev` local, env factice, DB injoignable → sitemap en repli pages statiques)** :
+
+- Routage : `localePrefix: "always"` (`i18n/routing.ts`) ; `/hotels` → **307** → `/fr/hotels`.
+- `/fr/hotels`, `/en/hotels`, `/ar/hotels` : **HTTP 200** ; `<html lang dir>` = fr/ltr, en/ltr, ar/rtl.
+- `/sitemap.xml` généré : 15 entrées (14 + 1), `<loc>/fr/hotels</loc>`, hreflang fr/en/ar/x-default → `/fr|en|ar/hotels`.
+- Footer rendu dans les 3 locales : « Hôtels Tunisie » → `/{fr,en,ar}/hotels` ; les 8 autres liens footer (hotels-monde, omra, packages, attractions, destinations, mentions-legales, cgv, politique-confidentialite) inchangés.
+- `tsc --noEmit` : propre.
+
+**NOT VERIFIED** : preview Vercel / production ; sitemap avec DB réelle (entrées dynamiques packages/attractions/omra/destinations — non touchées par ce chantier).
+
+**Correction de rapport** : la première clôture annonçait la vérification du sitemap alors que la commande avait échoué (texte de repli `echo` pris pour un résultat). Vérification refaite réellement ci-dessus.
+
+**Registre des anomalies storefront (audit 2026-10-24) — en attente, un GO par chantier** :
+
+- A02 — `/hotels` absent du sitemap → **corrigé** (ce chantier).
+- A03 — `metadata` statique hardcodée FR sur les pages modules : `<title>` « Hôtels Tunisie | Easy2Book » servi aussi en EN/AR (constaté au rendu).
+- A04 — 55 clés `messages/en.json` identiques au FR ; 2 dans `ar.json`.
+- A05 — `OmratySection` : texte seul, sans image ni CTA.
+- A06 — `FlashOffers` : aucun prix sur les cartes.
+- A07 — header sans liens vers les modules.
+- A08 — `FeaturedDestinationsSection` : pas de lien de repli sans external ref.
+- A09 — Attractions : recherche `<Input>` inline, non alignée sur `PackageSearch`/`OmraSearch`.
+- A10 (nouveau) — aucune `<link rel="canonical">` sur les pages modules (`/hotels`, `/omra`… ; seuls `destinations/[slug]` et `vols/passengers` en définissent). À traiter avec A03.
 
 ---
 
@@ -195,7 +284,8 @@ avec une DB locale.
 **TypeScript** : 0 erreur (`pnpm tsc --noEmit`).
 **Commit** : `b83dc65` · branche `claude/easy2book-v6-modernization-7gyb5v`
 
-**NOT VERIFIED** : déploiement production (pipeline `main` → Vercel) — non encore mergé.
+**PR #260 fusionnée sur `main` le 2026-10-24** (SHA `1261ef9246901374d1cbac9ee9ef3c69a42dd405`).
+**NOT VERIFIED** : déploiement Vercel production `easy2book-new` — accès Vercel 403 au moment de la clôture ; à confirmer sur le dashboard.
 
 ---
 
@@ -220,7 +310,8 @@ avec une DB locale.
 **TypeScript** : 0 erreur (`pnpm tsc --noEmit`).
 **Commit** : `b7329c4` · branche `claude/easy2book-v6-modernization-7gyb5v`
 
-**NOT VERIFIED** : déploiement production — non encore mergé sur `main`.
+**PR #260 fusionnée sur `main` le 2026-10-24** (SHA `1261ef9246901374d1cbac9ee9ef3c69a42dd405`).
+**NOT VERIFIED** : déploiement Vercel production `easy2book-new` — accès Vercel 403 au moment de la clôture ; à confirmer sur le dashboard.
 
 ---
 

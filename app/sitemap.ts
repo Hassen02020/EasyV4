@@ -29,6 +29,7 @@ import { siteOrigin } from "@/lib/mygo/config"
 
 const STATIC_PATHS = [
   "/",
+  "/hotels",
   "/omra",
   "/packages",
   "/hotels-monde",

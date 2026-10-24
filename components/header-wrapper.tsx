@@ -3,7 +3,10 @@ import { createServerSupabase } from "@/lib/supabase/server"
 import { getRequestTenantInfo } from "@/lib/tenant/current-tenant"
 import { getSiteContactInfo } from "@/lib/tenant/site-config"
 import { Header } from "@/components/header"
-import { getPublicSiteConfig } from "@/lib/public/site-content"
+import {
+  getPublicModuleVisuals,
+  getPublicSiteConfig,
+} from "@/lib/public/site-content"
 import type { Locale } from "@/lib/locale"
 
 export async function HeaderWrapper() {
@@ -24,7 +27,7 @@ export async function HeaderWrapper() {
   // backoff after all connections fail). Run both concurrently and cap each
   // at 1 s so the header never blocks public page render regardless of DB
   // availability.
-  const [site, contact] = await Promise.all([
+  const [site, contact, modules] = await Promise.all([
     Promise.race([
       getPublicSiteConfig().catch(() => null),
       new Promise<null>((resolve) => setTimeout(() => resolve(null), 1000)),
@@ -32,6 +35,10 @@ export async function HeaderWrapper() {
     Promise.race([
       getSiteContactInfo(tenant?.agencyId ?? null).catch(() => null),
       new Promise<null>((resolve) => setTimeout(() => resolve(null), 1000)),
+    ]),
+    Promise.race([
+      getPublicModuleVisuals().catch(() => []),
+      new Promise<never[]>((resolve) => setTimeout(() => resolve([]), 1000)),
     ]),
   ])
   return (
@@ -41,6 +48,10 @@ export async function HeaderWrapper() {
       brandName={tenant?.brandName ?? null}
       logoUrl={tenant?.logoUrl ?? site?.logoUrl ?? null}
       contactPhone={contact?.contactPhone ?? site?.contactPhone ?? null}
+      modules={modules.map(({ moduleSlug, enabled }) => ({
+        moduleSlug,
+        enabled,
+      }))}
     />
   )
 }

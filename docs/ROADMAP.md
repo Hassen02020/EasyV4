@@ -136,9 +136,40 @@ Error("FISCAL_RULE_NOT_FOUND")` si aucune règle active
 
 ## Chantier actif
 
-> **En attente de GO** — WALLET-JOURNEY-AUDIT-01 proposé (2026-10-24).
-> PR #260 fusionnée. 6 chantiers identifiés par l'utilisateur. Fiche chantier #1 ci-dessous.
+> **Aucun chantier en exécution** — FOOTER-HOTELS-FIX-01 clos (2026-10-24, commit `7a1c5de`, non mergé dans `main`).
+> Programme PUBLIC STOREFRONT EXCELLENCE : prochain chantier proposé = `I18N-METADATA-01` (A03), **en attente de GO**.
+> Programme wallet (WALLET-JOURNEY-AUDIT-01 et suivants) : inchangé, en attente.
 > Aucune exécution sans GO explicite.
+
+---
+
+### FOOTER-HOTELS-FIX-01 — CLOS (2026-10-24) — PUBLIC STOREFRONT EXCELLENCE
+
+**Objectif** : corriger le lien footer « Hôtels Tunisie » (`href: "/"` → `"/hotels"`) et aligner le sitemap (`/hotels` absent de `STATIC_PATHS`, seul module manquant).
+
+**Commit** : `7a1c5de` sur `claude/easy2book-v6-modernization-7gyb5v` — `components/footer-client.tsx` (1 ligne), `app/sitemap.ts` (1 ligne).
+
+**Preuves (serveur `next dev` local, env factice, DB injoignable → sitemap en repli pages statiques)** :
+- Routage : `localePrefix: "always"` (`i18n/routing.ts`) ; `/hotels` → **307** → `/fr/hotels`.
+- `/fr/hotels`, `/en/hotels`, `/ar/hotels` : **HTTP 200** ; `<html lang dir>` = fr/ltr, en/ltr, ar/rtl.
+- `/sitemap.xml` généré : 15 entrées (14 + 1), `<loc>/fr/hotels</loc>`, hreflang fr/en/ar/x-default → `/fr|en|ar/hotels`.
+- Footer rendu dans les 3 locales : « Hôtels Tunisie » → `/{fr,en,ar}/hotels` ; les 8 autres liens footer (hotels-monde, omra, packages, attractions, destinations, mentions-legales, cgv, politique-confidentialite) inchangés.
+- `tsc --noEmit` : propre.
+
+**NOT VERIFIED** : preview Vercel / production ; sitemap avec DB réelle (entrées dynamiques packages/attractions/omra/destinations — non touchées par ce chantier).
+
+**Correction de rapport** : la première clôture annonçait la vérification du sitemap alors que la commande avait échoué (texte de repli `echo` pris pour un résultat). Vérification refaite réellement ci-dessus.
+
+**Registre des anomalies storefront (audit 2026-10-24) — en attente, un GO par chantier** :
+- A02 — `/hotels` absent du sitemap → **corrigé** (ce chantier).
+- A03 — `metadata` statique hardcodée FR sur les pages modules : `<title>` « Hôtels Tunisie | Easy2Book » servi aussi en EN/AR (constaté au rendu).
+- A04 — 55 clés `messages/en.json` identiques au FR ; 2 dans `ar.json`.
+- A05 — `OmratySection` : texte seul, sans image ni CTA.
+- A06 — `FlashOffers` : aucun prix sur les cartes.
+- A07 — header sans liens vers les modules.
+- A08 — `FeaturedDestinationsSection` : pas de lien de repli sans external ref.
+- A09 — Attractions : recherche `<Input>` inline, non alignée sur `PackageSearch`/`OmraSearch`.
+- A10 (nouveau) — aucune `<link rel="canonical">` sur les pages modules (`/hotels`, `/omra`… ; seuls `destinations/[slug]` et `vols/passengers` en définissent). À traiter avec A03.
 
 ---
 

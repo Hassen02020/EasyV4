@@ -143,7 +143,8 @@ Error("FISCAL_RULE_NOT_FOUND")` si aucune règle active
 > - **Décision A10 (2026-10-24, propriétaire)** : canonical auto-référente localisée (variante b) — chaque locale est une page équivalente à indexer.
 > - DEST-CARD-FALLBACK-01 (lot 1, A08) : **fusionné** (PR #267, merge `ed96f254`).
 > - I18N-HEADER-STRINGS-01 (lot 3) : **fusionné** (PR #268, merge `2baf6942`).
-> - **PREVIEW-PROD-ISOLATION-01 (P0)** : « Code testé » (gardes au démarrage), commit sur la branche, aucune PR ; projet Supabase de Preview et variables Vercel Preview à configurer par le propriétaire (`docs/ops/PREVIEW_ISOLATION.md`).
+> - **PREVIEW-PROD-ISOLATION-01 (P0)** : « Code testé », PR #269 (non fusionnée). Refus prouvé sur Vercel (build Preview non isolé refusé). Isolation réelle NOT VERIFIED : base `EasyV4-preview` à initialiser et variables Vercel Preview à configurer par le propriétaire (`docs/ops/PREVIEW_ISOLATION.md`).
+> - **WALLET-PAYMEE-INIT-01 (P1)** : « Code testé », même PR #269. Bout en bout Paymee sandbox NOT VERIFIED (dépend de l'isolation Preview).
 > - Production de tous ces chantiers : NOT VERIFIED (accès Vercel 403).
 >
 > Programme wallet : WALLET-GUEST-INTEGRATION-TESTS-01 **fusionné** (PR #261, merge `8bcef2cc`) et WALLET-TOPUP-STATE-01 **fusionné** (PR #262, merge `efa4ccbc`) — 15/15 et 7/7 tests exécutés réellement sur PostgreSQL jetable local (hors CI : fichiers absents du job `financial-e2e`). WALLET-JOURNEY-AUDIT-01 et suivants : inchangés, en attente.
@@ -172,9 +173,25 @@ Error("FISCAL_RULE_NOT_FOUND")` si aucune règle active
 - Démarrage réel du serveur (aucune URL vers un hôte de production joignable) — avant : Preview + base « production » + Paymee production → HTTP 200 ; après : même configuration → `DÉMARRAGE REFUSÉ` (6 motifs) ; Preview isolée → HTTP 200 ; Production → HTTP 200 ; `VERCEL=1` sans `VERCEL_ENV` → refusé.
 - `tsc --noEmit`, ESLint, `prettier --check .` : propres ; suite 3408 tests, 0 échec, 460 ignorés.
 
-**NOT VERIFIED** : CI ; configuration réelle Vercel Preview/Production (API Vercel 403) ; isolation effective tant que le projet Supabase de Preview n'existe pas. **Conséquence attendue après merge : toutes les Previews refusent de démarrer jusqu'à la configuration Preview (étape propriétaire).**
+**Constat Vercel (2026-10-24, Preview PR #269, `dpl_D3wESiJVSdQRy4UAty7eTZAD6Xik`)** : la garde détecte (`[env] DÉMARRAGE REFUSÉ` — 4 motifs, aucun secret) mais n'empêche rien : l'erreur levée dans `register()` devient une « Unhandled Rejection », Next rend quand même la requête (HTTP 200, 4 lectures base tentées) avant l'arrêt du processus. Variables Vercel : `DATABASE_URL`, `DATABASE_DIRECT_URL`, `NEXT_PUBLIC_SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` partagées Production + Preview (projet de production).
+
+**Correctif (commit `21ea970e`)** : `assertDeploymentIsolation()` dans `proxy.ts` (HTTP 503 avant toute résolution tenant/session), `getDb()`, clients Supabase serveur/service role et stockage média. Preuve locale (build de production, `register()` rendu non bloquant pour simuler Vercel, fausse base « production » espionnée) : 7 routes → 503, 0 connexion, aucun secret journalisé. **Preuve Vercel** (`dpl_8xYi2vKXXwAs5QYKJxsHQh973Egy`, `dpl_2dKPA9sciTr6ccp3ZS8MwuHAd7Dx`) : le build Preview échoue au pré-rendu avec `DÉMARRAGE REFUSÉ — déploiement non isolé de la production` — rien n'est déployé ; avant la garde, chaque build Preview lisait la base de production pendant le pré-rendu. CI GitHub verte (format, lint, typecheck, test, build, financial-e2e, e2e-guest, playwright-a11y). Check « Vercel » (requis) rouge attendu jusqu'à l'isolation.
+
+**NOT VERIFIED** : isolation réelle (projet `EasyV4-preview` `fxjhahtqrglktrmgqkvs` créé mais vide — script `preview-init-clean.sql` validé localement, à exécuter par le propriétaire ; variables Vercel Preview dédiées à créer) ; démarrage d'une Preview isolée ; absence d'écriture en production depuis une Preview isolée.
 
 **Hors périmètre (non modifié)** : routage du webhook Paymee (WALLET-PAYMEE-INIT-01) ; variables Vercel ; données de production.
+
+---
+
+### WALLET-PAYMEE-INIT-01 — CODE TESTÉ (2026-10-24) — P1, PR #269
+
+**Défauts prouvés (code)** : (1) `resolvePaymeeWebhookUrl()` envoyait le webhook de TOUT paiement Paymee, recharges comprises, vers `/api/payment/reservation-webhook` (qui ne cherche que des réservations → `no_match`/200) : recharge encaissée, wallet jamais crédité ; (2) retour client vers `/paiement-retour/{ref}` (page réservation) ; (3) sans clé Paymee, `submitCustomerTopUp` créait la demande puis la marquait `failed` (cas 1000 TND) ; (4) `PAYMEE_WEBHOOK_URL` s'appliquait aux deux flux ; (5) la page wallet affichait « Recharge réussie ! … crédité » sur le seul paramètre d'URL `?topup=success`, sans lire la base.
+
+**Correctif** : `CreatePaymentInput.purpose` (`reservation` par défaut — flux réservation inchangé, testé) ; `wallet_topup` → webhook `/api/payment/webhook?provider=paymee` (corrélation `customer_topup_requests` existante) et retour `/{locale}/compte/wallet?topup=<id>` ; override distinct `PAYMEE_TOPUP_WEBHOOK_URL` ; contrôle de configuration avant toute écriture (message « recharge en ligne indisponible ») ; page wallet : état lu en base pour la demande du client connecté (`lib/finance/topup-return.ts`) — complétée / en attente de confirmation / non aboutie (FR/EN/AR). Aucune migration ; grand livre, `creditCustomerWallet` et règles de corrélation inchangés.
+
+**Preuves** : `paymee-topup-webhook-route.integration.test.ts` (nouveau, ajouté au job CI `financial-e2e`) — webhook Paymee simulé (seule dépendance externe ; clé de test, format documenté) livré à la route correspondant exactement à l'URL transmise par l'adaptateur, Postgres local non-bypass-RLS : crédit unique + rejeu sans double crédit ; montant différent et signature invalide → aucun crédit ; même webhook sur l'ancienne cible → aucun crédit. **Mutation** : en rétablissant l'ancienne cible, « recharge payée → wallet crédité » échoue ; avec le correctif 5/5. Tests unitaires adaptateur (URLs par flux, locale, overrides) et invariants ; intégration paiement 44/44 (0 ignoré) ; suite 2958 réussis, 0 échec ; `tsc`, Prettier propres.
+
+**NOT VERIFIED** : paiement de bout en bout sur Paymee **sandbox** (nécessite la Preview isolée + clé sandbox) ; production. Statut « Opérationnel » interdit avant cette preuve.
 
 ---
 

@@ -20,8 +20,10 @@
  */
 
 import { siteOrigin } from "@/lib/mygo/config"
+import { routing } from "@/i18n/routing"
 import type {
   CreatePaymentInput,
+  PaymentPurpose,
   PaymentProvider,
   PaymentResult,
   PaymentStatusResult,
@@ -49,18 +51,43 @@ export function resolvePaymeeBaseUrl(): string {
     : "https://sandbox.paymee.tn"
 }
 
-/** URL publique du webhook — override explicite sinon dérivée de
- * `siteOrigin()` (même convention que Virtual Payment Provider). */
-export function resolvePaymeeWebhookUrl(): string {
+/** URL publique du webhook selon le flux — override explicite sinon dérivée
+ * de `siteOrigin()` (même convention que Virtual Payment Provider).
+ *
+ * WALLET-PAYMEE-INIT-01 : une recharge wallet DOIT notifier
+ * /api/payment/webhook (corrélation customer_topup_requests). L'envoyer vers
+ * reservation-webhook (qui ne cherche que des réservations) répondait
+ * no_match/200 : paiement encaissé, wallet jamais crédité, Paymee ne
+ * renvoyait plus rien. Les overrides sont distincts par flux. */
+export function resolvePaymeeWebhookUrl(
+  purpose: PaymentPurpose = "reservation",
+): string {
+  if (purpose === "wallet_topup") {
+    const override = process.env.PAYMEE_TOPUP_WEBHOOK_URL
+    if (override) return override
+    return `${siteOrigin()}/api/payment/webhook?provider=paymee`
+  }
   const override = process.env.PAYMEE_WEBHOOK_URL
   if (override) return override
   return `${siteOrigin()}/api/payment/reservation-webhook?provider=paymee`
 }
 
-/** Page de retour générique (voir app/paiement-retour/[ref]/page.tsx) —
- * ne confirme JAMAIS rien elle-même, se contente de rediriger vers l'état
- * réel de la réservation (confirmée ou toujours en attente du webhook). */
-function resolveReturnUrl(reference: string): string {
+/** Page de retour selon le flux — ne confirme JAMAIS rien elle-même.
+ * Réservation : app/paiement-retour/[ref]/page.tsx (état réel de la
+ * réservation). Recharge : page wallet, qui lit l'état réel de la demande
+ * (`?topup=<id>`) ; seul le webhook crédite. */
+export function resolvePaymeeReturnUrl(
+  reference: string,
+  purpose: PaymentPurpose = "reservation",
+  locale?: string,
+): string {
+  if (purpose === "wallet_topup") {
+    const loc =
+      locale && (routing.locales as readonly string[]).includes(locale)
+        ? locale
+        : routing.defaultLocale
+    return `${siteOrigin()}/${loc}/compte/wallet?topup=${encodeURIComponent(reference)}`
+  }
   return `${siteOrigin()}/paiement-retour/${encodeURIComponent(reference)}`
 }
 
@@ -181,9 +208,17 @@ export class PaymeePaymentProvider implements PaymentProvider {
       email: input.customerEmail,
       phone: normalizePaymeePhone(input.customerPhone),
       order_id: input.reference,
-      return_url: resolveReturnUrl(input.reference),
-      cancel_url: resolveReturnUrl(input.reference),
-      webhook_url: resolvePaymeeWebhookUrl(),
+      return_url: resolvePaymeeReturnUrl(
+        input.reference,
+        input.purpose,
+        input.locale,
+      ),
+      cancel_url: resolvePaymeeReturnUrl(
+        input.reference,
+        input.purpose,
+        input.locale,
+      ),
+      webhook_url: resolvePaymeeWebhookUrl(input.purpose),
     }
 
     const controller = new AbortController()

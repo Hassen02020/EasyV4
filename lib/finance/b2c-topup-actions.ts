@@ -24,8 +24,14 @@ export type SubmitTopUpResult =
   | { ok: true; paymentUrl: string }
   | { ok: false; error: string }
 
+/** Message affiché quand la recharge en ligne n'est pas configurée sur ce
+ * déploiement (aucune clé Paymee) — aucune demande n'est alors créée. */
+export const TOPUP_ONLINE_UNAVAILABLE_ERROR =
+  "La recharge en ligne n'est pas disponible pour le moment. Veuillez réessayer plus tard ou contacter notre agence."
+
 export async function submitCustomerTopUp(
   amountTnd: number,
+  locale?: string,
 ): Promise<SubmitTopUpResult> {
   if (
     !Number.isFinite(amountTnd) ||
@@ -36,6 +42,14 @@ export async function submitCustomerTopUp(
       ok: false,
       error: `Montant invalide. Le montant doit être compris entre ${MIN_AMOUNT_TND} et ${MAX_AMOUNT_TND} TND.`,
     }
+  }
+
+  // WALLET-PAYMEE-INIT-01 : vérifier la configuration AVANT toute écriture.
+  // Sans clé, l'ancien flux insérait la demande puis la marquait « failed »
+  // (demande fantôme + message générique).
+  const provider = new PaymeePaymentProvider()
+  if (!provider.configured) {
+    return { ok: false, error: TOPUP_ONLINE_UNAVAILABLE_ERROR }
   }
 
   const supabase = await createServerSupabase()
@@ -140,9 +154,11 @@ export async function submitCustomerTopUp(
     }
   }
 
-  // Appel Paymee
-  const provider = new PaymeePaymentProvider()
+  // Appel Paymee — purpose wallet_topup : webhook /api/payment/webhook
+  // (corrélation customer_topup_requests) et retour sur la page wallet.
   const paymentResult = await provider.createPayment({
+    purpose: "wallet_topup",
+    locale,
     amountTnd,
     currency: "TND",
     reference: topupId,

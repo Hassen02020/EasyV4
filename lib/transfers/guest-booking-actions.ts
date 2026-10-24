@@ -35,6 +35,7 @@ import { recordReservationFinancials } from "@/lib/finance/reservation-financial
 import { creditPlatformCommission } from "@/lib/finance/platform-commission"
 import { resolveCheckoutPromoCore } from "@/lib/crm/promo-checkout-core"
 import { applyPromoDiscountCore } from "@/lib/finance/promo-discount-core"
+import { priceDrifted } from "@/lib/booking/pricing"
 
 /* -------------------------------------------------------------------------- */
 /* Types                                                                      */
@@ -65,6 +66,13 @@ export interface GuestTransferBookingInput {
    * jamais déduite de ce champ seul.
    */
   campaignId?: string
+  /**
+   * TRANSFERS-CARS-DRIFT-01 — prix affiché côté client au moment de la
+   * soumission. Comparé au prix recalculé côté serveur AVANT promotion
+   * et toute écriture persistée. Absent dans les flux B2B (journey) —
+   * la garde saute silencieusement.
+   */
+  expectedTotalTnd?: number
 }
 
 export type CreateGuestTransferBookingResult =
@@ -235,6 +243,11 @@ async function runCreateGuestTransferBooking(
         // prix de vente, voir recordReservationFinancials ci-dessous) —
         // `supplierPriceTnd` omis, jamais fabriqué.
         let totalTnd = pricing.totalTnd
+        if (priceDrifted(input.expectedTotalTnd, totalTnd)) {
+          throw new Error(
+            `PRICE_CHANGED: prix affiché ${input.expectedTotalTnd} TND → prix réel ${totalTnd} TND`,
+          )
+        }
         if (input.campaignId) {
           const checkoutPromo = await resolveCheckoutPromoCore(tx, {
             agencyId,
@@ -465,6 +478,9 @@ async function runCreateGuestTransferBooking(
     const msg = err instanceof Error ? err.message : String(err)
     const codes: Record<string, string> = {
       NO_PRICING: "Aucun tarif configuré pour cet itinéraire et ce véhicule",
+      PRICE_CHANGED:
+        msg.match(/PRICE_CHANGED: (.+)/)?.[1] ??
+        "Le prix a changé, veuillez recharger la page.",
     }
     const code = Object.keys(codes).find((k) => msg.startsWith(k))
     return {

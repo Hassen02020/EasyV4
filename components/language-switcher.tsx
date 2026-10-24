@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { LOCALES, LOCALE_META, type Locale } from "@/lib/locale"
 import { usePathname, useRouter } from "@/i18n/navigation"
+import { useTranslations } from "next-intl"
 
 interface LanguageSwitcherProps {
   currentLocale: Locale
@@ -23,6 +24,7 @@ export function LanguageSwitcher({
   const pathname = usePathname()
   const router = useRouter()
   const searchParams = useSearchParams()
+  const t = useTranslations("Common")
 
   function handleSelect(locale: Locale) {
     if (locale === currentLocale) return
@@ -64,7 +66,7 @@ export function LanguageSwitcher({
         <button
           type="button"
           className={triggerClass}
-          aria-label="Switch language"
+          aria-label={t("switchLanguage")}
         >
           {variant === "mobile" && <Globe className="text-sidebar size-5" />}
           <span className="text-sidebar text-base font-bold tracking-wider uppercase">

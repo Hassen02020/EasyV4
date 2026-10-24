@@ -8,6 +8,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import { useTranslations } from "next-intl"
 import { useCurrency } from "@/components/currency-context"
 import { CURRENCIES, CURRENCY_META } from "@/lib/currency"
 
@@ -19,6 +20,7 @@ export function CurrencySwitcher({
   variant = "desktop",
 }: CurrencySwitcherProps) {
   const { currency, setCurrency } = useCurrency()
+  const t = useTranslations("Common")
 
   if (variant === "mobile") {
     // Cycle réel à travers les 3 devises (TND → EUR → USD → TND...) — un
@@ -32,10 +34,10 @@ export function CurrencySwitcher({
         type="button"
         onClick={() => setCurrency(next)}
         className="text-foreground hover:bg-muted flex w-full items-center gap-3 rounded-lg px-4 py-3 text-sm font-medium transition-colors"
-        aria-label={`Changer devise de ${currency} vers ${next}`}
+        aria-label={t("changeCurrencyFromTo", { from: currency, to: next })}
       >
         <Wallet className="text-sidebar size-5" aria-hidden="true" />
-        <span className="flex-1 text-left">Devise</span>
+        <span className="flex-1 text-start">{t("currency")}</span>
         <span className="text-sidebar font-semibold">{currency}</span>
       </button>
     )
@@ -48,10 +50,10 @@ export function CurrencySwitcher({
           variant="ghost"
           size="sm"
           className="hover:bg-sidebar/10 gap-1.5 text-sm font-medium"
-          aria-label="Changer de devise"
+          aria-label={t("changeCurrency")}
         >
           <Wallet className="text-sidebar size-4" aria-hidden="true" />
-          <span className="hidden sm:inline">Devise</span>
+          <span className="hidden sm:inline">{t("currency")}</span>
           <span className="text-sidebar font-semibold">{currency}</span>
           <ChevronDown className="size-3 opacity-50" aria-hidden="true" />
         </Button>

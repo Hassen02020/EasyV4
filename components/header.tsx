@@ -70,11 +70,7 @@ export function Header({
           <Link
             href="/"
             className="flex items-center gap-2"
-            aria-label={
-              brandName
-                ? `${brandName} — retour à l'accueil`
-                : "Easy2Book — retour à l'accueil"
-            }
+            aria-label={t("backToHome", { brand: brandName ?? "Easy2Book" })}
           >
             {logoUrl ? (
               // eslint-disable-next-line @next/next/no-img-element -- logo d'agence hébergé sur un CDN arbitraire (agencies.logoUrl), non listé dans next.config remotePatterns
@@ -154,7 +150,7 @@ export function Header({
             size="icon"
             className="lg:hidden"
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            aria-label="Toggle menu"
+            aria-label={t("toggleMenu")}
             aria-expanded={mobileMenuOpen}
             aria-controls="mobile-menu"
           >

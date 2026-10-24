@@ -12,6 +12,7 @@ import {
 import { eq, and } from "drizzle-orm"
 import { Easy2BookLogo } from "@/components/easy2book-logo"
 import { WalletTopUpForm } from "@/components/compte/wallet-topup-form"
+import { WalletProfileSetupForm } from "@/components/compte/wallet-profile-setup-form"
 import { WalletTransactionList } from "@/components/compte/wallet-transaction-list"
 import { buildLanguageAlternates } from "@/lib/seo/alternate-languages"
 
@@ -160,17 +161,8 @@ export default async function WalletPage({ searchParams }: Props) {
           </div>
         )}
 
-        {/* Formulaire de recharge */}
-        {customerId ? (
-          <WalletTopUpForm />
-        ) : (
-          <div className="bg-muted border-border rounded-2xl border p-6 text-center">
-            <p className="text-muted-foreground text-sm">
-              Profil client introuvable. Effectuez d&apos;abord une réservation
-              pour activer votre portefeuille.
-            </p>
-          </div>
-        )}
+        {/* Formulaire de recharge ou activation du profil */}
+        {customerId ? <WalletTopUpForm /> : <WalletProfileSetupForm />}
 
         {/* Historique des transactions */}
         {customerId && (

@@ -74,6 +74,8 @@ export const packagePartnerBookingSchema = z
       .email("Email invalide")
       .optional()
       .or(z.literal("")),
+    /** CART-DRIFT-01 (PACKAGE-DRIFT-01) — total TTC attendu par le client. */
+    expectedTotalTnd: z.number().optional(),
   })
   .superRefine((data, ctx) => {
     if (data.childrenAges.length !== data.children) {

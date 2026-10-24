@@ -11,6 +11,10 @@
 import { NextResponse, type NextRequest } from "next/server"
 import { createServerSupabase } from "@/lib/supabase/server"
 import { safeInternalRedirect } from "@/lib/api/safe-redirect"
+import { guestTenantContext } from "@/lib/hotel-suppliers/tenant/live-resolution"
+import { withTenantContext } from "@/lib/db/tenant-context"
+import { linkGuestCustomerToAuth } from "@/lib/booking/customer-identity"
+import { logger } from "@/lib/logger"
 
 export const dynamic = "force-dynamic"
 
@@ -36,6 +40,36 @@ export async function GET(request: NextRequest) {
     const loginUrl = new URL("/login", url.origin)
     loginUrl.searchParams.set("error", "exchange_failed")
     return NextResponse.redirect(loginUrl)
+  }
+
+  // Best-effort : lier les bookings guest au compte nouvellement authentifié.
+  // N'est jamais bloquant — un échec ne retarde ni n'empêche la redirection.
+  try {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+    if (user?.email) {
+      const tenant = await guestTenantContext()
+      if (tenant?.agencyId) {
+        const result = await withTenantContext(tenant, (tx) =>
+          linkGuestCustomerToAuth(tx, {
+            agencyId: tenant.agencyId!,
+            email: user.email!,
+            userId: user.id,
+          }),
+        )
+        if (result.skipped === "collision") {
+          logger.warn("[auth/callback] guest linking skipped — collision", {
+            userId: user.id,
+            agencyId: tenant.agencyId,
+          })
+        }
+      }
+    }
+  } catch (err) {
+    logger.warn("[auth/callback] guest linking failed (best-effort)", {
+      error: err,
+    })
   }
 
   return NextResponse.redirect(new URL(next, url.origin))

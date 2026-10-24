@@ -19,11 +19,15 @@ import { catalogPackageDepartures, catalogPackages } from "@/lib/db/schema"
 import { getDefaultAgencyId } from "@/lib/agencies/default-agency"
 import { PackageGuestBookingForm } from "@/components/packages/package-guest-booking-form"
 import { BookingSteps } from "@/components/booking/booking-steps"
+import { getActiveFiscalRule } from "@/lib/finance/fiscal-rules"
 
 async function getBookablePackage(slug: string) {
   const agencyId = await getDefaultAgencyId()
   if (!agencyId) return null
-  return withSystemContext(async (db) => {
+  // CART-DRIFT-01 (PACKAGE-DRIFT-01) — taux TVA réel transmis au form pour
+  // que computePriceBreakdown côté client utilise la même base que le serveur.
+  const fiscalRule = await getActiveFiscalRule("TN", "package", new Date())
+  const data = await withSystemContext(async (db) => {
     const [pkg] = await db
       .select()
       .from(catalogPackages)
@@ -59,6 +63,11 @@ async function getBookablePackage(slug: string) {
 
     return { pkg, departures }
   })
+  if (!data) return null
+  return {
+    ...data,
+    vatRatePct: fiscalRule ? parseFloat(fiscalRule.vatRate) : undefined,
+  }
 }
 
 export default async function PackageBookPage({
@@ -73,7 +82,7 @@ export default async function PackageBookPage({
   const { departure, campaign } = await searchParams
   const result = await getBookablePackage(slug)
   if (!result) notFound()
-  const { pkg, departures } = result
+  const { pkg, departures, vatRatePct } = result
   const t = await getTranslations("Packages")
 
   if (departures.length === 0) {
@@ -116,6 +125,7 @@ export default async function PackageBookPage({
                   : undefined,
               }))}
               campaignId={campaign}
+              vatRatePct={vatRatePct}
             />
           </div>
         </div>

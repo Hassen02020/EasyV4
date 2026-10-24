@@ -1,27 +1,21 @@
 "use server"
 
 /**
- * Action serveur B2C — initiation d'une recharge wallet client via Paymee.
+ * Actions serveur B2C — wallet client.
  *
- * Séquence :
- *  1. Résout la session (Supabase Auth) et le tenant (agencyId via guestTenantContext)
- *  2. Retrouve le customer par (authUserId + agencyId)
- *  3. Valide le montant (10–5000 TND)
- *  4. Crée un enregistrement `customer_topup_requests` en status `pending`
- *     → payment_reference = id de la demande (envoyé comme order_id à Paymee)
- *     → idempotency_key = id (clé pour creditCustomerWallet)
- *  5. Appelle Paymee createPayment → obtient le payment_url
- *  6. Met à jour le record avec le paymee_token
- *  7. Retourne { ok: true, paymentUrl }
+ * submitCustomerTopUp — initiation d'une recharge wallet via Paymee.
+ * createCustomerProfile — création/liaison du profil client (bootstrap wallet).
  */
 
 import { eq, and } from "drizzle-orm"
+import { revalidatePath } from "next/cache"
 import { withTenantContext } from "@/lib/db/tenant-context"
 import { customers, customerTopupRequests } from "@/lib/db/schema"
 import { createServerSupabase } from "@/lib/supabase/server"
 import { guestTenantContext } from "@/lib/hotel-suppliers/tenant/live-resolution"
 import { PaymeePaymentProvider } from "@/lib/payment/paymee-provider"
 import { logger } from "@/lib/logger"
+import { resolveOrCreateLinkedCustomer } from "@/lib/booking/customer-identity"
 
 const MIN_AMOUNT_TND = 10
 const MAX_AMOUNT_TND = 5000
@@ -195,4 +189,74 @@ export async function submitCustomerTopUp(
   }
 
   return { ok: true, paymentUrl: paymentResult.redirectUrl }
+}
+
+/* -------------------------------------------------------------------------- */
+/* createCustomerProfile — bootstrap wallet (WALLET-BOOTSTRAP-01)             */
+/* -------------------------------------------------------------------------- */
+
+export type CreateCustomerProfileResult =
+  | { ok: true; customerId: string }
+  | { ok: false; error: string }
+
+/**
+ * Crée (ou retrouve) le profil client B2C pour l'utilisateur authentifié.
+ *
+ * Règles de sécurité :
+ *  - L'identité (user.id, user.email) est résolue côté serveur via Supabase
+ *    Auth — jamais fournie par le client.
+ *  - L'agencyId vient de guestTenantContext() — jamais fourni par le client.
+ *  - La création est idempotente : resolveOrCreateLinkedCustomer fait un
+ *    find-or-create par (agencyId, email) et ne crée pas de doublon si le
+ *    profil existe déjà.
+ *  - Aucune écriture sur le ledger, le wallet ou les paiements — uniquement
+ *    la table `customers`.
+ */
+export async function createCustomerProfile(
+  firstName: string,
+  lastName: string,
+): Promise<CreateCustomerProfileResult> {
+  const firstNameClean = (firstName ?? "").trim()
+  const lastNameClean = (lastName ?? "").trim()
+
+  if (!firstNameClean || firstNameClean.length > 100) {
+    return { ok: false, error: "Prénom invalide (1–100 caractères)." }
+  }
+  if (!lastNameClean || lastNameClean.length > 100) {
+    return { ok: false, error: "Nom invalide (1–100 caractères)." }
+  }
+
+  const supabase = await createServerSupabase()
+  const {
+    data: { user },
+    error: authError,
+  } = await supabase.auth.getUser()
+
+  if (authError || !user?.email) {
+    return { ok: false, error: "Vous devez être connecté." }
+  }
+
+  const tenant = await guestTenantContext()
+  if (!tenant?.agencyId) {
+    return { ok: false, error: "Agence introuvable." }
+  }
+
+  try {
+    const customerId = await withTenantContext(tenant, (tx) =>
+      resolveOrCreateLinkedCustomer(tx, {
+        agencyId: tenant.agencyId!,
+        traveler: {
+          firstName: firstNameClean,
+          lastName: lastNameClean,
+          email: user.email!,
+        },
+        linkedAuthUserId: user.id,
+      }),
+    )
+    revalidatePath("/compte/wallet")
+    return { ok: true, customerId }
+  } catch (err: unknown) {
+    logger.error("[createCustomerProfile] failed", { error: err })
+    return { ok: false, error: "Erreur lors de la création du profil." }
+  }
 }

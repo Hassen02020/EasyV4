@@ -700,6 +700,11 @@ export async function createPackageBooking(
         })
         const totalTnd = breakdown.totalTnd
 
+        // --- Garde anti-drift de prix (CART-DRIFT-01 / PACKAGE-DRIFT-01) ---
+        if (priceDrifted(booking.expectedTotalTnd, breakdown.totalTnd)) {
+          throw new PriceChanged(breakdown.totalTnd)
+        }
+
         const [customer] = await tx
           .insert(customers)
           .values({
@@ -903,6 +908,13 @@ export async function createPackageBooking(
       publicRef: result.publicRef,
     }
   } catch (err) {
+    if (err instanceof PriceChanged) {
+      return {
+        ok: false,
+        error: `Le prix de ce voyage a changé (nouveau total : ${err.currentTotalTnd.toFixed(3)} DT). Merci de vérifier le montant avant de confirmer à nouveau.`,
+        code: "PRICE_CHANGED",
+      }
+    }
     const msg = err instanceof Error ? err.message : String(err)
     const codes: Record<string, string> = {
       PACKAGE_NOT_FOUND:
@@ -910,6 +922,8 @@ export async function createPackageBooking(
       PACKAGE_NOT_ACTIVE: "Ce voyage n'est plus disponible en B2B",
       DEPARTURE_NOT_FOUND: "Départ introuvable pour ce voyage",
       DEPARTURE_NOT_OPEN: "Ce départ n'est plus ouvert à la réservation",
+      FISCAL_RULE_NOT_FOUND:
+        "Règle fiscale introuvable — contacter l'administrateur",
       INSUFFICIENT_STOCK:
         msg.match(/INSUFFICIENT_STOCK: (.+)/)?.[1] ?? "Stock insuffisant",
       INSUFFICIENT_BALANCE: "Solde wallet insuffisant",

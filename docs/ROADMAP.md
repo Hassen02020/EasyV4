@@ -136,6 +136,75 @@ Error("FISCAL_RULE_NOT_FOUND")` si aucune règle active
 
 ## Chantier actif
 
+> **Aucun chantier actif** — Programme E2B-GUEST-COMMERCE-WALLET-MASTER-01 clos (2026-10-24).
+> Prochain chantier à définir après OBSERVE/AUDIT/PROPOSE + GO explicite.
+
+---
+
+### WALLET-BOOTSTRAP-01 — CLÔTURÉ (2026-10-24)
+
+**Objectif** : permettre à un nouveau compte B2C de recharger son wallet sans réservation préalable.
+
+**Problème** : `/compte/wallet` affichait un message bloquant "Profil client introuvable" dès que
+`customers.authUserId` était absent (compte créé sans réservation préalable).
+
+**Solution** :
+
+- `createCustomerProfile` ajoutée dans `lib/finance/b2c-topup-actions.ts` — server action sécurisée :
+  user+agencyId résolus côté serveur uniquement (jamais fournis par le client), idempotente via
+  `resolveOrCreateLinkedCustomer` (REUSE pattern), aucune écriture ledger/wallet/paiement.
+- `components/compte/wallet-profile-setup-form.tsx` — nouveau composant client : formulaire
+  firstName + lastName → `createCustomerProfile` → `router.refresh()`.
+- `app/(public)/[locale]/compte/wallet/page.tsx` — message bloquant remplacé par
+  `<WalletProfileSetupForm />` quand `customerId` est absent.
+
+**Tests** : 10/10 statiques (T1–T10) passent — fichier `lib/finance/__tests__/wallet-bootstrap.test.ts`.
+**TypeScript** : 0 erreur (`pnpm tsc --noEmit`).
+**Commit** : `b83dc65` · branche `claude/easy2book-v6-modernization-7gyb5v`
+
+**NOT VERIFIED** : déploiement production (pipeline `main` → Vercel) — non encore mergé.
+
+---
+
+### GUEST-CUSTOMER-LINKING-01 — CLÔTURÉ (2026-10-24)
+
+**Objectif** : lier les bookings guest au compte créé ultérieurement (post-auth callback).
+
+**Problème** : un utilisateur réservant en guest puis créant un compte conservait
+`customers.authUserId = NULL` → wallet bloqué malgré booking existant.
+
+**Solution** :
+
+- `linkGuestCustomerToAuth` ajoutée dans `lib/booking/customer-identity.ts` —
+  tenant-scoped (filtre agencyId), refuse d'écraser un authUserId existant
+  (WHERE authUserId IS NULL), gère les collisions (>1 candidat → skip + warn,
+  jamais liaison hasardeuse), case-insensitive sur email (ilike).
+- `app/api/auth/callback/route.ts` étendu — appel best-effort après
+  `exchangeCodeForSession`, user.email résolu via `supabase.auth.getUser`
+  (jamais depuis le query string), échec silencieux (try/catch).
+
+**Tests** : 10/10 statiques (T1–T10) — fichier `lib/booking/__tests__/guest-customer-linking.test.ts`.
+**TypeScript** : 0 erreur (`pnpm tsc --noEmit`).
+**Commit** : `b7329c4` · branche `claude/easy2book-v6-modernization-7gyb5v`
+
+**NOT VERIFIED** : déploiement production — non encore mergé sur `main`.
+
+---
+
+### WALLET-CHECKOUT-RESUME-01 — N/A (2026-10-24)
+
+**Audit** : déjà entièrement implémenté — aucune modification nécessaire.
+
+- `components/booking/checkout-form.tsx` : option `"wallet"` dans `METHODS` (L90-94),
+  balance affichée (L269-278), désactivée si balance < total (L236), validation `onSubmit` (L186-193).
+- `app/(public)/[locale]/booking/checkout/page.tsx` : `walletBalanceTnd` résolu côté serveur
+  via `resolveLinkedAuthUserId` + `getCustomerWalletBalance` (L105-120), transmis à `CheckoutForm` (L206).
+- `lib/booking/guest-actions.ts:813` : `debitCustomerWallet` exécuté dans la transaction.
+
+Classé **N/A** — SEARCH → VERIFY → REUSE (aucune création nécessaire).
+
+---
+
 ### ACTIVITY-B2C-DRIFT-01 — CLÔTURÉ (2026-10-24)
 
 **Objectif** : activer la garde anti-drift de prix (CART-DRIFT-01) sur le chemin de réservation
@@ -316,6 +385,66 @@ branche `claude/easy2book-v6-modernization-7gyb5v`.
 
 **Preuves** : 10/10 invariants ACTIVITY-B2B-DRIFT-01 verts, typecheck 0 erreur, lint 0 erreur,
 commit `20e73e5`, branche `claude/easy2book-v6-modernization-7gyb5v`.
+
+---
+
+### PACKAGE-DRIFT-01 — CLÔTURÉ (2026-10-24)
+
+**Objectif** : activer la garde anti-drift de prix (CART-DRIFT-01) sur les deux chemins de
+réservation Package — B2C guest (`createGuestPackageBooking`) et B2B partenaire
+(`createPackageBooking`). La garde `priceDrifted()` était câblée en B2C mais inerte
+(`expectedTotalTnd` jamais transmis) ; complètement absente en B2B.
+
+**Cause racine B2C** : `PackageGuestBookingForm` calculait `totalPrice = adultPrice × adults +
+childPrice × children` (HT), tandis que le serveur calcule TTC via `computePriceBreakdown`.
+Transmettre HT comme `expectedTotalTnd` aurait causé des faux positifs systématiques.
+
+**Cause racine B2B** : aucun champ `expectedTotalTnd` dans `packagePartnerBookingSchema`, aucune
+garde dans la fonction interne de `booking-actions.ts`, aucun `vatRatePct` fourni au composant
+`authorized-products-list.tsx`.
+
+**Solution** :
+
+- `page.tsx` (B2C) → `getActiveFiscalRule` → `vatRatePct` prop → form calcule TTC via
+  `computePriceBreakdown` → `expectedTotalTnd` transmis → garde serveur active.
+- `packagePartnerBookingSchema` → `expectedTotalTnd: z.number().optional()`.
+- `booking-actions.ts` → garde `priceDrifted` AVANT `.insert()` en B2B + catch `PriceChanged` +
+  code `FISCAL_RULE_NOT_FOUND`.
+- `product-booking-options-actions.ts` → `vatRatePct` dans `kind="departure"` via
+  `getActiveFiscalRuleInTx` (sans fallback codé en dur).
+- `authorized-products-list.tsx` → `expectedPackageTotal` via `computePriceBreakdown` +
+  transmission à `createPackageBooking`.
+
+**Fallback documenté** : si `vatRatePct` absent → `expectedPackageTotal` non calculé →
+`expectedTotalTnd` absent → garde inactive (priceDrifted retourne false sur undefined).
+Acceptable : le serveur lève `FISCAL_RULE_NOT_FOUND` si la règle fiscale est réellement absente
+(fail-closed LOT 6). Documenté test T10.
+
+**NOT VERIFIED** : test E2E exécutant `createPackageBooking`/`createGuestPackageBooking` avec
+`expectedTotalTnd` drifté et vérifiant que `PRICE_CHANGED` est levé ET qu'aucune ligne n'est
+insérée en DB. Les tests T5+T6 (structurels) prouvent la position de la garde et la présence du
+code d'erreur, mais ne l'exécutent pas avec une vraie DB.
+
+**Changements** :
+
+- `app/(public)/[locale]/packages/[slug]/book/page.tsx` [EXTEND] — +import `getActiveFiscalRule`,
+  +fetch `fiscalRule`, +`vatRatePct` dans `getBookablePackage` return, +prop `vatRatePct`
+- `components/packages/package-guest-booking-form.tsx` [EXTEND] — +prop `vatRatePct?: number`,
+  +import `computePriceBreakdown`, +calcul `priceBreakdown` TTC, +`expectedTotalTnd` dans submit
+  et cart
+- `lib/packages/schemas.ts` [EXTEND] — +`expectedTotalTnd: z.number().optional()` dans
+  `packagePartnerBookingSchema`
+- `lib/packages/booking-actions.ts` [EXTEND] — +garde `priceDrifted` B2B avant `.insert()`,
+  +catch `PriceChanged` B2B, +`FISCAL_RULE_NOT_FOUND` dans map d'erreurs
+- `lib/b2b/product-booking-options-actions.ts` [EXTEND] — +`vatRatePct?: number` dans
+  `kind="departure"`, +`getActiveFiscalRuleInTx` pour packages
+- `components/pro/authorized-products-list.tsx` [EXTEND] — +`expectedPackageTotal` via
+  `computePriceBreakdown`, +`expectedTotalTnd` dans `createPackageBooking`
+- `lib/packages/__tests__/package-drift.test.ts` [CREATE] — 10 tests (T1–T8 structurels +
+  T9 parité fallback 50 % enfant + T10 bypass silencieux documenté)
+
+**Preuves** : 10/10 tests PACKAGE-DRIFT-01 verts, `tsc --noEmit` 0 erreur, Prettier clean,
+commit `f35540e`, branche `claude/easy2book-v6-modernization-7gyb5v`.
 
 ---
 

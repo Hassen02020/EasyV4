@@ -30,10 +30,7 @@ const topupActionsSrc = readFileSync(
   "utf8",
 )
 const walletPageSrc = readFileSync(
-  join(
-    ROOT,
-    "app/(public)/[locale]/compte/wallet/page.tsx",
-  ),
+  join(ROOT, "app/(public)/[locale]/compte/wallet/page.tsx"),
   "utf8",
 )
 const profileFormSrc = readFileSync(
@@ -90,10 +87,7 @@ test("WALLET-BOOTSTRAP-01 T5: revalidatePath appelé dans createCustomerProfile"
 // ─── T6. Ancien message bloquant absent de wallet/page.tsx ───────────────────
 
 test("WALLET-BOOTSTRAP-01 T6: wallet/page.tsx ne contient plus le message bloquant", () => {
-  assert.doesNotMatch(
-    walletPageSrc,
-    /Effectuez d.abord une réservation/,
-  )
+  assert.doesNotMatch(walletPageSrc, /Effectuez d.abord une réservation/)
   assert.doesNotMatch(walletPageSrc, /Profil client introuvable/)
 })
 

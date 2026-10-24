@@ -149,6 +149,7 @@ Error("FISCAL_RULE_NOT_FOUND")` si aucune règle active
 `customers.authUserId` était absent (compte créé sans réservation préalable).
 
 **Solution** :
+
 - `createCustomerProfile` ajoutée dans `lib/finance/b2c-topup-actions.ts` — server action sécurisée :
   user+agencyId résolus côté serveur uniquement (jamais fournis par le client), idempotente via
   `resolveOrCreateLinkedCustomer` (REUSE pattern), aucune écriture ledger/wallet/paiement.
@@ -173,6 +174,7 @@ Error("FISCAL_RULE_NOT_FOUND")` si aucune règle active
 `customers.authUserId = NULL` → wallet bloqué malgré booking existant.
 
 **Solution** :
+
 - `linkGuestCustomerToAuth` ajoutée dans `lib/booking/customer-identity.ts` —
   tenant-scoped (filtre agencyId), refuse d'écraser un authUserId existant
   (WHERE authUserId IS NULL), gère les collisions (>1 candidat → skip + warn,
@@ -402,6 +404,7 @@ garde dans la fonction interne de `booking-actions.ts`, aucun `vatRatePct` fourn
 `authorized-products-list.tsx`.
 
 **Solution** :
+
 - `page.tsx` (B2C) → `getActiveFiscalRule` → `vatRatePct` prop → form calcule TTC via
   `computePriceBreakdown` → `expectedTotalTnd` transmis → garde serveur active.
 - `packagePartnerBookingSchema` → `expectedTotalTnd: z.number().optional()`.

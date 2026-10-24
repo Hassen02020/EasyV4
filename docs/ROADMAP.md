@@ -144,7 +144,7 @@ Error("FISCAL_RULE_NOT_FOUND")` si aucune règle active
 > - DEST-CARD-FALLBACK-01 (lot 1, A08) : « Code testé », PR ouverte, merge par le propriétaire en attente.
 > - Production de tous ces chantiers : NOT VERIFIED (accès Vercel 403).
 >
-> Programme wallet (WALLET-JOURNEY-AUDIT-01 et suivants) : inchangé, en attente. PR #261 / #262 : CI verte (`format` corrigé), merge par le propriétaire en attente.
+> Programme wallet : WALLET-GUEST-INTEGRATION-TESTS-01 clos, PR #261 — 15/15 tests exécutés réellement sur PostgreSQL jetable local (0 skip, 2026-10-24), merge par le propriétaire en attente. WALLET-JOURNEY-AUDIT-01 et suivants : inchangés, en attente.
 > Aucune exécution sans GO explicite.
 
 ---
@@ -305,6 +305,31 @@ Error("FISCAL_RULE_NOT_FOUND")` si aucune règle active
 
 **PR #260 fusionnée sur `main` le 2026-10-24** (SHA `1261ef9246901374d1cbac9ee9ef3c69a42dd405`).
 **NOT VERIFIED** : déploiement Vercel production `easy2book-new` — accès Vercel 403 au moment de la clôture ; à confirmer sur le dashboard.
+
+---
+
+### WALLET-GUEST-INTEGRATION-TESTS-01 — CLOS (2026-10-24)
+
+**Objectif** : couvrir par des tests d'intégration réels (Postgres, rôle `app_runtime`) la logique
+`resolveOrCreateLinkedCustomer` et `linkGuestCustomerToAuth`, vérifier isolation tenant, RLS,
+absence d'écritures financières et comportements aux limites.
+
+**Fichiers** :
+
+- `lib/finance/__tests__/create-customer-profile.integration.test.ts` — 9 tests T1–T9
+- `lib/booking/__tests__/link-guest-customer.integration.test.ts` — 6 tests T1–T6
+
+**Résultats** :
+
+- Typecheck `tsc --noEmit` : 0 erreur
+- 15/15 SKIP en CI (DATABASE_URL absent — comportement attendu, même pattern que les tests existants)
+- Aucune écriture en production, aucune migration, aucun déploiement
+
+**Commit** : `0253234` · branche `claude/wallet-guest-integration-tests-01` · **PR #261**
+
+**Exécution réelle (2026-10-24)** : 15/15 passés, 0 skip, sur une base PostgreSQL 16 jetable locale (schéma `drizzle-kit push` + `drizzle/manual/*.sql`, procédure du job CI `financial-e2e`, rôle `app_runtime` non-BYPASSRLS ; base détruite après). Aucune ligne résiduelle dans `agencies` / `customers`.
+
+**NOT VERIFIED** : exécution en CI — ces fichiers ne sont pas dans la liste du job `financial-e2e`, ils y restent en skip.
 
 ---
 

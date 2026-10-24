@@ -25,7 +25,7 @@
  * compris quand personne n'est connecté.
  */
 
-import { eq, and, or, ilike } from "drizzle-orm"
+import { eq, and, or, ilike, isNull } from "drizzle-orm"
 import { createServerSupabase } from "@/lib/supabase/server"
 import type { DrizzleTransaction } from "@/lib/db/client"
 import { customers } from "@/lib/db/schema"
@@ -123,6 +123,46 @@ export interface LinkableTraveler {
  *   - Nouvelle ligne : `authUserId` = `linkedAuthUserId` tel quel (`null`
  *     pour un guest — comportement historique inchangé).
  */
+/**
+ * Lie une row `customers` guest (authUserId NULL) au compte authentifié
+ * post-login — appelée best-effort depuis le callback auth Supabase.
+ *
+ * Règles de sécurité :
+ *  - Tenant-scoped : filtre strict sur agencyId.
+ *  - Refuse d'écraser : WHERE authUserId IS NULL — une row déjà liée est ignorée.
+ *  - Gestion des collisions : si plusieurs rows guest matchent le même email
+ *    (cas rare mais possible), aucune liaison n'est faite. Mieux vaut ne rien
+ *    faire que lier au mauvais profil.
+ *  - Case-insensitive : ilike sur l'email (cohérent avec ownedByCurrentCustomer).
+ */
+export async function linkGuestCustomerToAuth(
+  tx: DrizzleTransaction,
+  params: { agencyId: string; email: string; userId: string },
+): Promise<{ linked: boolean; skipped?: string }> {
+  const { agencyId, email, userId } = params
+
+  const candidates = await tx
+    .select({ id: customers.id })
+    .from(customers)
+    .where(
+      and(
+        eq(customers.agencyId, agencyId),
+        ilike(customers.email, email.trim()),
+        isNull(customers.authUserId),
+      ),
+    )
+
+  if (candidates.length === 0) return { linked: false, skipped: "no_guest_row" }
+  if (candidates.length > 1) return { linked: false, skipped: "collision" }
+
+  await tx
+    .update(customers)
+    .set({ authUserId: userId })
+    .where(eq(customers.id, candidates[0]!.id))
+
+  return { linked: true }
+}
+
 export async function resolveOrCreateLinkedCustomer(
   tx: DrizzleTransaction,
   params: {

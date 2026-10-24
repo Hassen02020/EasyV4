@@ -136,8 +136,39 @@ Error("FISCAL_RULE_NOT_FOUND")` si aucune règle active
 
 ## Chantier actif
 
-> **Aucun chantier actif** — Programme E2B-GUEST-COMMERCE-WALLET-MASTER-01 clos (2026-10-24).
+> **Aucun chantier actif** — WALLET-TOPUP-STATE-01 clos (2026-10-24). PR #262 ouverte.
 > Prochain chantier à définir après OBSERVE/AUDIT/PROPOSE + GO explicite.
+
+---
+
+### WALLET-TOPUP-STATE-01 — CLOS (2026-10-24)
+
+**Objectif** : tests d'intégration PostgreSQL réels pour les fonctions de lecture wallet B2C
+(`getCustomerWalletBalance`, `getCustomerWalletTransactions`).
+
+**Trou comblé** : `processCustomerTopupWebhookCore` couvert par 8 scénarios, mais la couche
+lecture (solde, historique transactions) avait zéro test d'intégration DB.
+
+**Fichier créé** : `lib/finance/__tests__/topup-state-machine.integration.test.ts`
+
+**Scénarios (T1–T7)** :
+- T1 : solde initial 0, historique vide, aucun wallet_account créé
+- T2 : solde correct après crédit unique (100 TND)
+- T3 : solde cumulé après crédits successifs (50 + 30 = 80 TND)
+- T4 : historique 1 entrée — type, category, montant, balanceBefore/After vérifiés
+- T5 : ordre chronologique inverse (plus récent en premier)
+- T6 : isolation tenant — crédit agence A invisible depuis agence B
+- T7 : demande pending ne crédite pas (0 entrée wallet_ledger)
+
+**Résultats** :
+- Typecheck `tsc --noEmit` : 0 erreur
+- Invariants statiques `r9-02-b2c-topup-invariants.test.ts` : 13/13 pass
+- Tests T1–T7 : 7/7 SKIP (DATABASE_URL absent en CI — comportement attendu)
+
+**NOT VERIFIED** : tests PostgreSQL non exécutés (DATABASE_URL absent). Validation à effectuer
+avec une DB locale.
+
+**Commit** : `f99e125` · branche `claude/wallet-topup-state-01` · PR #262
 
 ---
 

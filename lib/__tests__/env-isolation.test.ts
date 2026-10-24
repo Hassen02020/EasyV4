@@ -1,7 +1,9 @@
 import test from "node:test"
 import assert from "node:assert/strict"
 import {
+  assertDeploymentIsolation,
   checkDeploymentIsolation,
+  DEPLOYMENT_ISOLATION_REFUSED,
   resolveDeploymentEnvironment,
   supabaseRefFromApiUrl,
   supabaseRefFromDatabaseUrl,
@@ -182,4 +184,21 @@ test("aucun secret dans les messages d'erreur", () => {
       e,
     )
   }
+})
+
+test("assertDeploymentIsolation : lève sans secret, laisse passer si isolé", () => {
+  const secret = "S3cretPassw0rd"
+  assert.throws(
+    () =>
+      assertDeploymentIsolation({
+        ...previewOk,
+        DATABASE_URL: `postgresql://postgres.${PROD}:${secret}@aws-0-eu-west-1.pooler.supabase.com:6543/postgres`,
+      }),
+    (e: Error) =>
+      e.message === DEPLOYMENT_ISOLATION_REFUSED && !e.message.includes(secret),
+  )
+  assert.doesNotThrow(() => assertDeploymentIsolation(previewOk))
+  assert.doesNotThrow(() =>
+    assertDeploymentIsolation({ DATABASE_URL: "postgres://x:x@127.0.0.1/x" }),
+  )
 })

@@ -171,3 +171,21 @@ export function checkDeploymentIsolation(env: Env): string[] {
   if (deployment === "preview") return checkPreview(env)
   return []
 }
+
+/** Message générique (aucune valeur de variable) renvoyé quand l'isolation
+ * échoue — la liste détaillée est déjà journalisée par validateEnv(). */
+export const DEPLOYMENT_ISOLATION_REFUSED =
+  "[env] DÉMARRAGE REFUSÉ — déploiement non isolé de la production (voir docs/ops/PREVIEW_ISOLATION.md)"
+
+/** Lève une erreur si l'environnement courant n'est pas isolé.
+ *
+ * Nécessaire en plus de validateEnv() : sur Vercel, une erreur levée dans
+ * register() (instrumentation.ts) devient une « Unhandled Rejection » et Next
+ * rend quand même la requête en cours avant l'arrêt du processus — constaté
+ * sur la Preview de la PR #269. Les points de création de connexion (DB,
+ * Supabase serveur, stockage) et proxy.ts appellent donc cette garde. */
+export function assertDeploymentIsolation(env: Env = process.env as Env): void {
+  if (checkDeploymentIsolation(env).length > 0) {
+    throw new Error(DEPLOYMENT_ISOLATION_REFUSED)
+  }
+}

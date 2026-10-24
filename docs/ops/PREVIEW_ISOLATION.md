@@ -1,7 +1,13 @@
 # Isolation Preview / Production (PREVIEW-PROD-ISOLATION-01)
 
 Une Preview Vercel ne doit jamais écrire dans la base de production ni déclencher un paiement réel.
-La garde `lib/env-isolation.ts`, appelée par `validateEnv()` (`instrumentation.ts`), **refuse le démarrage du serveur** si cette règle n'est pas prouvée par la configuration.
+La garde `lib/env-isolation.ts` refuse tout service si cette règle n'est pas prouvée par la configuration, à trois niveaux :
+
+1. `validateEnv()` (`instrumentation.ts`) : journalise la liste détaillée des variables en cause (`[env] DÉMARRAGE REFUSÉ`).
+2. `proxy.ts` : première instruction, avant toute résolution tenant/session — répond **HTTP 503** à toute requête.
+3. `getDb()`, `createServerSupabase()`, `createServiceRoleSupabase()`, stockage média Supabase : refusent de créer une connexion.
+
+Les niveaux 2 et 3 sont indispensables : sur Vercel, une erreur levée dans `register()` devient une « Unhandled Rejection » et Next **rend quand même** la requête en cours avant l'arrêt du processus (constaté sur la Preview de la PR #269, 2026-10-24 : page servie en HTTP 200 après des tentatives de requêtes vers la base configurée).
 
 ## Détermination de l'environnement
 
@@ -48,4 +54,4 @@ Tant que l'étape 3 n'est pas faite, **toutes les Previews refusent de démarrer
 ## Vérification
 
 - Tests : `node --import tsx --test lib/__tests__/env-isolation.test.ts`.
-- Une Preview mal configurée échoue au démarrage avec `[env] DÉMARRAGE REFUSÉ` et la liste des variables en cause dans les logs Vercel.
+- Une Preview mal configurée répond HTTP 503 (`[env] DÉMARRAGE REFUSÉ — déploiement non isolé de la production`) sur toutes les routes ; la liste des variables en cause figure dans les logs Vercel.

@@ -12,8 +12,10 @@
 
 import { cookies } from "next/headers"
 import { createServerClient, type CookieMethodsServer } from "@supabase/ssr"
+import { assertDeploymentIsolation } from "@/lib/env-isolation"
 
 export async function createServerSupabase() {
+  assertDeploymentIsolation()
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL
   const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
@@ -53,6 +55,7 @@ export async function createServerSupabase() {
  * Ne JAMAIS exposer la service role key côté client.
  */
 export function createServiceRoleSupabase() {
+  assertDeploymentIsolation()
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
 

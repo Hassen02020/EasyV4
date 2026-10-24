@@ -12,6 +12,10 @@ import { normalizeHost } from "@/lib/tenant/host"
 import { isTenantExemptRoute } from "@/lib/tenant/route-scope"
 import { routing } from "@/i18n/routing"
 import {
+  checkDeploymentIsolation,
+  DEPLOYMENT_ISOLATION_REFUSED,
+} from "@/lib/env-isolation"
+import {
   TENANT_AGENCY_ID_HEADER,
   TENANT_DOMAIN_HEADER,
   TENANT_BRAND_NAME_HEADER,
@@ -130,6 +134,21 @@ async function resolveTenantForHost(host: string | null): Promise<{
 }
 
 export async function proxy(request: NextRequest) {
+  // PREVIEW-PROD-ISOLATION-01 : avant toute résolution tenant/session (qui
+  // interroge la base), refuser toute requête d'un déploiement non isolé.
+  // validateEnv() seul ne suffit pas : sur Vercel, Next rend la requête même
+  // quand register() échoue.
+  if (checkDeploymentIsolation(process.env).length > 0) {
+    return new NextResponse(DEPLOYMENT_ISOLATION_REFUSED, {
+      status: 503,
+      headers: {
+        ...SECURITY_HEADERS,
+        "content-type": "text/plain; charset=utf-8",
+        "cache-control": "no-store",
+      },
+    })
+  }
+
   const pathname = request.nextUrl.pathname
 
   // --- White Label : résoudre le tenant AVANT updateSession(), pour que

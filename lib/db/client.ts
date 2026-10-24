@@ -17,12 +17,16 @@
 import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js"
 import postgres from "postgres"
 import * as schema from "./schema"
+import { assertDeploymentIsolation } from "@/lib/env-isolation"
 
 let _client: ReturnType<typeof postgres> | null = null
 let _db: PostgresJsDatabase<typeof schema> | null = null
 
 export function getDb(): PostgresJsDatabase<typeof schema> {
   if (_db) return _db
+
+  // PREVIEW-PROD-ISOLATION-01 : jamais de connexion depuis un déploiement non isolé.
+  assertDeploymentIsolation()
 
   const url = process.env.DATABASE_URL
   if (!url) {

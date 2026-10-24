@@ -136,6 +136,39 @@ Error("FISCAL_RULE_NOT_FOUND")` si aucune règle active
 
 ## Chantier actif
 
+### ACTIVITY-B2B-DRIFT-01 — CLÔTURÉ (2026-10-24)
+
+**Objectif** : combler le gap documenté LOT 5 — `activityPartnerBookingSchema` sans
+`expectedTotalTnd`, dérive de prix impossible à détecter côté serveur sans modification frontend.
+
+**Contraintes GO** :
+- Même base de calcul serveur/client (vatRatePct transmis avec les options via le moteur fiscal réel).
+- Garde positionnée AVANT tout effet financier (débit wallet, INSERT reservation, payment).
+- Tous les callers actifs identifiés ; comportement sur `undefined` explicitement documenté.
+
+**Changements** :
+- `lib/activities/schemas.ts` [EXTEND] — +1 champ `expectedTotalTnd?: number` avec JSDoc
+- `lib/activities/booking-actions.ts` [EXTEND] — +1 import `priceDrifted`, +1 guard
+  `if (priceDrifted(booking.expectedTotalTnd, totalTnd)) throw PRICE_CHANGED` AVANT
+  `debitPartnerCredit` ; +1 entrée PRICE_CHANGED dans la map d'erreurs
+- `lib/b2b/product-booking-options-actions.ts` [EXTEND] — +1 import `getActiveFiscalRuleInTx`,
+  +1 champ `vatRatePct: number` dans le type BookableOption (session kind), fetch du taux TVA
+  réel dans le chemin activity
+- `components/pro/authorized-products-list.tsx` [EXTEND] — +import `computePriceBreakdown` /
+  `formatMoney`, dérivation `expectedActivityTotal`, affichage "Total estimé : X,XX TND (TTC)",
+  transmission `expectedTotalTnd` vers `createActivityBooking`
+- `lib/activities/__tests__/activity-b2b-drift.test.ts` [CREATE] — 10 invariants statiques
+
+**Callers identifiés** :
+- `authorized-products-list.tsx` — ÉTENDU (transmet `expectedTotalTnd`)
+- `lib/journeys/journey-actions.ts` — NON modifié ; chemin serveur-serveur, pas de vue client,
+  garde skip acceptable (`priceDrifted` retourne `false` sur `undefined`)
+
+**Preuves** : 10/10 invariants ACTIVITY-B2B-DRIFT-01 verts, typecheck 0 erreur, lint 0 erreur,
+commit `20e73e5`, branche `claude/easy2book-v6-modernization-7gyb5v`.
+
+---
+
 ### INNGEST-WALLET-CREDITED-WIRING-01 — CLÔTURÉ (2026-10-23)
 
 **Objectif** : enregistrer `processWalletCustomerCredited` dans `app/api/inngest/route.ts`. La fonction était exportée depuis `lib/inngest/functions/index.ts` depuis la création de B2C-WALLET-EMAIL-01, mais jamais présente dans le tableau `functions[]`. Inngest cloud l'ignorait silencieusement — aucun email de confirmation n'était envoyé aux clients B2C après une recharge wallet via Paymee.

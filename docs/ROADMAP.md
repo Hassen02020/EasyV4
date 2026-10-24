@@ -136,9 +136,35 @@ Error("FISCAL_RULE_NOT_FOUND")` si aucune règle active
 
 ## Chantier actif
 
-> **Aucun chantier actif** — PACKAGE-DRIFT-01 clos (2026-10-24).
-> Prochain chantier à définir après OBSERVE/AUDIT/PROPOSE + GO explicite.
-> Programme E2B-GUEST-COMMERCE-WALLET-MASTER-01 en cours d'observation (2026-10-24).
+> **WALLET-BOOTSTRAP-01 — DONE (2026-10-24)**
+> Commit `b83dc65` · branche `claude/easy2book-v6-modernization-7gyb5v`
+>
+> **Prochain chantier à définir** : GUEST-CUSTOMER-LINKING-01 (lier bookings guest au compte post-auth).
+> En attente GO explicite après OBSERVE/AUDIT/PROPOSE.
+
+---
+
+### WALLET-BOOTSTRAP-01 — CLÔTURÉ (2026-10-24)
+
+**Objectif** : permettre à un nouveau compte B2C de recharger son wallet sans réservation préalable.
+
+**Problème** : `/compte/wallet` affichait un message bloquant "Profil client introuvable" dès que
+`customers.authUserId` était absent (compte créé sans réservation préalable).
+
+**Solution** :
+- `createCustomerProfile` ajoutée dans `lib/finance/b2c-topup-actions.ts` — server action sécurisée :
+  user+agencyId résolus côté serveur uniquement (jamais fournis par le client), idempotente via
+  `resolveOrCreateLinkedCustomer` (REUSE pattern), aucune écriture ledger/wallet/paiement.
+- `components/compte/wallet-profile-setup-form.tsx` — nouveau composant client : formulaire
+  firstName + lastName → `createCustomerProfile` → `router.refresh()`.
+- `app/(public)/[locale]/compte/wallet/page.tsx` — message bloquant remplacé par
+  `<WalletProfileSetupForm />` quand `customerId` est absent.
+
+**Tests** : 10/10 statiques (T1–T10) passent — fichier `lib/finance/__tests__/wallet-bootstrap.test.ts`.
+**TypeScript** : 0 erreur (`pnpm tsc --noEmit`).
+**Commit** : `b83dc65` · branche `claude/easy2book-v6-modernization-7gyb5v`
+
+**NOT VERIFIED** : déploiement production (pipeline `main` → Vercel) — non encore mergé.
 
 ---
 

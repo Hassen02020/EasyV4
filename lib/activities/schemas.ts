@@ -75,6 +75,15 @@ export const activityPartnerBookingSchema = z
       .email("Email invalide")
       .optional()
       .or(z.literal("")),
+    /**
+     * CART-DRIFT-01 (ACTIVITY-B2B-DRIFT-01) — snapshot du total TTC affiché
+     * à l'agent Pro au dernier calcul côté client, transmis au serveur pour
+     * détecter un repricing entre l'affichage et le débit wallet. Absent si
+     * l'appel vient d'un chemin serveur-serveur (ex. journey-actions.ts) qui
+     * n'a pas de "vue" client à protéger ; dans ce cas la garde ne s'active
+     * pas (priceDrifted renvoie false sur undefined).
+     */
+    expectedTotalTnd: z.number().positive().optional(),
   })
   .superRefine((data, ctx) => {
     if (data.childrenAges.length !== data.children) {

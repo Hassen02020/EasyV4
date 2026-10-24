@@ -38,6 +38,7 @@ const webhookSrc = readFileSync(
   join(ROOT, "app/api/payment/webhook/route.ts"),
   "utf8",
 )
+const routeSrc = readFileSync(join(ROOT, "app/api/inngest/route.ts"), "utf8")
 
 // ─── 1. Event type déclaré dans client.ts ────────────────────────────────────
 
@@ -117,4 +118,21 @@ test("B2C-WALLET-EMAIL-01: handler résout email depuis customers table (jamais 
   assert.match(handlerSrc, /customers/)
   // email.customers résolu depuis DB (eq(customers.id, customerId))
   assert.match(handlerSrc, /eq\(customers\.id,\s*customerId\)/)
+})
+
+// ─── 11. processWalletCustomerCredited importée dans route.ts ─────────────────
+// INNGEST-WALLET-CREDITED-WIRING-01 — vérifie que le gap de câblage est comblé
+
+test("B2C-WALLET-EMAIL-01: processWalletCustomerCredited importée dans app/api/inngest/route.ts", () => {
+  assert.match(routeSrc, /processWalletCustomerCredited/)
+})
+
+// ─── 12. processWalletCustomerCredited dans le tableau functions de route.ts ──
+
+test("B2C-WALLET-EMAIL-01: processWalletCustomerCredited dans le tableau functions de route.ts", () => {
+  const functionsBlockIdx = routeSrc.indexOf("functions: [")
+  assert.match(
+    routeSrc.slice(functionsBlockIdx),
+    /processWalletCustomerCredited,/,
+  )
 })

@@ -136,6 +136,89 @@ Error("FISCAL_RULE_NOT_FOUND")` si aucune règle active
 
 ## Chantier actif
 
+### OMRA-B2B-DRIFT-01 — CLÔTURÉ (2026-10-24)
+
+**Objectif** : ajouter la garde anti-drift de prix (CART-DRIFT-01) au chemin de réservation
+Omra B2B (`createOmraBooking`) — même invariant que ACTIVITY-B2B-DRIFT-01. Protège contre une
+variation du prix allotment entre l'affichage dans `OmraPartnerBookingForm` et le débit wallet.
+
+**Contraintes GO** :
+
+- Même calcul des deux côtés : `pricePerPilgrim × pilgrimCount` sans arrondi supplémentaire
+  (prix Omra stocké TTC en base, pas de `computePriceBreakdown` côté client).
+- Garde positionnée AVANT toute écriture persistée (insert customers, réservation, debitPartnerCredit).
+- Appels serveur-serveur sans `expectedTotalTnd` documentés et acceptés (`priceDrifted` retourne
+  `false` sur `undefined`).
+
+**Changements** :
+
+- `lib/omra/booking-actions.ts` [EXTEND] — +1 champ `expectedTotalTnd?: number` dans
+  `OmraBookingInput`, +1 import `priceDrifted`, +1 garde `if (priceDrifted(...)) throw PRICE_CHANGED`
+  AVANT insert customers, +1 entrée PRICE_CHANGED dans la map d'erreurs
+- `components/omra/omra-partner-booking-form.tsx` [EXTEND] — +1 `expectedTotalTnd: totalPrice`
+  dans l'appel `createOmraBooking`
+- `lib/omra/__tests__/omra-b2b-drift.test.ts` [CREATE] — 7 invariants statiques
+
+**Callers identifiés** :
+
+- `OmraPartnerBookingForm` (components/omra/omra-partner-booking-form.tsx) — ÉTENDU
+- `createOmraBooking` appelé directement depuis `/pro/sandbox` (données mockées, démo) :
+  `expectedTotalTnd` absent → garde skip acceptable
+
+**Preuves** : 7/7 invariants OMRA-B2B-DRIFT-01 verts, typecheck 0 erreur,
+branche `claude/easy2book-v6-modernization-7gyb5v`.
+
+---
+
+### ACTIVITY-B2B-DRIFT-01 — CLÔTURÉ (2026-10-24)
+
+**Objectif** : combler le gap documenté LOT 5 — `activityPartnerBookingSchema` sans
+`expectedTotalTnd`, dérive de prix impossible à détecter côté serveur sans modification frontend.
+
+**Contraintes GO** :
+
+- Même base de calcul serveur/client (vatRatePct transmis avec les options via le moteur fiscal réel).
+- Garde positionnée AVANT tout effet financier (débit wallet, INSERT reservation, payment).
+- Tous les callers actifs identifiés ; comportement sur `undefined` explicitement documenté.
+
+**Changements** :
+
+- `lib/activities/schemas.ts` [EXTEND] — +1 champ `expectedTotalTnd?: number` avec JSDoc
+- `lib/activities/booking-actions.ts` [EXTEND] — +1 import `priceDrifted`, +1 guard
+  `if (priceDrifted(booking.expectedTotalTnd, totalTnd)) throw PRICE_CHANGED` AVANT
+  `debitPartnerCredit` ; +1 entrée PRICE_CHANGED dans la map d'erreurs
+- `lib/b2b/product-booking-options-actions.ts` [EXTEND] — +1 import `getActiveFiscalRuleInTx`,
+  +1 champ `vatRatePct: number` dans le type BookableOption (session kind), fetch du taux TVA
+  réel dans le chemin activity
+- `components/pro/authorized-products-list.tsx` [EXTEND] — +import `computePriceBreakdown` /
+  `formatMoney`, dérivation `expectedActivityTotal`, affichage "Total estimé : X,XX TND (TTC)",
+  transmission `expectedTotalTnd` vers `createActivityBooking`
+- `lib/activities/__tests__/activity-b2b-drift.test.ts` [CREATE] — 10 invariants statiques
+
+**Callers identifiés** :
+
+- `authorized-products-list.tsx` — ÉTENDU (transmet `expectedTotalTnd`)
+- `lib/journeys/journey-actions.ts` — NON modifié ; chemin serveur-serveur, pas de vue client,
+  garde skip acceptable (`priceDrifted` retourne `false` sur `undefined`)
+
+**Preuves** : 10/10 invariants ACTIVITY-B2B-DRIFT-01 verts, typecheck 0 erreur, lint 0 erreur,
+commit `20e73e5`, branche `claude/easy2book-v6-modernization-7gyb5v`.
+
+---
+
+### INNGEST-WALLET-CREDITED-WIRING-01 — CLÔTURÉ (2026-10-23)
+
+**Objectif** : enregistrer `processWalletCustomerCredited` dans `app/api/inngest/route.ts`. La fonction était exportée depuis `lib/inngest/functions/index.ts` depuis la création de B2C-WALLET-EMAIL-01, mais jamais présente dans le tableau `functions[]`. Inngest cloud l'ignorait silencieusement — aucun email de confirmation n'était envoyé aux clients B2C après une recharge wallet via Paymee.
+
+**Changements** :
+
+- `app/api/inngest/route.ts` [EXTEND] — +1 import `processWalletCustomerCredited`, +1 entrée dans `functions[]`
+- `lib/finance/__tests__/b2c-wallet-email-wiring.test.ts` [EXTEND] — +2 invariants (11, 12) vérifiant l'import et la présence dans `functions[]` de `route.ts`
+
+**Preuves** : 12/12 invariants B2C-WALLET-EMAIL-01 verts, typecheck 0 erreur, lint 0 erreur, commit `6ed54ac`, branche `claude/easy2book-v6-modernization-7gyb5v`.
+
+---
+
 ### INNGEST-ROUTE-WIRING-GAP-01 — CLÔTURÉ (2026-10-23)
 
 **Objectif** : enregistrer les 4 fonctions Inngest exportées depuis `lib/inngest/functions/index.ts` mais jamais présentes dans le tableau `functions` de `app/api/inngest/route.ts`. Sans enregistrement, Inngest cloud les ignore silencieusement — aucun email de confirmation Packages/Activities/Voiture, aucune livraison CRM.

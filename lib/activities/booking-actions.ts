@@ -47,6 +47,7 @@ import { creditPlatformCommission } from "@/lib/finance/platform-commission"
 import {
   computePriceBreakdown,
   buildFiscalSnapshot,
+  priceDrifted,
 } from "@/lib/booking/pricing"
 import { getActiveFiscalRuleInTx } from "@/lib/finance/fiscal-rules"
 import {
@@ -173,6 +174,14 @@ export async function createActivityBooking(
           vatRate: parseFloat(fiscalRule.vatRate),
         })
         const totalTnd = breakdown.totalTnd
+
+        // CART-DRIFT-01 (ACTIVITY-B2B-DRIFT-01) — détecte un repricing entre
+        // l'affichage et le débit. Exécuté avant tout effet financier (débit
+        // wallet, création reservation, payment). Absent si chemin serveur-
+        // serveur (journey-actions) : priceDrifted renvoie false sur undefined.
+        if (priceDrifted(booking.expectedTotalTnd, totalTnd)) {
+          throw new Error("PRICE_CHANGED")
+        }
 
         // --- 4. Client ---
         const [customer] = await tx
@@ -405,6 +414,8 @@ export async function createActivityBooking(
         "La date limite de réservation pour cette session est dépassée",
       INSUFFICIENT_STOCK:
         msg.match(/INSUFFICIENT_STOCK: (.+)/)?.[1] ?? "Places insuffisantes",
+      PRICE_CHANGED:
+        "Le tarif de cette attraction a changé. Veuillez vérifier le nouveau montant avant de confirmer.",
       INSUFFICIENT_BALANCE: "Solde wallet insuffisant",
       WALLET_DEBIT_FAILED: "Erreur lors du débit wallet",
     }

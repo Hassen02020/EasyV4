@@ -235,6 +235,7 @@ Error("FISCAL_RULE_NOT_FOUND")` si aucune règle active
 - File admin « Recharges clients » : demandes à vérifier en tête (elles ne sortaient pas de la limite de 50 lignes derrière des demandes traitées).
 - Migration 0141 : réaffirme `customer_topup_requests_amount_check` (même définition que 0132) — absente d'EasyV4-preview, constat lecture seule du 2026-10-25. Vérifiée sur base avec et sans les CHECK de 0132 (5 contraintes à l'arrivée, rejouable) et sur base fraîche procédure CI.
 - Preuves locales : `financial-e2e` 194/194 (0 ignoré, base isolée fraîche), unitaires 3 447 / 0 échec, `tsc`, `pnpm lint` (0 erreur), `prettier --check .`, `next build` : OK.
+- CI GitHub réelle : run #762 sur `3614abd3` et run #763 sur `72cad042` (`workflow_dispatch`) — **9/9 jobs verts** chacun (typecheck, lint, format, test, financial-e2e, build, e2e-guest, playwright-a11y, lighthouse).
 
 **Mise en service — actions indispensables (chacune sur GO dédié)** :
 

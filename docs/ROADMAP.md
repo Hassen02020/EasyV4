@@ -143,7 +143,7 @@ Error("FISCAL_RULE_NOT_FOUND")` si aucune règle active
 > - **Décision A10 (2026-10-24, propriétaire)** : canonical auto-référente localisée (variante b) — chaque locale est une page équivalente à indexer.
 > - DEST-CARD-FALLBACK-01 (lot 1, A08) : **fusionné** (PR #267, merge `ed96f254`).
 > - I18N-HEADER-STRINGS-01 (lot 3) : **fusionné** (PR #268, merge `2baf6942`).
-> - **PREVIEW-PROD-ISOLATION-01 (P0)** : « Code testé », PR #269 (non fusionnée). Refus prouvé sur Vercel (build Preview non isolé refusé). Isolation réelle NOT VERIFIED : base `EasyV4-preview` à initialiser et variables Vercel Preview à configurer par le propriétaire (`docs/ops/PREVIEW_ISOLATION.md`).
+> - **PREVIEW-PROD-ISOLATION-01 (P0)** : « Code testé », PR #269 (non fusionnée). Refus prouvé sur Vercel (build Preview non isolé refusé). Base `EasyV4-preview` initialisée et vérifiée (empreinte 10/10) ; secrets Preview (mot de passe `app_runtime`, URL base, service role, clé Paymee sandbox) à définir par le propriétaire (`docs/ops/PREVIEW_ISOLATION.md`).
 > - **WALLET-PAYMEE-INIT-01 (P1)** : « Code testé », même PR #269. Bout en bout Paymee sandbox NOT VERIFIED (dépend de l'isolation Preview).
 > - Production de tous ces chantiers : NOT VERIFIED (accès Vercel 403).
 >
@@ -177,7 +177,9 @@ Error("FISCAL_RULE_NOT_FOUND")` si aucune règle active
 
 **Correctif (commit `21ea970e`)** : `assertDeploymentIsolation()` dans `proxy.ts` (HTTP 503 avant toute résolution tenant/session), `getDb()`, clients Supabase serveur/service role et stockage média. Preuve locale (build de production, `register()` rendu non bloquant pour simuler Vercel, fausse base « production » espionnée) : 7 routes → 503, 0 connexion, aucun secret journalisé. **Preuve Vercel** (`dpl_8xYi2vKXXwAs5QYKJxsHQh973Egy`, `dpl_2dKPA9sciTr6ccp3ZS8MwuHAd7Dx`) : le build Preview échoue au pré-rendu avec `DÉMARRAGE REFUSÉ — déploiement non isolé de la production` — rien n'est déployé ; avant la garde, chaque build Preview lisait la base de production pendant le pré-rendu. CI GitHub verte (format, lint, typecheck, test, build, financial-e2e, e2e-guest, playwright-a11y). Check « Vercel » (requis) rouge attendu jusqu'à l'isolation.
 
-**NOT VERIFIED** : isolation réelle (projet `EasyV4-preview` `fxjhahtqrglktrmgqkvs` créé mais vide — script `preview-init-clean.sql` validé localement, à exécuter par le propriétaire ; variables Vercel Preview dédiées à créer) ; démarrage d'une Preview isolée ; absence d'écriture en production depuis une Preview isolée.
+**Base Preview initialisée (2026-10-25)** : schéma appliqué sur `EasyV4-preview` (`fxjhahtqrglktrmgqkvs`, PostgreSQL 17) via le connecteur Supabase, en 17 lots validés au préalable sur base jetable locale. Empreinte comparée à la base de référence (procédure CI `financial-e2e`) : **10/10 catégories identiques** — 1693 colonnes, 343 contraintes, 455 index, 136 policies, RLS sur 110 tables, 23 fonctions, 3 triggers `public`, 488 grants `app_runtime`, 75 types, données de référence (11 devises, 28 destinations, 29 références externes, 4 fournisseurs hôteliers, compte commission). Privilèges `anon`/`authenticated` : posture par défaut Supabase, identique à la production (lecture seule). Aucune écriture en production. Variables Vercel non secrètes créées en portée Preview limitée à la branche de la PR (`PREVIEW_SUPABASE_PROJECT_REF`, `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `PAYMEE_ENVIRONMENT=sandbox`) ; entrées Production inchangées.
+
+**NOT VERIFIED** : rôle `app_runtime` sans mot de passe (`NOLOGIN`) et variables secrètes Preview (`DATABASE_URL`, `DATABASE_DIRECT_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `PAYMEE_API_KEY` sandbox) — à définir par le propriétaire ; démarrage d'une Preview isolée ; absence d'écriture en production depuis une Preview isolée.
 
 **Hors périmètre (non modifié)** : routage du webhook Paymee (WALLET-PAYMEE-INIT-01) ; variables Vercel ; données de production.
 

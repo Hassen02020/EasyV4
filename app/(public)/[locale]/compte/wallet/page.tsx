@@ -16,7 +16,19 @@ import {
   type TopupReturnFeedback,
 } from "@/lib/finance/topup-return"
 import { Easy2BookLogo } from "@/components/easy2book-logo"
-import { WalletTopUpForm } from "@/components/compte/wallet-topup-form"
+import {
+  WalletTopUpPanel,
+  type ManualMethodOption,
+} from "@/components/compte/wallet-topup-panel"
+import {
+  WalletTopupRequests,
+  type TopupRequestRow,
+} from "@/components/compte/wallet-topup-requests"
+import {
+  listCustomerTopupRequests,
+  loadAvailableManualMethods,
+} from "@/lib/finance/customer-topup-manual-core"
+import { PaymeePaymentProvider } from "@/lib/payment/paymee-provider"
 import { WalletProfileSetupForm } from "@/components/compte/wallet-profile-setup-form"
 import { WalletTransactionList } from "@/components/compte/wallet-transaction-list"
 import { buildLanguageAlternates } from "@/lib/seo/alternate-languages"
@@ -62,6 +74,11 @@ export default async function WalletPage({ searchParams }: Props) {
   let balance = 0
   let transactions: Awaited<ReturnType<typeof getCustomerWalletTransactions>> =
     []
+  // WALLET-B2C-RECHARGE-METHODS-01 : moyens manuels actifs ET complets
+  // uniquement ; carte proposée seulement si Paymee est configuré.
+  let manualMethods: ManualMethodOption[] = []
+  let topupRequests: TopupRequestRow[] = []
+  const cardAvailable = new PaymeePaymentProvider().configured
 
   try {
     const tenant = await guestTenantContext()
@@ -86,6 +103,13 @@ export default async function WalletPage({ searchParams }: Props) {
           getCustomerWalletBalance(c.id),
           getCustomerWalletTransactions(c.id),
         ])
+        ;[manualMethods, topupRequests] = await withTenantContext(
+          tenant,
+          async (tx) => [
+            await loadAvailableManualMethods(tx, agencyId),
+            await listCustomerTopupRequests(tx, c.id),
+          ],
+        )
         if (topupId) {
           const [request] = await withTenantContext(tenant, (tx) =>
             tx
@@ -196,7 +220,20 @@ export default async function WalletPage({ searchParams }: Props) {
         )}
 
         {/* Formulaire de recharge ou activation du profil */}
-        {customerId ? <WalletTopUpForm /> : <WalletProfileSetupForm />}
+        {customerId ? (
+          <WalletTopUpPanel
+            cardAvailable={cardAvailable}
+            manualMethods={manualMethods}
+          />
+        ) : (
+          <WalletProfileSetupForm />
+        )}
+
+        {customerId && topupRequests.length > 0 && (
+          <div className="mt-6">
+            <WalletTopupRequests requests={topupRequests} locale={locale} />
+          </div>
+        )}
 
         {/* Historique des transactions */}
         {customerId && (

@@ -77,8 +77,25 @@ export async function processCustomerTopupWebhookCore(
     return { status: "no_match" }
   }
 
+  // WALLET-B2C-RECHARGE-METHODS-01 : seule une recharge explicitement par
+  // carte, avec un PSP déclaré, peut être créditée par un webhook. Une
+  // demande manuelle (virement, versement, espèces, D17 — psp NULL) ne se
+  // crédite qu'après validation humaine (customer-topup-manual-core.ts).
+  if (pending.method !== "card" || pending.psp === null) {
+    await tx.insert(pspWebhooks).values({
+      agencyId: pending.agencyId,
+      psp: provider,
+      eventType,
+      payload: auditPayload,
+      signatureOk,
+      processedAt: new Date(),
+      error: `NOT_CARD_TOPUP:method=${pending.method}`,
+    })
+    return { status: "no_match" }
+  }
+
   // P0-B : vérification identité PSP
-  if (pending.psp !== null && pending.psp !== provider) {
+  if (pending.psp !== provider) {
     await tx.insert(pspWebhooks).values({
       agencyId: pending.agencyId,
       psp: provider,

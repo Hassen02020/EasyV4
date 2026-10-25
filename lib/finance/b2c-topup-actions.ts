@@ -4,6 +4,8 @@
  * Actions serveur B2C — wallet client.
  *
  * submitCustomerTopUp — initiation d'une recharge wallet via Paymee.
+ * submitManualTopUp — déclaration d'une recharge manuelle (virement,
+ *   versement, espèces à l'agence, D17), validée ensuite par l'équipe.
  * createCustomerProfile — création/liaison du profil client (bootstrap wallet).
  */
 
@@ -16,6 +18,11 @@ import { guestTenantContext } from "@/lib/hotel-suppliers/tenant/live-resolution
 import { PaymeePaymentProvider } from "@/lib/payment/paymee-provider"
 import { logger } from "@/lib/logger"
 import { resolveOrCreateLinkedCustomer } from "@/lib/booking/customer-identity"
+import {
+  createManualTopupRequest,
+  parseTopupAmount,
+  type CreateManualTopupResult,
+} from "@/lib/finance/customer-topup-manual-core"
 
 const MIN_AMOUNT_TND = 10
 const MAX_AMOUNT_TND = 5000
@@ -42,6 +49,11 @@ export async function submitCustomerTopUp(
       ok: false,
       error: `Montant invalide. Le montant doit être compris entre ${MIN_AMOUNT_TND} et ${MAX_AMOUNT_TND} TND.`,
     }
+  }
+  // Deux décimales au plus — jamais d'arrondi silencieux (colonne NUMERIC(14,2)).
+  const parsedAmount = parseTopupAmount(amountTnd)
+  if (!parsedAmount.ok) {
+    return { ok: false, error: TOPUP_ERROR_MESSAGES[parsedAmount.code] }
   }
 
   // WALLET-PAYMEE-INIT-01 : vérifier la configuration AVANT toute écriture.
@@ -124,8 +136,9 @@ export async function submitCustomerTopUp(
         .values({
           customerId,
           agencyId,
-          amount: String(amountTnd),
+          amount: parsedAmount.amount,
           status: "pending",
+          method: "card",
           psp: "paymee",
         })
         .returning({ id: customerTopupRequests.id })
@@ -205,6 +218,96 @@ export async function submitCustomerTopUp(
   }
 
   return { ok: true, paymentUrl: paymentResult.redirectUrl }
+}
+
+/* -------------------------------------------------------------------------- */
+/* submitManualTopUp — WALLET-B2C-RECHARGE-METHODS-01                         */
+/* -------------------------------------------------------------------------- */
+
+export type SubmitManualTopUpResult =
+  | { ok: true; requestId: string }
+  | { ok: false; error: string }
+
+const TOPUP_ERROR_MESSAGES: Record<
+  Exclude<CreateManualTopupResult, { ok: true }>["code"],
+  string
+> = {
+  INVALID_METHOD: "Moyen de recharge invalide.",
+  METHOD_UNAVAILABLE: "Ce moyen de recharge n'est pas disponible.",
+  INVALID_AMOUNT: "Montant invalide.",
+  TOO_PRECISE: "Le montant ne peut pas comporter plus de deux décimales.",
+  OUT_OF_RANGE: `Le montant doit être compris entre ${MIN_AMOUNT_TND} et ${MAX_AMOUNT_TND} TND.`,
+  INVALID_REFERENCE: "Référence invalide (64 caractères maximum).",
+  INVALID_NOTE: "Note trop longue (500 caractères maximum).",
+  TOO_MANY_PENDING:
+    "Vous avez déjà plusieurs demandes en attente. Merci d'attendre leur traitement.",
+}
+
+/**
+ * Déclare une recharge manuelle. Aucune écriture wallet : la demande reste
+ * `pending` jusqu'à vérification de la réception réelle par l'équipe
+ * (lib/finance/b2c-topup-review-actions.ts). Le client et l'agence sont
+ * résolus côté serveur, jamais fournis par le navigateur.
+ */
+export async function submitManualTopUp(input: {
+  method: string
+  amount: string
+  reference?: string
+  note?: string
+}): Promise<SubmitManualTopUpResult> {
+  const supabase = await createServerSupabase()
+  const {
+    data: { user },
+    error: authError,
+  } = await supabase.auth.getUser()
+  if (authError || !user) {
+    return {
+      ok: false,
+      error: "Vous devez être connecté pour recharger votre wallet.",
+    }
+  }
+
+  const tenant = await guestTenantContext()
+  if (!tenant?.agencyId) return { ok: false, error: "Agence introuvable." }
+  const agencyId = tenant.agencyId
+
+  try {
+    const result = await withTenantContext(tenant, async (tx) => {
+      const [customer] = await tx
+        .select({ id: customers.id })
+        .from(customers)
+        .where(
+          and(
+            eq(customers.authUserId, user.id),
+            eq(customers.agencyId, agencyId),
+          ),
+        )
+        .limit(1)
+      if (!customer) return null
+      return createManualTopupRequest(tx, {
+        agencyId,
+        customerId: customer.id,
+        actorUserId: user.id,
+        method: input.method,
+        amount: input.amount,
+        customerReference: input.reference,
+        note: input.note,
+      })
+    })
+
+    if (!result) return { ok: false, error: "Profil client introuvable." }
+    if (!result.ok) {
+      return { ok: false, error: TOPUP_ERROR_MESSAGES[result.code] }
+    }
+    revalidatePath("/compte/wallet")
+    return { ok: true, requestId: result.requestId }
+  } catch (err: unknown) {
+    logger.error("[submitManualTopUp] failed", { error: err })
+    return {
+      ok: false,
+      error: "Erreur lors de l'enregistrement de la demande de recharge.",
+    }
+  }
 }
 
 /* -------------------------------------------------------------------------- */

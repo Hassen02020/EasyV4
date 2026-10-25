@@ -44,6 +44,7 @@ import {
   pgTable,
   text,
   timestamp,
+  unique,
   uniqueIndex,
   uuid,
   varchar,
@@ -3093,11 +3094,23 @@ export const customerTopupRequests = pgTable(
       .notNull()
       .references(() => agencies.id),
     amount: decimal("amount", { precision: 14, scale: 2 }).notNull(),
+    /** pending | completed | failed | rejected (contrainte SQL, 0132 + 0141). */
     status: text("status").notNull().default("pending"),
+    /** card | bank_transfer | bank_deposit | cash_agency | d17 (0141).
+     * card ⇔ psp renseigné (customer_topup_requests_card_psp_check). */
+    method: text("method").notNull().default("card"),
     paymentReference: text("payment_reference").unique(),
     psp: text("psp"),
     paymeeToken: text("paymee_token"),
     idempotencyKey: text("idempotency_key").unique(),
+    /** Référence d'opération saisie par le client (virement, versement, D17) —
+     * jamais utilisée pour corréler un webhook. */
+    customerReference: text("customer_reference"),
+    customerNote: text("customer_note"),
+    /** Membre de l'équipe qui a validé/rejeté — toujours issu de la session. */
+    reviewedByUserId: uuid("reviewed_by_user_id"),
+    reviewedAt: timestamp("reviewed_at", { withTimezone: true }),
+    rejectionReason: text("rejection_reason"),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
@@ -3108,6 +3121,40 @@ export const customerTopupRequests = pgTable(
     index("topup_req_customer_idx").on(t.customerId),
     index("topup_req_status_idx").on(t.status),
     index("topup_req_payment_ref_idx").on(t.paymentReference),
+    index("topup_req_method_status_idx").on(t.method, t.status),
+  ],
+)
+
+/**
+ * Coordonnées et instructions des moyens de recharge manuels B2C (0141),
+ * administrées par le super_admin. Un moyen inactif ou incomplet n'est
+ * jamais proposé au client (lib/finance/customer-topup-manual-core.ts).
+ */
+export const topupPaymentMethods = pgTable(
+  "topup_payment_methods",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    agencyId: uuid("agency_id")
+      .notNull()
+      .references(() => agencies.id),
+    /** bank_transfer | bank_deposit | cash_agency | d17 */
+    method: text("method").notNull(),
+    enabled: boolean("enabled").notNull().default(false),
+    details: jsonb("details")
+      .$type<Record<string, string>>()
+      .notNull()
+      .default({}),
+    instructions: text("instructions"),
+    updatedByUserId: uuid("updated_by_user_id"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    unique("topup_payment_methods_agency_method_uniq").on(t.agencyId, t.method),
   ],
 )
 

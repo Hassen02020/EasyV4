@@ -143,6 +143,9 @@ export type WalletRechargeMethod =
   | "cash"
   | "bank_transfer"
   | "bank_deposit"
+  /** D17 (La Poste) déclaré par le client et vérifié par l'équipe —
+   * recharge wallet B2C manuelle (WALLET-B2C-RECHARGE-METHODS-01). */
+  | "d17"
 
 export type CreditCustomerWalletInput = {
   customerId: string

@@ -103,6 +103,8 @@ async function createFixture(opts: {
       status: "pending",
       paymentReference: providerRef,
       psp: opts.psp,
+      // 0141 : sans PSP, une demande est forcément manuelle (card ⇔ psp).
+      method: opts.psp === null ? "bank_transfer" : "card",
       paymeeToken: token,
     })
   })
@@ -583,7 +585,15 @@ test("A1 — demande sans PSP déclaré (psp=null) : jamais créditée par webho
     const s = await ledgerFor(f)
     assert.equal(s.ledger.length, 0)
     assert.equal(s.status, "pending")
-    assert.ok(s.traces.some((w) => w.error === "PSP_MISSING"))
+    // Après 0141 (#270), la garde « recharge carte uniquement » refuse en
+    // premier ; sans elle (#269 seule), la garde PSP_MISSING.
+    assert.ok(
+      s.traces.some(
+        (w) =>
+          w.error === "PSP_MISSING" ||
+          w.error === "NOT_CARD_TOPUP:method=bank_transfer",
+      ),
+    )
   } finally {
     await cleanupFixture(f)
   }

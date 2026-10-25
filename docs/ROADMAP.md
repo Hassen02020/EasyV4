@@ -145,6 +145,7 @@ Error("FISCAL_RULE_NOT_FOUND")` si aucune règle active
 > - I18N-HEADER-STRINGS-01 (lot 3) : **fusionné** (PR #268, merge `2baf6942`).
 > - **PREVIEW-PROD-ISOLATION-01 (P0)** : « Code testé », PR #269 (non fusionnée). Refus prouvé sur Vercel (build Preview non isolé refusé). Base `EasyV4-preview` initialisée et vérifiée (empreinte 10/10) ; secrets Preview (mot de passe `app_runtime`, URL base, service role, clé Paymee sandbox) à définir par le propriétaire (`docs/ops/PREVIEW_ISOLATION.md`).
 > - **WALLET-PAYMEE-INIT-01 (P1)** : « Code testé », même PR #269. Bout en bout Paymee sandbox NOT VERIFIED (dépend de l'isolation Preview).
+> - **WALLET-B2C-RECHARGE-METHODS-01 (lot 1)** : « Code testé », PR séparée empilée sur #269 (branche `claude/wallet-b2c-recharge-methods-01`, non fusionnée). Migration 0141 **non appliquée** en Preview ni en production. Détail et preuves : entrée dédiée ci-dessous.
 > - Production de tous ces chantiers : NOT VERIFIED (accès Vercel 403).
 >
 > Programme wallet : WALLET-GUEST-INTEGRATION-TESTS-01 **fusionné** (PR #261, merge `8bcef2cc`) et WALLET-TOPUP-STATE-01 **fusionné** (PR #262, merge `efa4ccbc`) — 15/15 et 7/7 tests exécutés réellement sur PostgreSQL jetable local (hors CI : fichiers absents du job `financial-e2e`). WALLET-JOURNEY-AUDIT-01 et suivants : inchangés, en attente.
@@ -153,7 +154,7 @@ Error("FISCAL_RULE_NOT_FOUND")` si aucune règle active
 >
 > - Recharge wallet B2C Paymee en échec sur la preview (`customer_topup_requests` 1000 TND `failed`, sans token Paymee, aucun mouvement financier) — cause exacte NOT VERIFIED (logs Vercel 403). **La preview écrit dans la base de production.**
 > - Contact footer : WhatsApp/adresse/réseaux sociaux NULL en production (`agencies` Easy2Book + `public_site_settings`) — données jamais saisies, aucun défaut de code.
-> - Recharge multi-moyens B2C : fiche WALLET-B2C-RECHARGE-METHODS-01 (EXTEND du modèle B2B `walletRechargeRequests`) en attente des décisions propriétaire a)–d).
+> - Recharge multi-moyens B2C : fiche WALLET-B2C-RECHARGE-METHODS-01 validée (GO 2026-10-25, décisions 1–5), lot 1 implémenté — voir ci-dessus.
 >
 > Aucune exécution sans GO explicite.
 
@@ -197,7 +198,57 @@ Error("FISCAL_RULE_NOT_FOUND")` si aucune règle active
 
 ---
 
-### WALLET-B2C-RECHARGE-METHODS-01 — AUDIT (2026-10-24), conception en attente des décisions propriétaire
+### WALLET-B2C-RECHARGE-METHODS-01 — lot 1 « Code testé » (2026-10-25), PR empilée sur #269, non fusionnée
+
+**Décisions propriétaire (GO 2026-10-25)** : (1) lot 1 sans téléversement de justificatif — référence client facultative, l'équipe vérifie la réception réelle (encaissement pour les espèces) ; lot 2 = stockage privé de justificatifs ; (2) validation par `super_admin` et rôles comptables autorisés, validateur issu de la session uniquement ; (3) moyens et coordonnées en base, administrés par le Super Admin, moyen inactif ou incomplet masqué, aucune coordonnée inventée ; (4) PR séparée empilée sur #269 ; (5) 10–5 000 TND, deux décimales, toute précision supérieure refusée (jamais tronquée).
+
+**Implémentation** :
+
+- Migration `drizzle/manual/0141_customer_topup_manual_methods.sql` (idempotente) : `customer_topup_requests` + `method` (défaut `card` pour les lignes existantes), `customer_reference`, `customer_note`, `reviewed_by_user_id`, `reviewed_at`, `rejection_reason` ; statut + `rejected` ; contraintes `method_check`, `card_psp_check` (carte ⇔ PSP renseigné), `review_check` (rejet ⇒ motif ; manuelle hors `pending` ⇒ validateur + date). Nouvelle table `topup_payment_methods` (RLS : lecture agence ou super_admin, écriture super_admin ; pas de DELETE pour `app_runtime`). Aucune donnée insérée.
+- `lib/finance/customer-topup-manual-core.ts` : montant (`parseTopupAmount`), coordonnées (RIB 20 chiffres, IBAN TN, BIC, D17 8 chiffres — formats seulement), moyens disponibles (actifs ET complets), demande (`pending`, sans PSP ni `payment_reference`, max 3 en attente), revue sous `SELECT … FOR UPDATE` : validation = `creditCustomerWallet` (clé d'idempotence = id de la demande, `txOverride` = même transaction) puis `completed` + `audit_events` ; rejet = motif 3–500 caractères + audit. Validateurs : `super_admin` et `agent_compta` avec permission effective `wallet.topup.validate`/`reject` (overrides `permission_grants` respectés) ; `manager` exclu volontairement (non comptable, bien que `rbac.ts` lui donne la permission).
+- **Correctif sécurité** `lib/payment/customer-topup-webhook-core.ts` : toute demande qui n'est pas `method = 'card'` avec PSP déclaré est refusée (`no_match`, trace `NOT_CARD_TOPUP` dans `psp_webhooks`). Avant : la vérification PSP était sautée quand `psp` était NULL.
+- Actions : `submitManualTopUp` (client connecté, client/agence résolus côté serveur) ; `validateCustomerTopUp(requestId)` / `rejectCustomerTopUp(requestId, reason)` (validateur = session + `resolve_session_context`) ; `saveTopupPaymentMethodAction` (super_admin). Recharge carte : même règle de précision, `method: "card"` explicite.
+- UI : `/compte/wallet` — choix du moyen (carte seulement si Paymee configuré ; manuels actifs et complets), coordonnées configurées, déclaration, « Mes demandes » (statut réel, motif de rejet), FR/EN/AR. `/admin/accounting/recharges` — file « Recharges clients » (actions pour les validateurs autorisés, lecture seule sinon). `/admin/accounting/recharges/moyens` — configuration super_admin.
+
+**Preuves** :
+
+- Migration : appliquée sur base jetable après `db:push` (chemin CI) — 4 contraintes, 2 policies, `DELETE` refusé à `app_runtime` ; rejouée deux fois sans erreur ; simulée sur l'état de production (table 0132 + 2 lignes Paymee `failed`) : lignes rattachées à `card`, 3 insertions invalides refusées par les contraintes. Nom de contrainte `customer_topup_requests_status_check` vérifié en production (lecture seule).
+- `lib/finance/__tests__/customer-topup-manual.integration.test.ts` (ajouté au job `financial-e2e`) : 15/15 sous `app_runtime` (non-BYPASSRLS) — moyen inactif/incomplet refusé, écriture config refusée hors super_admin (RLS), demande sans PSP, précision/limites, plafond des demandes, validation = 1 écriture ledger + solde + audit, 2 validations concurrentes = 1 crédit, validation/rejet concurrents cohérents, rejet avec motif, agent_compta autorisé, refus (autre agence, manager, agent_resa, partner_owner, rôle incohérent, permission révoquée), carte non validable manuellement, webhook sur demande manuelle = 0 crédit, isolation RLS entre agences.
+- Mutations : garde webhook retirée → test webhook en échec ; contrôle rôle/permission retiré → 2 tests en échec. Restauré ensuite.
+- Suite `financial-e2e` complète en local : 191/191, 0 ignoré.
+- `customer-topup-manual-core.test.ts` 5/5 ; suite unitaire 3 443 tests, 0 échec (479 ignorés, tests DB). `tsc`, ESLint (2 avertissements préexistants), `prettier --check .`, `next build` (environnement CI) : OK.
+- Parcours réel en local (serveur Next + base jetable + faux service d'auth local, données de démonstration) : config super_admin (D17 incomplet refusé, virement activé), demande client (150,505 refusé, 150,50 enregistré), manager sans bouton d'action, validation et rejet par agent_compta, solde client 150,500, une seule ligne ledger, 6 événements d'audit avec les bons acteurs ; rendu FR/EN/AR, mobile AR sans débordement.
+
+- CI GitHub (PR #270, `workflow_dispatch` sur la tête `74c0b56e` — `ci.yml` ne se déclenche que pour les PR vers `main`) : run #761, **9/9 jobs verts** (typecheck, lint, format, test, financial-e2e, build, e2e-guest, playwright-a11y, lighthouse). Vercel Preview de la branche : refus de la garde d'isolation (`DÉMARRAGE REFUSÉ`, compilation OK) — attendu, aucune variable Preview sur cette branche.
+
+**Correctifs post-audit (GO « correction du code réel », 2026-10-25)** :
+
+- **Séparation des tâches** : un membre de l'équipe pouvant aussi avoir un profil client lié à son compte (`createCustomerProfile`), un `agent_compta` pouvait déclarer une recharge puis la valider lui-même (crédit sans encaissement). Refus `SELF_REVIEW` (validation et rejet, tous rôles) quand `customers.auth_user_id` = validateur.
+- **Plafond des demandes en attente sous concurrence** : verrou `FOR UPDATE` sur la ligne client avant le comptage — sans lui, des déclarations simultanées dépassaient le plafond (mutation : échec 3/3).
+- Import inutilisé retiré de `customer-topup-webhook-core.ts` (avertissement lint préexistant).
+- Tests ajoutés (18/18) : auto-validation refusée (agent_compta et super_admin, validation et rejet), rejet par agent_compta en contexte agence (statut, motif, audit), déclarations concurrentes plafonnées. Mutations : séparation retirée → échec ; verrou retiré → échec 3/3.
+- Base isolée fraîche (procédure CI : `db:push` + 144 migrations manuelles dont 0141) : `financial-e2e` complet **194/194**, 0 ignoré ; unitaires 3 446, 0 échec ; `tsc`, `pnpm lint` (0 erreur), `prettier --check .`, `next build` : OK.
+
+**Finalisation code (2026-10-25, recentrage « vrai code »)** :
+
+- Messages d'erreur client traduits : `submitManualTopUp` renvoie un `code` (+ message FR de repli) traduit côté client (`TOPUP_ERROR_LABEL_KEYS`, 9 clés `walletErr*` FR/EN/AR) — avant, un client EN/AR voyait le message serveur en français. Test : chaque code, moyen et champ a sa clé dans les 3 langues ; le compilateur impose qu'aucun code serveur ne soit sans clé.
+- File admin « Recharges clients » : demandes à vérifier en tête (elles ne sortaient pas de la limite de 50 lignes derrière des demandes traitées).
+- Migration 0141 : réaffirme `customer_topup_requests_amount_check` (même définition que 0132) — absente d'EasyV4-preview, constat lecture seule du 2026-10-25. Vérifiée sur base avec et sans les CHECK de 0132 (5 contraintes à l'arrivée, rejouable) et sur base fraîche procédure CI.
+- Preuves locales : `financial-e2e` 194/194 (0 ignoré, base isolée fraîche), unitaires 3 447 / 0 échec, `tsc`, `pnpm lint` (0 erreur), `prettier --check .`, `next build` : OK.
+- CI GitHub réelle : run #762 sur `3614abd3` et run #763 sur `72cad042` (`workflow_dispatch`) — **9/9 jobs verts** chacun (typecheck, lint, format, test, financial-e2e, build, e2e-guest, playwright-a11y, lighthouse).
+
+**Mise en service — actions indispensables (chacune sur GO dédié)** :
+
+1. Fusion de #269 puis de #270 (propriétaire).
+2. Migration `drizzle/manual/0141_customer_topup_manual_methods.sql` en production — GO dédié. Production actuelle : 2 lignes `customer_topup_requests` (Paymee, `failed`) → rattachées à `card` ; aucune autre donnée modifiée. Retour arrière : voir en-tête du fichier.
+3. Saisie par le Super Admin des coordonnées officielles (`/admin/accounting/recharges/moyens`) — aucun moyen n'est proposé tant que ce n'est pas fait.
+4. (Facultatif) même migration sur EasyV4-preview : tentative du 2026-10-25 non appliquée (confirmation du connecteur Supabase restée sans réponse) — rien d'appliqué, vérifié en lecture seule.
+
+**Limites / NOT VERIFIED** : Preview (bloquée par la configuration Preview de #269 — garde d'isolation non contournée) ; migration 0141 non appliquée en Preview ni en production (GO séparé) ; production. Coordonnées réelles (RIB, D17, agence) : à saisir par le Super Admin après application de la migration — rien n'est pré-rempli. Messages d'erreur serveur en français uniquement (comme le flux carte existant). D17 = déclaration manuelle, aucune intégration officielle. Carte Paymee : non certifiée (sandbox NOT VERIFIED).
+
+**Prochain chantier potentiel (non démarré)** : lot 2 — stockage privé des justificatifs (bucket privé, liens signés, lecture équipe). Hors périmètre, noté : `validateRechargeRequest` (B2B) enregistre un validateur transmis par le client.
+
+#### Audit initial (2026-10-24)
 
 - Carte : Paymee seul adaptateur réel, **non opérationnel** (initialisation en échec ; webhook des recharges routé vers la route des réservations → aucun crédit possible). Stripe et SPS : vérification de webhook seulement, aucune création de paiement.
 - Virement : flux B2B existant (`wallet_recharge_requests`, validation super_admin sous `FOR UPDATE`), mais il crédite `agencies.deposit_balance`, pas le wallet client ; absent du B2C.

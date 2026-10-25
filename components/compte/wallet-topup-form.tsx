@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react"
 import { useLocale, useTranslations } from "next-intl"
 import { submitCustomerTopUp } from "@/lib/finance/b2c-topup-actions"
+import { hasAtMostTwoDecimals } from "@/lib/finance/topup-method-display"
 import { Loader2 } from "lucide-react"
 
 const MIN = 10
@@ -19,6 +20,10 @@ export function WalletTopUpForm() {
     e.preventDefault()
     setError(null)
 
+    if (!hasAtMostTwoDecimals(amount)) {
+      setError(t("walletAmountPrecision"))
+      return
+    }
     const parsed = parseFloat(amount.replace(",", "."))
     if (!Number.isFinite(parsed) || parsed < MIN || parsed > MAX) {
       setError(t("walletAmountInvalid"))
@@ -53,7 +58,7 @@ export function WalletTopUpForm() {
           inputMode="decimal"
           min={MIN}
           max={MAX}
-          step="0.001"
+          step="0.01"
           value={amount}
           onChange={(e) => setAmount(e.target.value)}
           placeholder={t("walletAmountPlaceholder")}

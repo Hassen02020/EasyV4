@@ -94,7 +94,14 @@ test("R9-02 : la page /compte/wallet/page.tsx existe", () => {
   const pagePath = "app/(public)/[locale]/compte/wallet/page.tsx"
   assert.ok(existsSync(join(ROOT, pagePath)))
   const pageSrc = read(pagePath)
-  assert.ok(pageSrc.includes("WalletTopUpForm"))
+  // Formulaire carte rendu via le sélecteur de moyens
+  // (WALLET-B2C-RECHARGE-METHODS-01).
+  assert.ok(pageSrc.includes("WalletTopUpPanel"))
+  assert.ok(
+    read("components/compte/wallet-topup-panel.tsx").includes(
+      "<WalletTopUpForm />",
+    ),
+  )
   assert.ok(pageSrc.includes("getCustomerWalletBalance"))
 })
 

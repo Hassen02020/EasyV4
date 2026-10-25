@@ -1224,7 +1224,16 @@
     "walletRequestStatusRejected": "Rejected",
     "walletRequestStatusFailed": "Not completed",
     "walletRequestRejectionReason": "Reason: {reason}",
-    "walletAmountPrecision": "The amount cannot have more than two decimal places."
+    "walletAmountPrecision": "The amount cannot have more than two decimal places.",
+    "walletErrNotAuthenticated": "You must be signed in to top up your wallet.",
+    "walletErrAgencyNotFound": "Service temporarily unavailable. Please try again later.",
+    "walletErrCustomerNotFound": "Customer profile not found. Please activate your wallet first.",
+    "walletErrInvalidMethod": "Invalid top-up method.",
+    "walletErrMethodUnavailable": "This top-up method is no longer available. Please refresh the page.",
+    "walletErrInvalidReference": "Invalid reference (64 characters max, single line).",
+    "walletErrInvalidNote": "Message too long (500 characters max).",
+    "walletErrTooManyPending": "You already have several pending requests. Please wait until they are processed.",
+    "walletErrInternal": "Error while saving the request. Please try again."
   },
   "Legal": {
     "lastUpdated": "Last updated: to be defined",

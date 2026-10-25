@@ -45,6 +45,25 @@ export const TOPUP_METHOD_LABELS_FR: Record<TopupMethodKey, string> = {
   d17: "D17",
 }
 
+/** Codes d'erreur de submitManualTopUp → clé i18n (namespace `Compte`).
+ * Le message affiché au client est toujours dans sa langue. */
+export const TOPUP_ERROR_LABEL_KEYS = {
+  NOT_AUTHENTICATED: "walletErrNotAuthenticated",
+  AGENCY_NOT_FOUND: "walletErrAgencyNotFound",
+  CUSTOMER_NOT_FOUND: "walletErrCustomerNotFound",
+  INVALID_METHOD: "walletErrInvalidMethod",
+  METHOD_UNAVAILABLE: "walletErrMethodUnavailable",
+  INVALID_AMOUNT: "walletAmountInvalid",
+  TOO_PRECISE: "walletAmountPrecision",
+  OUT_OF_RANGE: "walletAmountInvalid",
+  INVALID_REFERENCE: "walletErrInvalidReference",
+  INVALID_NOTE: "walletErrInvalidNote",
+  TOO_MANY_PENDING: "walletErrTooManyPending",
+  INTERNAL_ERROR: "walletErrInternal",
+} as const
+
+export type ManualTopupErrorCode = keyof typeof TOPUP_ERROR_LABEL_KEYS
+
 /** Montant saisi : deux décimales au plus (même règle que le serveur). */
 export function hasAtMostTwoDecimals(raw: string): boolean {
   return /^\d+(?:[.,]\d{1,2})?$/.test(raw.trim())

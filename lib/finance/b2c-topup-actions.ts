@@ -23,6 +23,7 @@ import {
   parseTopupAmount,
   type CreateManualTopupResult,
 } from "@/lib/finance/customer-topup-manual-core"
+import type { ManualTopupErrorCode } from "@/lib/finance/topup-method-display"
 
 const MIN_AMOUNT_TND = 10
 const MAX_AMOUNT_TND = 5000
@@ -224,9 +225,11 @@ export async function submitCustomerTopUp(
 /* submitManualTopUp — WALLET-B2C-RECHARGE-METHODS-01                         */
 /* -------------------------------------------------------------------------- */
 
+/** `code` est traduit côté client (TOPUP_ERROR_LABEL_KEYS) ; `error` reste
+ * un message français de repli (journaux, clients sans traduction). */
 export type SubmitManualTopUpResult =
   | { ok: true; requestId: string }
-  | { ok: false; error: string }
+  | { ok: false; code: ManualTopupErrorCode; error: string }
 
 const TOPUP_ERROR_MESSAGES: Record<
   Exclude<CreateManualTopupResult, { ok: true }>["code"],
@@ -264,12 +267,19 @@ export async function submitManualTopUp(input: {
   if (authError || !user) {
     return {
       ok: false,
+      code: "NOT_AUTHENTICATED",
       error: "Vous devez être connecté pour recharger votre wallet.",
     }
   }
 
   const tenant = await guestTenantContext()
-  if (!tenant?.agencyId) return { ok: false, error: "Agence introuvable." }
+  if (!tenant?.agencyId) {
+    return {
+      ok: false,
+      code: "AGENCY_NOT_FOUND",
+      error: "Agence introuvable.",
+    }
+  }
   const agencyId = tenant.agencyId
 
   try {
@@ -296,9 +306,19 @@ export async function submitManualTopUp(input: {
       })
     })
 
-    if (!result) return { ok: false, error: "Profil client introuvable." }
+    if (!result) {
+      return {
+        ok: false,
+        code: "CUSTOMER_NOT_FOUND",
+        error: TOPUP_ERROR_MESSAGES.CUSTOMER_NOT_FOUND,
+      }
+    }
     if (!result.ok) {
-      return { ok: false, error: TOPUP_ERROR_MESSAGES[result.code] }
+      return {
+        ok: false,
+        code: result.code,
+        error: TOPUP_ERROR_MESSAGES[result.code],
+      }
     }
     revalidatePath("/compte/wallet")
     return { ok: true, requestId: result.requestId }
@@ -306,6 +326,7 @@ export async function submitManualTopUp(input: {
     logger.error("[submitManualTopUp] failed", { error: err })
     return {
       ok: false,
+      code: "INTERNAL_ERROR",
       error: "Erreur lors de l'enregistrement de la demande de recharge.",
     }
   }

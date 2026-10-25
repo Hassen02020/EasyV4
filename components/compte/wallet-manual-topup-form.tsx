@@ -7,6 +7,7 @@ import { submitManualTopUp } from "@/lib/finance/b2c-topup-actions"
 import {
   hasAtMostTwoDecimals,
   TOPUP_DETAIL_FIELDS,
+  TOPUP_ERROR_LABEL_KEYS,
 } from "@/lib/finance/topup-method-display"
 
 const MIN = 10
@@ -54,7 +55,7 @@ export function WalletManualTopUpForm({
         note,
       })
       if (!result.ok) {
-        setError(result.error)
+        setError(t(TOPUP_ERROR_LABEL_KEYS[result.code]))
         return
       }
       setSubmitted(true)

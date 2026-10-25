@@ -1224,7 +1224,16 @@
     "walletRequestStatusRejected": "مرفوض",
     "walletRequestStatusFailed": "لم تكتمل",
     "walletRequestRejectionReason": "السبب: {reason}",
-    "walletAmountPrecision": "لا يمكن أن يحتوي المبلغ على أكثر من رقمين عشريين."
+    "walletAmountPrecision": "لا يمكن أن يحتوي المبلغ على أكثر من رقمين عشريين.",
+    "walletErrNotAuthenticated": "يجب تسجيل الدخول لشحن محفظتك.",
+    "walletErrAgencyNotFound": "الخدمة غير متاحة مؤقتًا. يرجى المحاولة لاحقًا.",
+    "walletErrCustomerNotFound": "لم يتم العثور على ملف العميل. يرجى تفعيل محفظتك أولًا.",
+    "walletErrInvalidMethod": "طريقة الشحن غير صالحة.",
+    "walletErrMethodUnavailable": "طريقة الشحن هذه لم تعد متاحة. يرجى تحديث الصفحة.",
+    "walletErrInvalidReference": "مرجع غير صالح (64 حرفًا كحد أقصى، في سطر واحد).",
+    "walletErrInvalidNote": "الرسالة طويلة جدًا (500 حرف كحد أقصى).",
+    "walletErrTooManyPending": "لديك بالفعل عدة طلبات قيد الانتظار. يرجى انتظار معالجتها.",
+    "walletErrInternal": "حدث خطأ أثناء تسجيل الطلب. يرجى المحاولة مرة أخرى."
   },
   "Legal": {
     "lastUpdated": "آخر تحيين: لم يحدد بعد",

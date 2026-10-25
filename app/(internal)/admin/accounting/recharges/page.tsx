@@ -8,7 +8,7 @@
 import { Metadata } from "next"
 import Link from "next/link"
 import { redirect } from "next/navigation"
-import { and, desc, eq, ne } from "drizzle-orm"
+import { and, desc, eq, ne, sql } from "drizzle-orm"
 import { ArrowLeft, Banknote, Settings, Users } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -183,7 +183,12 @@ export default async function AdminRechargesPage() {
               : eq(customerTopupRequests.agencyId, profile.agencyId),
           ),
         )
-        .orderBy(desc(customerTopupRequests.createdAt))
+        // Demandes à vérifier en tête : elles ne doivent jamais sortir de la
+        // limite d'affichage derrière des demandes déjà traitées.
+        .orderBy(
+          sql`(${customerTopupRequests.status} = 'pending') desc`,
+          desc(customerTopupRequests.createdAt),
+        )
         .limit(50),
   )
   const topupPendingCount = topups.filter((r) => r.status === "pending").length

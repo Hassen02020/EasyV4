@@ -25,6 +25,7 @@
 --     DROP COLUMN method, DROP COLUMN customer_reference,
 --     DROP COLUMN customer_note, DROP COLUMN reviewed_by_user_id,
 --     DROP COLUMN reviewed_at, DROP COLUMN rejection_reason;
+--   (customer_topup_requests_amount_check est conservée : définition de 0132)
 --   ALTER TABLE customer_topup_requests ADD CONSTRAINT
 --     customer_topup_requests_status_check
 --     CHECK (status IN ('pending','completed','failed'));
@@ -46,6 +47,15 @@ ALTER TABLE customer_topup_requests
   ADD COLUMN IF NOT EXISTS reviewed_by_user_id UUID,
   ADD COLUMN IF NOT EXISTS reviewed_at         TIMESTAMPTZ,
   ADD COLUMN IF NOT EXISTS rejection_reason    TEXT;
+
+-- Montant minimal (défini par 0132) : réaffirmé ici, même définition, car
+-- une base initialisée sans les CHECK de 0132 (constaté sur EasyV4-preview,
+-- 2026-10-25) n'en avait aucun. Sans effet sur une base déjà conforme.
+ALTER TABLE customer_topup_requests
+  DROP CONSTRAINT IF EXISTS customer_topup_requests_amount_check;
+ALTER TABLE customer_topup_requests
+  ADD CONSTRAINT customer_topup_requests_amount_check
+  CHECK (amount >= 1.00);
 
 ALTER TABLE customer_topup_requests
   DROP CONSTRAINT IF EXISTS customer_topup_requests_status_check;

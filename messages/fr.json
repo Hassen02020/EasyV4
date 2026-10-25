@@ -1224,7 +1224,16 @@
     "walletRequestStatusRejected": "Rejetée",
     "walletRequestStatusFailed": "Non aboutie",
     "walletRequestRejectionReason": "Motif : {reason}",
-    "walletAmountPrecision": "Le montant ne peut pas comporter plus de deux décimales."
+    "walletAmountPrecision": "Le montant ne peut pas comporter plus de deux décimales.",
+    "walletErrNotAuthenticated": "Vous devez être connecté pour recharger votre portefeuille.",
+    "walletErrAgencyNotFound": "Service momentanément indisponible. Veuillez réessayer plus tard.",
+    "walletErrCustomerNotFound": "Profil client introuvable. Activez d'abord votre portefeuille.",
+    "walletErrInvalidMethod": "Moyen de recharge invalide.",
+    "walletErrMethodUnavailable": "Ce moyen de recharge n'est plus disponible. Actualisez la page.",
+    "walletErrInvalidReference": "Référence invalide (64 caractères maximum, sur une seule ligne).",
+    "walletErrInvalidNote": "Message trop long (500 caractères maximum).",
+    "walletErrTooManyPending": "Vous avez déjà plusieurs demandes en attente. Merci d'attendre leur traitement.",
+    "walletErrInternal": "Erreur lors de l'enregistrement de la demande. Veuillez réessayer."
   },
   "Legal": {
     "lastUpdated": "Dernière mise à jour : à définir",

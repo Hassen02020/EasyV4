@@ -229,6 +229,20 @@ Error("FISCAL_RULE_NOT_FOUND")` si aucune règle active
 - Tests ajoutés (18/18) : auto-validation refusée (agent_compta et super_admin, validation et rejet), rejet par agent_compta en contexte agence (statut, motif, audit), déclarations concurrentes plafonnées. Mutations : séparation retirée → échec ; verrou retiré → échec 3/3.
 - Base isolée fraîche (procédure CI : `db:push` + 144 migrations manuelles dont 0141) : `financial-e2e` complet **194/194**, 0 ignoré ; unitaires 3 446, 0 échec ; `tsc`, `pnpm lint` (0 erreur), `prettier --check .`, `next build` : OK.
 
+**Finalisation code (2026-10-25, recentrage « vrai code »)** :
+
+- Messages d'erreur client traduits : `submitManualTopUp` renvoie un `code` (+ message FR de repli) traduit côté client (`TOPUP_ERROR_LABEL_KEYS`, 9 clés `walletErr*` FR/EN/AR) — avant, un client EN/AR voyait le message serveur en français. Test : chaque code, moyen et champ a sa clé dans les 3 langues ; le compilateur impose qu'aucun code serveur ne soit sans clé.
+- File admin « Recharges clients » : demandes à vérifier en tête (elles ne sortaient pas de la limite de 50 lignes derrière des demandes traitées).
+- Migration 0141 : réaffirme `customer_topup_requests_amount_check` (même définition que 0132) — absente d'EasyV4-preview, constat lecture seule du 2026-10-25. Vérifiée sur base avec et sans les CHECK de 0132 (5 contraintes à l'arrivée, rejouable) et sur base fraîche procédure CI.
+- Preuves locales : `financial-e2e` 194/194 (0 ignoré, base isolée fraîche), unitaires 3 447 / 0 échec, `tsc`, `pnpm lint` (0 erreur), `prettier --check .`, `next build` : OK.
+
+**Mise en service — actions indispensables (chacune sur GO dédié)** :
+
+1. Fusion de #269 puis de #270 (propriétaire).
+2. Migration `drizzle/manual/0141_customer_topup_manual_methods.sql` en production — GO dédié. Production actuelle : 2 lignes `customer_topup_requests` (Paymee, `failed`) → rattachées à `card` ; aucune autre donnée modifiée. Retour arrière : voir en-tête du fichier.
+3. Saisie par le Super Admin des coordonnées officielles (`/admin/accounting/recharges/moyens`) — aucun moyen n'est proposé tant que ce n'est pas fait.
+4. (Facultatif) même migration sur EasyV4-preview : tentative du 2026-10-25 non appliquée (confirmation du connecteur Supabase restée sans réponse) — rien d'appliqué, vérifié en lecture seule.
+
 **Limites / NOT VERIFIED** : Preview (bloquée par la configuration Preview de #269 — garde d'isolation non contournée) ; migration 0141 non appliquée en Preview ni en production (GO séparé) ; production. Coordonnées réelles (RIB, D17, agence) : à saisir par le Super Admin après application de la migration — rien n'est pré-rempli. Messages d'erreur serveur en français uniquement (comme le flux carte existant). D17 = déclaration manuelle, aucune intégration officielle. Carte Paymee : non certifiée (sandbox NOT VERIFIED).
 
 **Prochain chantier potentiel (non démarré)** : lot 2 — stockage privé des justificatifs (bucket privé, liens signés, lecture équipe). Hors périmètre, noté : `validateRechargeRequest` (B2B) enregistre un validateur transmis par le client.

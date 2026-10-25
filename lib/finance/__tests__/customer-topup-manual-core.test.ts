@@ -138,3 +138,27 @@ test("le validateur n'est jamais fourni par le client", () => {
   )
   assert.match(src, /supabase\.auth\.getUser\(\)/)
 })
+
+test("chaque code d'erreur client a sa traduction FR/EN/AR (namespace Compte)", async () => {
+  const {
+    TOPUP_ERROR_LABEL_KEYS,
+    TOPUP_METHOD_LABEL_KEYS,
+    TOPUP_DETAIL_FIELDS,
+  } = await import("@/lib/finance/topup-method-display")
+  const keys = new Set<string>([
+    ...Object.values(TOPUP_ERROR_LABEL_KEYS),
+    ...Object.values(TOPUP_METHOD_LABEL_KEYS),
+    ...TOPUP_DETAIL_FIELDS.map(([, k]) => k),
+  ])
+  for (const lang of ["fr", "en", "ar"]) {
+    const compte = JSON.parse(
+      readFileSync(join(process.cwd(), `messages/${lang}.json`), "utf8"),
+    ).Compte as Record<string, string>
+    for (const k of keys) {
+      assert.ok(
+        typeof compte[k] === "string" && compte[k].length > 0,
+        `${lang}: clé manquante ${k}`,
+      )
+    }
+  }
+})

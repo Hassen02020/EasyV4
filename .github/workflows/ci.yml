@@ -289,6 +289,7 @@ jobs:
             lib/payment/__tests__/paymee-reservation-webhook.test.ts \
             lib/payment/__tests__/wallet-webhook-core.test.ts \
             lib/payment/__tests__/customer-topup-webhook-core.integration.test.ts \
+            lib/payment/__tests__/paymee-topup-webhook-route.integration.test.ts \
             lib/finance/__tests__/booking-financials-chain.integration.test.ts \
             lib/finance/__tests__/payment-settlement-chain.integration.test.ts \
             lib/finance/__tests__/commission-reversal-integration.test.ts \

@@ -4,12 +4,17 @@ import { ArrowLeft, Wallet } from "lucide-react"
 import { createServerSupabase } from "@/lib/supabase/server"
 import { guestTenantContext } from "@/lib/hotel-suppliers/tenant/live-resolution"
 import { withTenantContext } from "@/lib/db/tenant-context"
-import { customers } from "@/lib/db/schema"
+import { customers, customerTopupRequests } from "@/lib/db/schema"
 import {
   getCustomerWalletBalance,
   getCustomerWalletTransactions,
 } from "@/lib/finance/customer-wallet"
 import { eq, and } from "drizzle-orm"
+import {
+  parseTopupReturnId,
+  topupReturnFeedback,
+  type TopupReturnFeedback,
+} from "@/lib/finance/topup-return"
 import { Easy2BookLogo } from "@/components/easy2book-logo"
 import { WalletTopUpForm } from "@/components/compte/wallet-topup-form"
 import { WalletProfileSetupForm } from "@/components/compte/wallet-profile-setup-form"
@@ -48,7 +53,10 @@ export default async function WalletPage({ searchParams }: Props) {
 
   const t = await getTranslations("Compte")
   const params = await searchParams
-  const topupStatus = params.topup // "success" | "cancelled" | undefined
+  // WALLET-PAYMEE-INIT-01 : `?topup=<id>` (retour Paymee) — l'état affiché
+  // est celui de la demande en base, jamais celui suggéré par l'URL.
+  const topupId = parseTopupReturnId(params.topup)
+  let topupFeedback: TopupReturnFeedback | null = null
 
   let customerId: string | null = null
   let balance = 0
@@ -78,6 +86,21 @@ export default async function WalletPage({ searchParams }: Props) {
           getCustomerWalletBalance(c.id),
           getCustomerWalletTransactions(c.id),
         ])
+        if (topupId) {
+          const [request] = await withTenantContext(tenant, (tx) =>
+            tx
+              .select({ status: customerTopupRequests.status })
+              .from(customerTopupRequests)
+              .where(
+                and(
+                  eq(customerTopupRequests.id, topupId),
+                  eq(customerTopupRequests.customerId, c.id),
+                ),
+              )
+              .limit(1),
+          )
+          topupFeedback = topupReturnFeedback(request?.status)
+        }
       }
     }
   } catch {
@@ -139,7 +162,7 @@ export default async function WalletPage({ searchParams }: Props) {
         </div>
 
         {/* Feedback success/cancel */}
-        {topupStatus === "success" && (
+        {topupFeedback === "completed" && (
           <div className="mb-6 rounded-2xl border border-green-200 bg-green-50 p-4 dark:border-green-800 dark:bg-green-950/20">
             <p className="font-semibold text-green-800 dark:text-green-300">
               {t("walletSuccessTitle")}
@@ -150,7 +173,18 @@ export default async function WalletPage({ searchParams }: Props) {
           </div>
         )}
 
-        {topupStatus === "cancelled" && (
+        {topupFeedback === "pending" && (
+          <div className="border-border bg-muted mb-6 rounded-2xl border p-4">
+            <p className="text-foreground font-semibold">
+              {t("walletPendingTitle")}
+            </p>
+            <p className="text-muted-foreground mt-1 text-sm">
+              {t("walletPendingDesc")}
+            </p>
+          </div>
+        )}
+
+        {topupFeedback === "failed" && (
           <div className="bg-muted border-border mb-6 rounded-2xl border p-4">
             <p className="text-foreground font-semibold">
               {t("walletCancelledTitle")}

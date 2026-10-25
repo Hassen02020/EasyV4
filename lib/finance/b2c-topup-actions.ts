@@ -24,8 +24,14 @@ export type SubmitTopUpResult =
   | { ok: true; paymentUrl: string }
   | { ok: false; error: string }
 
+/** Message affiché quand la recharge en ligne n'est pas configurée sur ce
+ * déploiement (aucune clé Paymee) — aucune demande n'est alors créée. */
+const TOPUP_ONLINE_UNAVAILABLE_ERROR =
+  "La recharge en ligne n'est pas disponible pour le moment. Veuillez réessayer plus tard ou contacter notre agence."
+
 export async function submitCustomerTopUp(
   amountTnd: number,
+  locale?: string,
 ): Promise<SubmitTopUpResult> {
   if (
     !Number.isFinite(amountTnd) ||
@@ -36,6 +42,14 @@ export async function submitCustomerTopUp(
       ok: false,
       error: `Montant invalide. Le montant doit être compris entre ${MIN_AMOUNT_TND} et ${MAX_AMOUNT_TND} TND.`,
     }
+  }
+
+  // WALLET-PAYMEE-INIT-01 : vérifier la configuration AVANT toute écriture.
+  // Sans clé, l'ancien flux insérait la demande puis la marquait « failed »
+  // (demande fantôme + message générique).
+  const provider = new PaymeePaymentProvider()
+  if (!provider.configured) {
+    return { ok: false, error: TOPUP_ONLINE_UNAVAILABLE_ERROR }
   }
 
   const supabase = await createServerSupabase()
@@ -140,9 +154,11 @@ export async function submitCustomerTopUp(
     }
   }
 
-  // Appel Paymee
-  const provider = new PaymeePaymentProvider()
+  // Appel Paymee — purpose wallet_topup : webhook /api/payment/webhook
+  // (corrélation customer_topup_requests) et retour sur la page wallet.
   const paymentResult = await provider.createPayment({
+    purpose: "wallet_topup",
+    locale,
     amountTnd,
     currency: "TND",
     reference: topupId,
@@ -175,17 +191,42 @@ export async function submitCustomerTopUp(
     }
   }
 
-  // Stocke le token Paymee sur la demande
+  // Token Paymee obligatoire : le webhook n'accepte que le token de CETTE
+  // demande (customer-topup-webhook-core, P0-C). Sans token enregistré, le
+  // lien de paiement n'est jamais remis au client.
   const paymeeToken = paymentResult.providerPaymentId ?? null
-  try {
-    await withTenantContext(tenant, async (tx) => {
-      await tx
-        .update(customerTopupRequests)
-        .set({ paymeeToken })
-        .where(eq(customerTopupRequests.id, topupId))
-    })
-  } catch {
-    // Non bloquant — le token est utile pour le support mais pas critique
+  let tokenStored = false
+  if (paymeeToken) {
+    try {
+      await withTenantContext(tenant, async (tx) => {
+        await tx
+          .update(customerTopupRequests)
+          .set({ paymeeToken })
+          .where(eq(customerTopupRequests.id, topupId))
+      })
+      tokenStored = true
+    } catch (err: unknown) {
+      logger.error("[submitCustomerTopUp] store Paymee token failed", {
+        topupId,
+        error: err,
+      })
+    }
+  }
+  if (!tokenStored) {
+    try {
+      await withTenantContext(tenant, async (tx) => {
+        await tx
+          .update(customerTopupRequests)
+          .set({ status: "failed" })
+          .where(eq(customerTopupRequests.id, topupId))
+      })
+    } catch {
+      // best-effort
+    }
+    return {
+      ok: false,
+      error: "Impossible d'initier le paiement. Veuillez réessayer.",
+    }
   }
 
   return { ok: true, paymentUrl: paymentResult.redirectUrl }

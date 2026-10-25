@@ -478,3 +478,110 @@ test("normalizePaymeePhone : numéro absent (undefined) → chaîne vide", async
     assert.equal(capturedPhone, "")
   })
 })
+
+/* -------------------------------------------------------------------------- */
+/* WALLET-PAYMEE-INIT-01 — routage webhook / retour selon le flux             */
+/* -------------------------------------------------------------------------- */
+
+function captureCreateBody(
+  input: Parameters<PaymeePaymentProvider["createPayment"]>[0],
+  env: Record<string, string | undefined> = {},
+): Promise<Record<string, unknown>> {
+  return withPaymeeEnv(
+    {
+      PAYMEE_API_KEY: "fake_key",
+      NEXT_PUBLIC_SITE_URL: "https://easy2book.test",
+      PAYMEE_WEBHOOK_URL: undefined,
+      PAYMEE_TOPUP_WEBHOOK_URL: undefined,
+      ...env,
+    },
+    async () => {
+      let body: Record<string, unknown> = {}
+      const provider = new PaymeePaymentProvider(
+        fakeFetch((_url, init) => {
+          body = JSON.parse(init.body as string)
+          return new Response(
+            JSON.stringify({
+              status: true,
+              data: {
+                token: "t",
+                payment_url: "https://sandbox.paymee.tn/g/t",
+              },
+            }),
+            { status: 200 },
+          )
+        }),
+      )
+      await provider.createPayment(input)
+      return body
+    },
+  )
+}
+
+test("WALLET-PAYMEE-INIT-01 : réservation (défaut) — URLs historiques inchangées", async () => {
+  const body = await captureCreateBody(BASE_INPUT)
+  assert.equal(
+    body.webhook_url,
+    "https://easy2book.test/api/payment/reservation-webhook?provider=paymee",
+  )
+  assert.equal(
+    body.return_url,
+    "https://easy2book.test/paiement-retour/guest-test-ref",
+  )
+  assert.equal(body.cancel_url, body.return_url)
+})
+
+test("WALLET-PAYMEE-INIT-01 : recharge wallet — webhook /api/payment/webhook, retour page wallet localisée", async () => {
+  const body = await captureCreateBody({
+    ...BASE_INPUT,
+    reference: "3f1c2b9a-6d4e-4b8a-9c1d-2e5f7a8b9c0d",
+    purpose: "wallet_topup",
+    locale: "ar",
+  })
+  assert.equal(
+    body.webhook_url,
+    "https://easy2book.test/api/payment/webhook?provider=paymee",
+  )
+  assert.equal(
+    body.return_url,
+    "https://easy2book.test/ar/compte/wallet?topup=3f1c2b9a-6d4e-4b8a-9c1d-2e5f7a8b9c0d",
+  )
+  assert.equal(body.cancel_url, body.return_url)
+  assert.equal(body.order_id, "3f1c2b9a-6d4e-4b8a-9c1d-2e5f7a8b9c0d")
+})
+
+test("WALLET-PAYMEE-INIT-01 : locale inconnue ou absente → locale par défaut", async () => {
+  for (const locale of [undefined, "xx"]) {
+    const body = await captureCreateBody({
+      ...BASE_INPUT,
+      purpose: "wallet_topup",
+      locale,
+    })
+    assert.equal(
+      body.return_url,
+      "https://easy2book.test/fr/compte/wallet?topup=guest-test-ref",
+    )
+  }
+})
+
+test("WALLET-PAYMEE-INIT-01 : overrides distincts par flux — PAYMEE_WEBHOOK_URL ne détourne pas les recharges", async () => {
+  const env = {
+    PAYMEE_WEBHOOK_URL: "https://hook.test/reservation",
+    PAYMEE_TOPUP_WEBHOOK_URL: undefined,
+  }
+  const reservation = await captureCreateBody(BASE_INPUT, env)
+  assert.equal(reservation.webhook_url, "https://hook.test/reservation")
+  const topup = await captureCreateBody(
+    { ...BASE_INPUT, purpose: "wallet_topup" },
+    env,
+  )
+  assert.equal(
+    topup.webhook_url,
+    "https://easy2book.test/api/payment/webhook?provider=paymee",
+  )
+  const topupOverride = await captureCreateBody(
+    { ...BASE_INPUT, purpose: "wallet_topup" },
+    { PAYMEE_TOPUP_WEBHOOK_URL: "https://hook.test/topup" },
+  )
+  assert.equal(topupOverride.webhook_url, "https://hook.test/topup")
+})

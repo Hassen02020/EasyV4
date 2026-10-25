@@ -23,6 +23,7 @@ import "server-only"
 import { createClient } from "@supabase/supabase-js"
 import { promises as fs } from "fs"
 import path from "path"
+import { assertDeploymentIsolation } from "@/lib/env-isolation"
 
 export type MediaStorageBackend = "supabase" | "local"
 
@@ -44,6 +45,7 @@ const LOCAL_MEDIA_ROOT = path.join(process.cwd(), ".media-local")
 /* -------------------------------------------------------------------------- */
 
 function createSupabaseMediaStorage(): MediaStorageAdapter {
+  assertDeploymentIsolation()
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
 

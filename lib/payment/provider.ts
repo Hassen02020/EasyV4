@@ -59,7 +59,15 @@ export interface CreatePaymentInput {
   customerFirstName?: string
   customerLastName?: string
   customerPhone?: string
+  /** WALLET-PAYMEE-INIT-01 — flux métier du paiement, qui détermine la route
+   * webhook et la page de retour transmises au PSP. Défaut `reservation`
+   * (comportement historique inchangé pour tous les appelants existants). */
+  purpose?: PaymentPurpose
+  /** Locale de la page de retour (`wallet_topup` uniquement). */
+  locale?: string
 }
+
+export type PaymentPurpose = "reservation" | "wallet_topup"
 
 export interface PaymentResult {
   ok: boolean

@@ -27,6 +27,7 @@ import {
   agencies,
   customers,
   customerTopupRequests,
+  pspWebhooks,
   walletAccounts,
   walletLedger,
 } from "@/lib/db/schema"
@@ -66,6 +67,8 @@ interface Fixture {
   customerId: string
   topupId: string
   providerRef: string
+  /** Token Paymee de la demande (renvoyé à la création du paiement). */
+  token: string
 }
 
 async function createFixture(opts: {
@@ -76,6 +79,7 @@ async function createFixture(opts: {
   const customerId = randomUUID()
   const topupId = randomUUID()
   const providerRef = `b2c-topup-itg-${randomUUID()}`
+  const token = `itg-token-${topupId}`
 
   await withSystemContext(async (tx) => {
     await tx.insert(agencies).values({
@@ -99,10 +103,11 @@ async function createFixture(opts: {
       status: "pending",
       paymentReference: providerRef,
       psp: opts.psp,
+      paymeeToken: token,
     })
   })
 
-  return { agencyId, customerId, topupId, providerRef }
+  return { agencyId, customerId, topupId, providerRef, token }
 }
 
 async function cleanupFixture(f: Fixture): Promise<void> {
@@ -158,7 +163,7 @@ test("crédit simple : 1 ligne wallet_ledger, solde correct, statut completed", 
         eventType: charge.eventType,
         charge,
         signatureOk: true,
-        auditPayload: { test: true },
+        auditPayload: { test: true, token: f.token },
       }),
     )
     assert.deepEqual(result.status, "credited")
@@ -204,7 +209,7 @@ test("webhook dupliqué (même eventId) : duplicate, 0 second crédit", async (t
       eventType: charge.eventType,
       charge,
       signatureOk: true,
-      auditPayload: { test: true },
+      auditPayload: { test: true, token: f.token },
     }
 
     const result1 = await withSystemContext((tx) =>
@@ -251,7 +256,7 @@ test("retry applicatif (eventId différent, même paymentReference) : already_pr
         eventType: charge.eventType,
         charge,
         signatureOk: true,
-        auditPayload: { test: true },
+        auditPayload: { test: true, token: f.token },
       }),
     )
     assert.equal(result1.status, "credited")
@@ -263,7 +268,7 @@ test("retry applicatif (eventId différent, même paymentReference) : already_pr
         eventType: charge.eventType,
         charge, // même providerRef
         signatureOk: true,
-        auditPayload: { test: true },
+        auditPayload: { test: true, token: f.token },
       }),
     )
     assert.equal(result2.status, "already_processed")
@@ -297,7 +302,7 @@ test("montant incohérent : mismatch, statut failed, 0 crédit", async (t) => {
         eventType: charge.eventType,
         charge,
         signatureOk: true,
-        auditPayload: { test: true },
+        auditPayload: { test: true, token: f.token },
       }),
     )
     assert.equal(result.status, "mismatch")
@@ -337,7 +342,7 @@ test("paiement refusé (PSP) : statut failed, 0 crédit", async (t) => {
         eventType: "paymee.payment.failed",
         charge,
         signatureOk: true,
-        auditPayload: { test: true },
+        auditPayload: { test: true, token: f.token },
       }),
     )
     assert.equal(result.status, "payment_failed")
@@ -377,7 +382,7 @@ test("PSP mismatch (déclaré ≠ webhook reçu) : no_match, tracé dans psp_web
         eventType: charge.eventType,
         charge,
         signatureOk: true,
-        auditPayload: { test: true },
+        auditPayload: { test: true, token: f.token },
       }),
     )
     assert.equal(result.status, "no_match")
@@ -425,7 +430,7 @@ test("2 webhooks RÉELLEMENT concurrents, MÊME eventId (Promise.all) : exacteme
       eventType: charge.eventType,
       charge,
       signatureOk: true,
-      auditPayload: { test: true },
+      auditPayload: { test: true, token: f.token },
     }
 
     const [r1, r2] = await Promise.all([
@@ -493,7 +498,7 @@ test("2 webhooks RÉELLEMENT concurrents, eventId DIFFÉRENTS (Promise.all) pour
           eventType: charge1.eventType,
           charge: charge1,
           signatureOk: true,
-          auditPayload: { test: true },
+          auditPayload: { test: true, token: f.token },
         }),
       ),
       withSystemContext((tx) =>
@@ -503,7 +508,7 @@ test("2 webhooks RÉELLEMENT concurrents, eventId DIFFÉRENTS (Promise.all) pour
           eventType: charge2.eventType,
           charge: charge2,
           signatureOk: true,
-          auditPayload: { test: true },
+          auditPayload: { test: true, token: f.token },
         }),
       ),
     ])
@@ -532,6 +537,146 @@ test("2 webhooks RÉELLEMENT concurrents, eventId DIFFÉRENTS (Promise.all) pour
         .where(eq(walletAccounts.customerId, f.customerId))
       assert.equal(wallet?.currentBalance, "75.00")
     })
+  } finally {
+    await cleanupFixture(f)
+  }
+})
+
+/* -------------------------------------------------------------------------- */
+/* Audit #269 — A1 (PSP absent), A2 (token Paymee), A3 (atomicité)            */
+/* -------------------------------------------------------------------------- */
+
+async function ledgerFor(f: Fixture) {
+  return withSystemContext(async (tx) => {
+    const ledger = await tx
+      .select()
+      .from(walletLedger)
+      .where(eq(walletLedger.idempotencyKey, f.topupId))
+    const [request] = await tx
+      .select()
+      .from(customerTopupRequests)
+      .where(eq(customerTopupRequests.id, f.topupId))
+    const traces = await tx
+      .select({ error: pspWebhooks.error })
+      .from(pspWebhooks)
+      .where(eq(pspWebhooks.agencyId, f.agencyId))
+    return { ledger, status: request?.status, traces }
+  })
+}
+
+test("A1 — demande sans PSP déclaré (psp=null) : jamais créditée par webhook", async (t) => {
+  if (!dbAvailable) return void t.skip(skip())
+  const f = await createFixture({ amount: "40.00", psp: null })
+  try {
+    const charge = chargeFor(f, 40)
+    const result = await withSystemContext((tx) =>
+      processCustomerTopupWebhookCore(tx, {
+        provider: "paymee",
+        eventId: charge.eventId,
+        eventType: charge.eventType,
+        charge,
+        signatureOk: true,
+        auditPayload: { test: true, token: f.token },
+      }),
+    )
+    assert.equal(result.status, "no_match")
+    const s = await ledgerFor(f)
+    assert.equal(s.ledger.length, 0)
+    assert.equal(s.status, "pending")
+    assert.ok(s.traces.some((w) => w.error === "PSP_MISSING"))
+  } finally {
+    await cleanupFixture(f)
+  }
+})
+
+test("A2 — token Paymee différent de celui de la demande : aucun crédit", async (t) => {
+  if (!dbAvailable) return void t.skip(skip())
+  const f = await createFixture({ amount: "45.00", psp: "paymee" })
+  try {
+    for (const auditPayload of [
+      { test: true, token: "token-d-un-autre-paiement" },
+      { test: true },
+    ]) {
+      const charge = chargeFor(f, 45)
+      const result = await withSystemContext((tx) =>
+        processCustomerTopupWebhookCore(tx, {
+          provider: "paymee",
+          eventId: charge.eventId,
+          eventType: charge.eventType,
+          charge,
+          signatureOk: true,
+          auditPayload,
+        }),
+      )
+      assert.equal(result.status, "no_match")
+    }
+    const s = await ledgerFor(f)
+    assert.equal(s.ledger.length, 0)
+    assert.equal(s.status, "pending")
+    assert.equal(s.traces.filter((w) => w.error === "TOKEN_MISMATCH").length, 2)
+
+    // Le bon token crédite normalement (eventId non consommé par les refus).
+    const charge = chargeFor(f, 45)
+    const ok = await withSystemContext((tx) =>
+      processCustomerTopupWebhookCore(tx, {
+        provider: "paymee",
+        eventId: charge.eventId,
+        eventType: charge.eventType,
+        charge,
+        signatureOk: true,
+        auditPayload: { test: true, token: f.token },
+      }),
+    )
+    assert.equal(ok.status, "credited")
+  } finally {
+    await cleanupFixture(f)
+  }
+})
+
+test("A3 — crédit dans la transaction du webhook : un échec après le crédit annule tout", async (t) => {
+  if (!dbAvailable) return void t.skip(skip())
+  const f = await createFixture({ amount: "55.00", psp: "paymee" })
+  try {
+    const charge = chargeFor(f, 55)
+    await assert.rejects(
+      withSystemContext(async (tx) => {
+        const r = await processCustomerTopupWebhookCore(tx, {
+          provider: "paymee",
+          eventId: charge.eventId,
+          eventType: charge.eventType,
+          charge,
+          signatureOk: true,
+          auditPayload: { test: true, token: f.token },
+        })
+        assert.equal(r.status, "credited")
+        // Échec simulé de la transaction appelante après le traitement.
+        throw new Error("ECHEC_SIMULE_APRES_CREDIT")
+      }),
+      /ECHEC_SIMULE_APRES_CREDIT/,
+    )
+    const s = await ledgerFor(f)
+    assert.equal(
+      s.ledger.length,
+      0,
+      "aucun crédit ne doit survivre au rollback",
+    )
+    assert.equal(s.status, "pending")
+
+    // Paymee renvoie la notification : crédit unique, demande complétée.
+    const retry = await withSystemContext((tx) =>
+      processCustomerTopupWebhookCore(tx, {
+        provider: "paymee",
+        eventId: charge.eventId,
+        eventType: charge.eventType,
+        charge,
+        signatureOk: true,
+        auditPayload: { test: true, token: f.token },
+      }),
+    )
+    assert.equal(retry.status, "credited")
+    const after = await ledgerFor(f)
+    assert.equal(after.ledger.length, 1)
+    assert.equal(after.status, "completed")
   } finally {
     await cleanupFixture(f)
   }

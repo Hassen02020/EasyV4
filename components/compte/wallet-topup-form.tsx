@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useTransition } from "react"
-import { useTranslations } from "next-intl"
+import { useLocale, useTranslations } from "next-intl"
 import { submitCustomerTopUp } from "@/lib/finance/b2c-topup-actions"
 import { Loader2 } from "lucide-react"
 
@@ -10,6 +10,7 @@ const MAX = 5000
 
 export function WalletTopUpForm() {
   const t = useTranslations("Compte")
+  const locale = useLocale()
   const [amount, setAmount] = useState("")
   const [error, setError] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
@@ -25,7 +26,7 @@ export function WalletTopUpForm() {
     }
 
     startTransition(async () => {
-      const result = await submitCustomerTopUp(parsed)
+      const result = await submitCustomerTopUp(parsed, locale)
       if (!result.ok) {
         setError(result.error)
         return

@@ -241,6 +241,7 @@ const TOPUP_ERROR_MESSAGES: Record<
   INVALID_NOTE: "Note trop longue (500 caractères maximum).",
   TOO_MANY_PENDING:
     "Vous avez déjà plusieurs demandes en attente. Merci d'attendre leur traitement.",
+  CUSTOMER_NOT_FOUND: "Profil client introuvable.",
 }
 
 /**

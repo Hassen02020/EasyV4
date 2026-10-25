@@ -221,6 +221,14 @@ Error("FISCAL_RULE_NOT_FOUND")` si aucune règle active
 
 - CI GitHub (PR #270, `workflow_dispatch` sur la tête `74c0b56e` — `ci.yml` ne se déclenche que pour les PR vers `main`) : run #761, **9/9 jobs verts** (typecheck, lint, format, test, financial-e2e, build, e2e-guest, playwright-a11y, lighthouse). Vercel Preview de la branche : refus de la garde d'isolation (`DÉMARRAGE REFUSÉ`, compilation OK) — attendu, aucune variable Preview sur cette branche.
 
+**Correctifs post-audit (GO « correction du code réel », 2026-10-25)** :
+
+- **Séparation des tâches** : un membre de l'équipe pouvant aussi avoir un profil client lié à son compte (`createCustomerProfile`), un `agent_compta` pouvait déclarer une recharge puis la valider lui-même (crédit sans encaissement). Refus `SELF_REVIEW` (validation et rejet, tous rôles) quand `customers.auth_user_id` = validateur.
+- **Plafond des demandes en attente sous concurrence** : verrou `FOR UPDATE` sur la ligne client avant le comptage — sans lui, des déclarations simultanées dépassaient le plafond (mutation : échec 3/3).
+- Import inutilisé retiré de `customer-topup-webhook-core.ts` (avertissement lint préexistant).
+- Tests ajoutés (18/18) : auto-validation refusée (agent_compta et super_admin, validation et rejet), rejet par agent_compta en contexte agence (statut, motif, audit), déclarations concurrentes plafonnées. Mutations : séparation retirée → échec ; verrou retiré → échec 3/3.
+- Base isolée fraîche (procédure CI : `db:push` + 144 migrations manuelles dont 0141) : `financial-e2e` complet **194/194**, 0 ignoré ; unitaires 3 446, 0 échec ; `tsc`, `pnpm lint` (0 erreur), `prettier --check .`, `next build` : OK.
+
 **Limites / NOT VERIFIED** : Preview (bloquée par la configuration Preview de #269 — garde d'isolation non contournée) ; migration 0141 non appliquée en Preview ni en production (GO séparé) ; production. Coordonnées réelles (RIB, D17, agence) : à saisir par le Super Admin après application de la migration — rien n'est pré-rempli. Messages d'erreur serveur en français uniquement (comme le flux carte existant). D17 = déclaration manuelle, aucune intégration officielle. Carte Paymee : non certifiée (sandbox NOT VERIFIED).
 
 **Prochain chantier potentiel (non démarré)** : lot 2 — stockage privé des justificatifs (bucket privé, liens signés, lecture équipe). Hors périmètre, noté : `validateRechargeRequest` (B2B) enregistre un validateur transmis par le client.

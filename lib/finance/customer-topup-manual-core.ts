@@ -28,6 +28,7 @@ import { and, desc, eq, ne } from "drizzle-orm"
 
 import {
   auditEvents,
+  customers,
   customerTopupRequests,
   topupPaymentMethods,
 } from "@/lib/db/schema"
@@ -312,6 +313,7 @@ export type CreateManualTopupResult =
         | "INVALID_REFERENCE"
         | "INVALID_NOTE"
         | "TOO_MANY_PENDING"
+        | "CUSTOMER_NOT_FOUND"
     }
 
 export async function createManualTopupRequest(
@@ -346,6 +348,20 @@ export async function createManualTopupRequest(
   if (!available.some((m) => m.method === method)) {
     return { ok: false, code: "METHOD_UNAVAILABLE" }
   }
+
+  // Verrou sur le client : deux déclarations simultanées ne peuvent pas
+  // dépasser ensemble le plafond de demandes en attente.
+  const [customerRow] = await tx
+    .select({ id: customers.id })
+    .from(customers)
+    .where(
+      and(
+        eq(customers.id, input.customerId),
+        eq(customers.agencyId, input.agencyId),
+      ),
+    )
+    .for("update")
+  if (!customerRow) return { ok: false, code: "CUSTOMER_NOT_FOUND" }
 
   const pending = await tx
     .select({ id: customerTopupRequests.id })
@@ -444,6 +460,7 @@ export type ReviewTopupResult =
         | "ALREADY_PROCESSED"
         | "REASON_REQUIRED"
         | "INVALID_AMOUNT"
+        | "SELF_REVIEW"
       status?: string
     }
 
@@ -517,6 +534,17 @@ export async function reviewManualTopupRequest(
   }
   if (request.status !== "pending") {
     return { ok: false, code: "ALREADY_PROCESSED", status: request.status }
+  }
+
+  // Séparation des tâches : un membre de l'équipe peut aussi avoir un profil
+  // client lié à son compte (createCustomerProfile) — il ne traite jamais
+  // ses propres demandes.
+  const [owner] = await tx
+    .select({ authUserId: customers.authUserId })
+    .from(customers)
+    .where(eq(customers.id, request.customerId))
+  if (owner?.authUserId && owner.authUserId === reviewer.userId) {
+    return { ok: false, code: "SELF_REVIEW" }
   }
 
   const now = new Date()

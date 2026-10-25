@@ -704,3 +704,98 @@ test("isolation RLS : une autre agence ne voit ni la demande ni la configuration
     await cleanupFixture(f)
   }
 })
+
+/* -------------------------------------------------------------------------- */
+/* Séparation des tâches et concurrence côté client                           */
+/* -------------------------------------------------------------------------- */
+
+test("un validateur ne traite jamais sa propre demande (profil client lié à son compte)", async (t) => {
+  if (!dbAvailable) return void t.skip(skip())
+  const f = await createFixture()
+  try {
+    await configureTransfer(f)
+    const id = requestIdOf(await submit(f, "500"))
+    // Même identifiant d'authentification que le client de la fixture.
+    for (const reviewer of [
+      {
+        userId: f.authUserId,
+        role: "agent_compta",
+        agencyId: f.agencyId,
+        isSuperAdmin: false,
+      },
+      {
+        userId: f.authUserId,
+        role: "super_admin",
+        agencyId: f.agencyId,
+        isSuperAdmin: true,
+      },
+    ]) {
+      for (const decision of ["approve", "reject"] as const) {
+        const r = await review(reviewer, id, decision, "Motif de test")
+        assert.deepEqual(r, { ok: false, code: "SELF_REVIEW" }, reviewer.role)
+      }
+    }
+    const s = await state(f, id)
+    assert.equal(s.request?.status, "pending")
+    assert.equal(s.ledger.length, 0)
+    assert.equal(s.balance, null)
+  } finally {
+    await cleanupFixture(f)
+  }
+})
+
+test("rejet par agent_compta (contexte agence, hors super_admin) : statut, motif et audit", async (t) => {
+  if (!dbAvailable) return void t.skip(skip())
+  const f = await createFixture()
+  try {
+    await configureTransfer(f)
+    const id = requestIdOf(await submit(f, "35"))
+    const reviewer = {
+      userId: randomUUID(),
+      role: "agent_compta",
+      agencyId: f.agencyId,
+      isSuperAdmin: false,
+    }
+    const r = await review(reviewer, id, "reject", "Versement introuvable")
+    assert.equal(r.ok, true, JSON.stringify(r))
+    const s = await state(f, id)
+    assert.equal(s.request?.status, "rejected")
+    assert.equal(s.request?.reviewedByUserId, reviewer.userId)
+    assert.equal(s.ledger.length, 0)
+    const rejected = s.audit.filter(
+      (a) => a.action === "customer.topup_rejected",
+    )
+    assert.equal(rejected.length, 1)
+    assert.equal(rejected[0]!.actorUserId, reviewer.userId)
+  } finally {
+    await cleanupFixture(f)
+  }
+})
+
+test("déclarations RÉELLEMENT concurrentes : le plafond de demandes en attente tient", async (t) => {
+  if (!dbAvailable) return void t.skip(skip())
+  const f = await createFixture()
+  try {
+    await configureTransfer(f)
+    const results = await Promise.all(
+      Array.from({ length: MAX_PENDING_MANUAL_TOPUPS + 3 }, () =>
+        submit(f, "15"),
+      ),
+    )
+    assert.equal(results.filter((r) => r.ok).length, MAX_PENDING_MANUAL_TOPUPS)
+    assert.ok(
+      results
+        .filter((r) => !r.ok)
+        .every((r) => !r.ok && r.code === "TOO_MANY_PENDING"),
+    )
+    const rows = await withSystemContext((tx) =>
+      tx
+        .select()
+        .from(customerTopupRequests)
+        .where(eq(customerTopupRequests.customerId, f.customerId)),
+    )
+    assert.equal(rows.length, MAX_PENDING_MANUAL_TOPUPS)
+  } finally {
+    await cleanupFixture(f)
+  }
+})

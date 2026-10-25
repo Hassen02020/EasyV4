@@ -12,7 +12,7 @@
  * wallet_ledger n'est JAMAIS UPDATE, seulement INSERT (append-only).
  */
 
-import { eq, and } from "drizzle-orm"
+import { eq } from "drizzle-orm"
 import type { DrizzleTransaction } from "@/lib/db/client"
 import {
   customerTopupRequests,

@@ -45,6 +45,8 @@ function errorMessage(
       return "Le motif du rejet est obligatoire (3 à 500 caractères)."
     case "INVALID_AMOUNT":
       return "Montant de la demande invalide."
+    case "SELF_REVIEW":
+      return "Vous ne pouvez pas traiter votre propre demande de recharge."
   }
 }
 

@@ -36,3 +36,11 @@ test('module "use server" : n\'exporte que des fonctions async et des types', ()
     assert.match(e, /^export\s+(async function|type|interface)\b/, e)
   }
 })
+
+test("lien de paiement remis seulement après stockage du token Paymee (audit #269, A2)", () => {
+  const guard = actionSrc.indexOf("if (!tokenStored)")
+  const success = actionSrc.indexOf("return { ok: true, paymentUrl")
+  assert.ok(guard > 0, "garde de stockage du token absente")
+  assert.ok(success > guard, "le lien doit être remis après la garde")
+  assert.doesNotMatch(actionSrc, /Non bloquant — le token/)
+})

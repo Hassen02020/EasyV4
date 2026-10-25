@@ -191,17 +191,42 @@ export async function submitCustomerTopUp(
     }
   }
 
-  // Stocke le token Paymee sur la demande
+  // Token Paymee obligatoire : le webhook n'accepte que le token de CETTE
+  // demande (customer-topup-webhook-core, P0-C). Sans token enregistré, le
+  // lien de paiement n'est jamais remis au client.
   const paymeeToken = paymentResult.providerPaymentId ?? null
-  try {
-    await withTenantContext(tenant, async (tx) => {
-      await tx
-        .update(customerTopupRequests)
-        .set({ paymeeToken })
-        .where(eq(customerTopupRequests.id, topupId))
-    })
-  } catch {
-    // Non bloquant — le token est utile pour le support mais pas critique
+  let tokenStored = false
+  if (paymeeToken) {
+    try {
+      await withTenantContext(tenant, async (tx) => {
+        await tx
+          .update(customerTopupRequests)
+          .set({ paymeeToken })
+          .where(eq(customerTopupRequests.id, topupId))
+      })
+      tokenStored = true
+    } catch (err: unknown) {
+      logger.error("[submitCustomerTopUp] store Paymee token failed", {
+        topupId,
+        error: err,
+      })
+    }
+  }
+  if (!tokenStored) {
+    try {
+      await withTenantContext(tenant, async (tx) => {
+        await tx
+          .update(customerTopupRequests)
+          .set({ status: "failed" })
+          .where(eq(customerTopupRequests.id, topupId))
+      })
+    } catch {
+      // best-effort
+    }
+    return {
+      ok: false,
+      error: "Impossible d'initier le paiement. Veuillez réessayer.",
+    }
   }
 
   return { ok: true, paymentUrl: paymentResult.redirectUrl }

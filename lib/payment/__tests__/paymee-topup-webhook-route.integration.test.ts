@@ -92,6 +92,8 @@ async function createFixture(amount: string): Promise<Fixture> {
       psp: "paymee",
       paymentReference: topupId,
       idempotencyKey: topupId,
+      // Token renvoyé par Paymee à la création (stocké par submitCustomerTopUp).
+      paymeeToken: `itg-token-${topupId.slice(0, 8)}`,
     })
   })
   return { agencyId, customerId, topupId }
@@ -265,6 +267,36 @@ test("défaut corrigé : le même webhook livré à reservation-webhook ne créd
     )
     const after = await ledgerAndStatus(f)
     assert.equal(after.ledger.length, 0)
+    assert.equal(after.status, "pending")
+  } finally {
+    await cleanupFixture(f)
+  }
+})
+
+test("webhook signé d'un AUTRE paiement Paymee (token différent) : aucun crédit", async (t) => {
+  if (!dbAvailable) return void t.skip(skip())
+  const f = await createFixture("50.00")
+  try {
+    // check_sum valide pour un autre token : webhook authentique, mais d'un
+    // autre paiement, réattribué à cette demande via son order_id.
+    const otherToken = "itg-token-autre-paiement"
+    const body = JSON.stringify({
+      token: otherToken,
+      payment_status: true,
+      order_id: f.topupId,
+      amount: 50,
+      transaction_id: randomInt(1_000_000, 2_000_000_000),
+      check_sum: computePaymeeChecksum({
+        token: otherToken,
+        paymentStatus: true,
+        apiKey: TEST_PAYMEE_KEY,
+      }),
+    })
+    const res = await deliverTopupWebhook(body)
+    assert.equal(res.status, 200)
+    const after = await ledgerAndStatus(f)
+    assert.equal(after.ledger.length, 0)
+    assert.equal(after.balance, null)
     assert.equal(after.status, "pending")
   } finally {
     await cleanupFixture(f)

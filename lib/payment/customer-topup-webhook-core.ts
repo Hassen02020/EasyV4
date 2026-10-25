@@ -5,11 +5,17 @@
  *
  * Mêmes garanties que son homologue B2B :
  *  P0-A : corrélation AVANT consommation de l'eventId
- *  P0-B : vérification identité PSP AVANT consommation de l'eventId
+ *  P0-B : vérification identité PSP AVANT consommation de l'eventId — une
+ *         demande sans PSP déclaré n'est jamais créditable par webhook
+ *  P0-C : Paymee — le token reçu doit être celui renvoyé à la création du
+ *         paiement de CETTE demande (le check_sum ne signe que token + statut,
+ *         ni l'order_id ni le montant)
  *
  * Invariant financier respecté : `creditCustomerWallet` est appelé avec
- * `source: "online_card"` et `idempotencyKey = topup_request.id` —
- * wallet_ledger n'est JAMAIS UPDATE, seulement INSERT (append-only).
+ * `source: "online_card"` et `idempotencyKey = topup_request.id`, DANS la
+ * transaction qui verrouille la demande et la passe à `completed` (crédit et
+ * statut validés ou annulés ensemble) — wallet_ledger n'est JAMAIS UPDATE,
+ * seulement INSERT (append-only).
  */
 
 import { eq } from "drizzle-orm"
@@ -21,6 +27,7 @@ import {
 } from "@/lib/db/schema"
 import {
   creditCustomerWallet,
+  type CreditCustomerWalletInput,
   type WalletMovementSuccess,
 } from "@/lib/finance/customer-wallet"
 import {
@@ -94,8 +101,9 @@ export async function processCustomerTopupWebhookCore(
     return { status: "no_match" }
   }
 
-  // P0-B : vérification identité PSP
-  if (pending.psp !== provider) {
+  // P0-B : vérification identité PSP. Sans PSP déclaré, la demande n'a pas
+  // été initiée en ligne : seul un traitement humain peut la créditer.
+  if (pending.psp === null || pending.psp !== provider) {
     await tx.insert(pspWebhooks).values({
       agencyId: pending.agencyId,
       psp: provider,
@@ -103,9 +111,33 @@ export async function processCustomerTopupWebhookCore(
       payload: auditPayload,
       signatureOk,
       processedAt: new Date(),
-      error: `PSP_MISMATCH:expected=${pending.psp}`,
+      error:
+        pending.psp === null
+          ? "PSP_MISSING"
+          : `PSP_MISMATCH:expected=${pending.psp}`,
     })
     return { status: "no_match" }
+  }
+
+  // P0-C : Paymee — un webhook authentique d'un autre paiement ne peut pas
+  // être réattribué à cette demande en changeant son order_id. Le token est
+  // toujours stocké avant que le client reçoive le lien de paiement
+  // (submitCustomerTopUp) ; une demande sans token n'a jamais été payable.
+  if (provider === "paymee") {
+    const token =
+      typeof auditPayload["token"] === "string" ? auditPayload["token"] : null
+    if (!pending.paymeeToken || token !== pending.paymeeToken) {
+      await tx.insert(pspWebhooks).values({
+        agencyId: pending.agencyId,
+        psp: provider,
+        eventType,
+        payload: auditPayload,
+        signatureOk,
+        processedAt: new Date(),
+        error: pending.paymeeToken ? "TOKEN_MISMATCH" : "TOKEN_MISSING",
+      })
+      return { status: "no_match" }
+    }
   }
 
   // Idempotence event-level
@@ -182,6 +214,8 @@ export async function processCustomerTopupWebhookCore(
     source: "online_card",
     idempotencyKey: pending.id,
     description: `Recharge wallet Easy2Book — ${provider.toUpperCase()} (réf. ${charge.providerRef})`,
+    // Même transaction que le verrou FOR UPDATE et le passage à `completed`.
+    txOverride: tx as unknown as CreditCustomerWalletInput["txOverride"],
   })
 
   if (!creditResult.ok) {

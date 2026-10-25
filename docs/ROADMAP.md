@@ -143,10 +143,10 @@ Error("FISCAL_RULE_NOT_FOUND")` si aucune règle active
 > - **Décision A10 (2026-10-24, propriétaire)** : canonical auto-référente localisée (variante b) — chaque locale est une page équivalente à indexer.
 > - DEST-CARD-FALLBACK-01 (lot 1, A08) : **fusionné** (PR #267, merge `ed96f254`).
 > - I18N-HEADER-STRINGS-01 (lot 3) : **fusionné** (PR #268, merge `2baf6942`).
-> - **PREVIEW-PROD-ISOLATION-01 (P0)** : « Code testé », PR #269 (non fusionnée). Refus prouvé sur Vercel (build Preview non isolé refusé). Base `EasyV4-preview` initialisée et vérifiée (empreinte 10/10) ; secrets Preview (mot de passe `app_runtime`, URL base, service role, clé Paymee sandbox) à définir par le propriétaire (`docs/ops/PREVIEW_ISOLATION.md`).
-> - **WALLET-PAYMEE-INIT-01 (P1)** : « Code testé », même PR #269. Bout en bout Paymee sandbox NOT VERIFIED (dépend de l'isolation Preview).
-> - **WALLET-B2C-RECHARGE-METHODS-01 (lot 1)** : « Code testé », PR séparée empilée sur #269 (branche `claude/wallet-b2c-recharge-methods-01`, non fusionnée). Migration 0141 **non appliquée** en Preview ni en production. Détail et preuves : entrée dédiée ci-dessous.
-> - Production de tous ces chantiers : NOT VERIFIED (accès Vercel 403).
+> - **PREVIEW-PROD-ISOLATION-01 (P0)** : **FUSIONNÉ ET EN PRODUCTION** (PR #269, merge `f92436af`, 2026-10-25). Production vérifiée (voir entrée WALLET-B2C-RECHARGE-METHODS-01). Refus des Previews non isolées prouvé sur Vercel. Base `EasyV4-preview` initialisée (empreinte 10/10) ; secrets Preview (mot de passe `app_runtime`, URL base, service role, clé Paymee sandbox) toujours à définir par le propriétaire (`docs/ops/PREVIEW_ISOLATION.md`) — d'ici là, toute Preview est refusée (comportement voulu).
+> - **WALLET-PAYMEE-INIT-01 (P1)** : **FUSIONNÉ** (PR #269, avec les correctifs d'audit A1/A2/A3). Paiement Paymee sandbox de bout en bout NOT VERIFIED — recharge carte non certifiée.
+> - **WALLET-B2C-RECHARGE-METHODS-01 (lot 1)** : **FUSIONNÉ ET EN PRODUCTION** (PR #270, merge `eb4a50f6`, 2026-10-25). Migration 0141 **appliquée en production** (2026-10-25, avant la fusion) et vérifiée. Reste : saisie des coordonnées officielles par le Super Admin (aucun moyen manuel proposé avant). Détail : entrée dédiée.
+> - Production (2026-10-25) : `dpl_9awurg3jCK7kZRrARbFkZhcGeDZG` (#269) puis `dpl_9RUHJmLW3tEUKDFhTryPDfuaJaQi` (#270), READY, target production, SHA = HEAD(main) ; contrôles en lecture seule OK (voir entrée WALLET-B2C-RECHARGE-METHODS-01).
 >
 > Programme wallet : WALLET-GUEST-INTEGRATION-TESTS-01 **fusionné** (PR #261, merge `8bcef2cc`) et WALLET-TOPUP-STATE-01 **fusionné** (PR #262, merge `efa4ccbc`) — 15/15 et 7/7 tests exécutés réellement sur PostgreSQL jetable local (hors CI : fichiers absents du job `financial-e2e`). WALLET-JOURNEY-AUDIT-01 et suivants : inchangés, en attente.
 >
@@ -198,7 +198,19 @@ Error("FISCAL_RULE_NOT_FOUND")` si aucune règle active
 
 ---
 
-### WALLET-B2C-RECHARGE-METHODS-01 — lot 1 « Code testé » (2026-10-25), PR empilée sur #269, non fusionnée
+### WALLET-B2C-RECHARGE-METHODS-01 — lot 1 FUSIONNÉ ET EN PRODUCTION (2026-10-25) — PR #270 (`eb4a50f6`)
+
+**Mise en service (2026-10-25)** :
+
+- **Audit final de #269** (lecture seule) → verdict « prête sous réserve ». Réserves de sécurité corrigées dans #269 avant fusion (commit `728d26be`) : A1 demande sans PSP jamais créditée par webhook (`PSP_MISSING`) ; A2 token Paymee reçu = token stocké à la création (`TOKEN_MISMATCH`/`TOKEN_MISSING`), lien de paiement remis seulement si le token est enregistré ; A3 crédit dans la transaction du webhook (verrou + statut + crédit ensemble). 4 tests ajoutés, chaque correctif retiré fait échouer son test. CI #764 verte.
+- **Fusion #269** (`f92436af`, merge commit, GO propriétaire). Production `dpl_9awurg3jCK7kZRrARbFkZhcGeDZG` READY : `/api/health` 200, `/fr` 200, garde d'isolation inactive en production (comme prévu). Une erreur `EMAXCONNSESSION` (plafond 15 clients du pooler en session mode) au démarrage à froid — limite d'infrastructure préexistante (cf. DESTINATIONS-SSG-POOL-EXHAUSTION-01), sans lien avec #269, page servie en 200.
+- **Compatibilité #270** : merge de #269 dans #270 (`e6c5598f`, conflit webhook résolu en gardant les deux gardes), puis de `main` (`73f3073f`, sans changement de contenu). financial-e2e 198/198 local ; CI #767 9/9.
+- **Migration 0141 en production** : exécutée par le propriétaire dans l'éditeur SQL Supabase (le connecteur exigeait une confirmation jamais reçue, 4 tentatives sans effet — vérifié). Vérification en lecture seule : 6 colonnes, 5 contraintes (`amount`, `status`, `method`, `card_psp`, `review`), 2 lignes existantes → `card`/`failed`/`paymee`, table `topup_payment_methods` (RLS active, 2 policies, `DELETE` refusé à `app_runtime`, 0 ligne), index `topup_req_method_status_idx`.
+- **Fusion #270** (`eb4a50f6`, après 0141). Production `dpl_9RUHJmLW3tEUKDFhTryPDfuaJaQi` READY : `/api/health` 200, `/fr` 200, `/fr/compte/wallet` 200 (« Mon portefeuille », aucune erreur SQL), `/admin/accounting/recharges` → page de connexion sans session ; 0 erreur runtime sur le déploiement.
+
+**Reste à faire (propriétaire)** : saisir les coordonnées officielles (RIB, D17, agence) dans `/admin/accounting/recharges/moyens`. Recharge carte Paymee : certification sandbox séparée (NOT VERIFIED). Notification e-mail client : non implémentée (lot ultérieur).
+
+#### Historique « Code testé » (2026-10-25)
 
 **Décisions propriétaire (GO 2026-10-25)** : (1) lot 1 sans téléversement de justificatif — référence client facultative, l'équipe vérifie la réception réelle (encaissement pour les espèces) ; lot 2 = stockage privé de justificatifs ; (2) validation par `super_admin` et rôles comptables autorisés, validateur issu de la session uniquement ; (3) moyens et coordonnées en base, administrés par le Super Admin, moyen inactif ou incomplet masqué, aucune coordonnée inventée ; (4) PR séparée empilée sur #269 ; (5) 10–5 000 TND, deux décimales, toute précision supérieure refusée (jamais tronquée).
 

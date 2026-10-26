@@ -143,24 +143,25 @@ Error("FISCAL_RULE_NOT_FOUND")` si aucune règle active
 > - **Décision A10 (2026-10-24, propriétaire)** : canonical auto-référente localisée (variante b) — chaque locale est une page équivalente à indexer.
 > - DEST-CARD-FALLBACK-01 (lot 1, A08) : **fusionné** (PR #267, merge `ed96f254`).
 > - I18N-HEADER-STRINGS-01 (lot 3) : **fusionné** (PR #268, merge `2baf6942`).
-> - **PREVIEW-PROD-ISOLATION-01 (P0)** : « Code testé », PR #269 (non fusionnée). Refus prouvé sur Vercel (build Preview non isolé refusé). Base `EasyV4-preview` initialisée et vérifiée (empreinte 10/10) ; secrets Preview (mot de passe `app_runtime`, URL base, service role, clé Paymee sandbox) à définir par le propriétaire (`docs/ops/PREVIEW_ISOLATION.md`).
-> - **WALLET-PAYMEE-INIT-01 (P1)** : « Code testé », même PR #269. Bout en bout Paymee sandbox NOT VERIFIED (dépend de l'isolation Preview).
-> - **WALLET-B2C-RECHARGE-METHODS-01 (lot 1)** : « Code testé », PR séparée empilée sur #269 (branche `claude/wallet-b2c-recharge-methods-01`, non fusionnée). Migration 0141 **non appliquée** en Preview ni en production. Détail et preuves : entrée dédiée ci-dessous.
-> - Production de tous ces chantiers : NOT VERIFIED (accès Vercel 403).
+> - **PREVIEW-PROD-ISOLATION-01 (P0)** : « Code testé », **fusionné** (PR #269, merge `f92436af`, 2026-10-25). Refus prouvé sur Vercel (build Preview non isolé refusé). Base `EasyV4-preview` initialisée et vérifiée (empreinte 10/10) ; secrets Preview (mot de passe `app_runtime`, URL base, service role, clé Paymee sandbox) à définir par le propriétaire (`docs/ops/PREVIEW_ISOLATION.md`) — **NOT VERIFIED**, aucune preuve indépendante que ce soit fait.
+> - **WALLET-PAYMEE-INIT-01 (P1)** : « Code testé », même PR #269 (**fusionnée**). Bout en bout Paymee sandbox NOT VERIFIED (dépend de l'isolation Preview).
+> - **WALLET-B2C-RECHARGE-METHODS-01 (lot 1)** : « Code testé », **fusionné** (PR #270, merge `eb4a50f6`, 2026-10-25). **Migration 0141 : réconciliée 2026-10-26** — vérifiée directement en base (lecture seule, projets Supabase réels, pas une supposition) : **appliquée en production** (`EasyV4`, `crygnaichvlxavvbifqi` — 6 colonnes `customer_topup_requests`, contraintes `method_check`/`review_check`, statut `rejected`, table `topup_payment_methods` tous présents), **non appliquée sur `EasyV4-preview`** (`fxjhahtqrglktrmgqkvs` — aucun des éléments ci-dessus). Qui/quand a appliqué la migration en production : NOT VERIFIED (pas une action de cette session). Détail et preuves : entrée dédiée ci-dessous.
+> - **WALLET-INTEGRATION-CI-WIRING-01** : **fusionné** (PR #271, merge `7e8fc616`, 2026-10-26). Câble `create-customer-profile.integration.test.ts`, `link-guest-customer.integration.test.ts` et `topup-state-machine.integration.test.ts` (jusque-là absents du job `financial-e2e`) — CI GitHub réelle 9/9 verte (dont `financial-e2e`) sur la tête de PR, 220/220 en local sur base jetable répliquant les étapes CI. Niveau de preuve : N3 (CI réelle sur Postgres isolé, rôle `app_runtime`), pas N4 (aucun parcours bout en bout démontré par ce seul chantier).
+> - Production de PREVIEW-PROD-ISOLATION-01 / WALLET-PAYMEE-INIT-01 / WALLET-B2C-RECHARGE-METHODS-01 (hors migration 0141, réconciliée ci-dessus) : NOT VERIFIED (accès Vercel 403).
 >
-> Programme wallet : WALLET-GUEST-INTEGRATION-TESTS-01 **fusionné** (PR #261, merge `8bcef2cc`) et WALLET-TOPUP-STATE-01 **fusionné** (PR #262, merge `efa4ccbc`) — 15/15 et 7/7 tests exécutés réellement sur PostgreSQL jetable local (hors CI : fichiers absents du job `financial-e2e`). WALLET-JOURNEY-AUDIT-01 et suivants : inchangés, en attente.
+> Programme wallet : WALLET-GUEST-INTEGRATION-TESTS-01 **fusionné** (PR #261, merge `8bcef2cc`) et WALLET-TOPUP-STATE-01 **fusionné** (PR #262, merge `efa4ccbc`) — tests ajoutés au job `financial-e2e` par WALLET-INTEGRATION-CI-WIRING-01 (ci-dessus) : **220/220 réussis en CI réelle**, confirmant indépendamment les 15/15 et 7/7 annoncés par ces deux PR (dont les textes d'origine documentaient eux-mêmes ces tests comme SKIP, DATABASE_URL absent au moment de l'écriture — écart maintenant résolu). WALLET-JOURNEY-AUDIT-01 et suivants : inchangés, en attente.
 >
 > Signalements propriétaire 2026-10-24 (audit lecture seule, aucune correction) :
 >
-> - Recharge wallet B2C Paymee en échec sur la preview (`customer_topup_requests` 1000 TND `failed`, sans token Paymee, aucun mouvement financier) — cause exacte NOT VERIFIED (logs Vercel 403). **La preview écrit dans la base de production.**
+> - Recharge wallet B2C Paymee en échec sur la preview (`customer_topup_requests` 1000 TND `failed`, sans token Paymee, aucun mouvement financier) — cause exacte NOT VERIFIED (logs Vercel 403). **La preview écrivait dans la base de production** au moment du constat (2026-10-24) ; PREVIEW-PROD-ISOLATION-01 depuis fusionné, statut réel de l'isolation en production NOT VERIFIED.
 > - Contact footer : WhatsApp/adresse/réseaux sociaux NULL en production (`agencies` Easy2Book + `public_site_settings`) — données jamais saisies, aucun défaut de code.
-> - Recharge multi-moyens B2C : fiche WALLET-B2C-RECHARGE-METHODS-01 validée (GO 2026-10-25, décisions 1–5), lot 1 implémenté — voir ci-dessus.
+> - Recharge multi-moyens B2C : fiche WALLET-B2C-RECHARGE-METHODS-01 validée (GO 2026-10-25, décisions 1–5), lot 1 implémenté et fusionné — voir ci-dessus.
 >
 > Aucune exécution sans GO explicite.
 
 ---
 
-### PREVIEW-PROD-ISOLATION-01 — CODE TESTÉ (2026-10-24) — P0
+### PREVIEW-PROD-ISOLATION-01 — FUSIONNÉ (PR #269, merge `f92436af`, 2026-10-25) — P0
 
 **Constat (prouvé)** : la Preview Vercel écrit dans la base de production (ligne `customer_topup_requests` créée depuis la Preview le 2026-10-24 20:45) ; Supabase n'a qu'une branche (`main` = production) ; le code ne distinguait jamais Preview et Production (`VERCEL_ENV` non utilisé, gardes basées sur `NODE_ENV`, qui vaut `production` en Preview).
 
@@ -186,7 +187,7 @@ Error("FISCAL_RULE_NOT_FOUND")` si aucune règle active
 
 ---
 
-### WALLET-PAYMEE-INIT-01 — CODE TESTÉ (2026-10-24) — P1, PR #269
+### WALLET-PAYMEE-INIT-01 — FUSIONNÉ (PR #269, merge `f92436af`, 2026-10-25) — P1
 
 **Défauts prouvés (code)** : (1) `resolvePaymeeWebhookUrl()` envoyait le webhook de TOUT paiement Paymee, recharges comprises, vers `/api/payment/reservation-webhook` (qui ne cherche que des réservations → `no_match`/200) : recharge encaissée, wallet jamais crédité ; (2) retour client vers `/paiement-retour/{ref}` (page réservation) ; (3) sans clé Paymee, `submitCustomerTopUp` créait la demande puis la marquait `failed` (cas 1000 TND) ; (4) `PAYMEE_WEBHOOK_URL` s'appliquait aux deux flux ; (5) la page wallet affichait « Recharge réussie ! … crédité » sur le seul paramètre d'URL `?topup=success`, sans lire la base.
 
@@ -198,7 +199,7 @@ Error("FISCAL_RULE_NOT_FOUND")` si aucune règle active
 
 ---
 
-### WALLET-B2C-RECHARGE-METHODS-01 — lot 1 « Code testé » (2026-10-25), PR empilée sur #269, non fusionnée
+### WALLET-B2C-RECHARGE-METHODS-01 — lot 1, FUSIONNÉ (PR #270, merge `eb4a50f6`, 2026-10-25)
 
 **Décisions propriétaire (GO 2026-10-25)** : (1) lot 1 sans téléversement de justificatif — référence client facultative, l'équipe vérifie la réception réelle (encaissement pour les espèces) ; lot 2 = stockage privé de justificatifs ; (2) validation par `super_admin` et rôles comptables autorisés, validateur issu de la session uniquement ; (3) moyens et coordonnées en base, administrés par le Super Admin, moyen inactif ou incomplet masqué, aucune coordonnée inventée ; (4) PR séparée empilée sur #269 ; (5) 10–5 000 TND, deux décimales, toute précision supérieure refusée (jamais tronquée).
 
@@ -239,12 +240,12 @@ Error("FISCAL_RULE_NOT_FOUND")` si aucune règle active
 
 **Mise en service — actions indispensables (chacune sur GO dédié)** :
 
-1. Fusion de #269 puis de #270 (propriétaire).
-2. Migration `drizzle/manual/0141_customer_topup_manual_methods.sql` en production — GO dédié. Production actuelle : 2 lignes `customer_topup_requests` (Paymee, `failed`) → rattachées à `card` ; aucune autre donnée modifiée. Retour arrière : voir en-tête du fichier.
-3. Saisie par le Super Admin des coordonnées officielles (`/admin/accounting/recharges/moyens`) — aucun moyen n'est proposé tant que ce n'est pas fait.
-4. (Facultatif) même migration sur EasyV4-preview : tentative du 2026-10-25 non appliquée (confirmation du connecteur Supabase restée sans réponse) — rien d'appliqué, vérifié en lecture seule.
+1. ✅ Fusion de #269 puis de #270 (propriétaire) — fait, vérifié directement sur `main` (`git log`), 2026-10-26.
+2. ✅ Migration `drizzle/manual/0141_customer_topup_manual_methods.sql` en production — **réconcilié 2026-10-26** : vérifiée directement en base (lecture seule, projet Supabase réel `crygnaichvlxavvbifqi`) comme réellement appliquée (colonnes, contraintes, table `topup_payment_methods`, statut `rejected` tous présents). Qui/quand l'a appliquée : NOT VERIFIED (pas une action de cette session — aucune écriture en production n'a été faite ici).
+3. Saisie par le Super Admin des coordonnées officielles (`/admin/accounting/recharges/moyens`) — **NOT VERIFIED**, aucune preuve que ce soit fait ; aucun moyen n'est proposé tant que ce n'est pas fait.
+4. (Facultatif) même migration sur EasyV4-preview : **confirmé toujours non appliquée** — vérifié directement en base le 2026-10-26 (0 des colonnes/table attendues sur `fxjhahtqrglktrmgqkvs`), cohérent avec la tentative du 2026-10-25 restée sans réponse.
 
-**Limites / NOT VERIFIED** : Preview (bloquée par la configuration Preview de #269 — garde d'isolation non contournée) ; migration 0141 non appliquée en Preview ni en production (GO séparé) ; production. Coordonnées réelles (RIB, D17, agence) : à saisir par le Super Admin après application de la migration — rien n'est pré-rempli. Messages d'erreur serveur en français uniquement (comme le flux carte existant). D17 = déclaration manuelle, aucune intégration officielle. Carte Paymee : non certifiée (sandbox NOT VERIFIED).
+**Limites / NOT VERIFIED** : Preview (bloquée par la configuration Preview de #269 — garde d'isolation non contournée) ; migration 0141 appliquée en production (réconcilié ci-dessus) mais **toujours non appliquée en Preview** ; saisie des coordonnées officielles par le Super Admin ; parcours bout en bout en production. Coordonnées réelles (RIB, D17, agence) : à saisir par le Super Admin — rien n'est pré-rempli. Messages d'erreur serveur en français uniquement (comme le flux carte existant). D17 = déclaration manuelle, aucune intégration officielle. Carte Paymee : non certifiée (sandbox NOT VERIFIED).
 
 **Prochain chantier potentiel (non démarré)** : lot 2 — stockage privé des justificatifs (bucket privé, liens signés, lecture équipe). Hors périmètre, noté : `validateRechargeRequest` (B2B) enregistre un validateur transmis par le client.
 

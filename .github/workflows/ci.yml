@@ -294,6 +294,7 @@ jobs:
             lib/payment/__tests__/paymee-topup-webhook-route.integration.test.ts \
             lib/finance/__tests__/customer-topup-manual.integration.test.ts \
             lib/finance/__tests__/topup-state-machine.integration.test.ts \
+            lib/finance/__tests__/wallet-journey-audit-01.integration.test.ts \
             lib/finance/__tests__/booking-financials-chain.integration.test.ts \
             lib/finance/__tests__/payment-settlement-chain.integration.test.ts \
             lib/finance/__tests__/commission-reversal-integration.test.ts \

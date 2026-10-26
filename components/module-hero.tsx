@@ -52,7 +52,7 @@ export function ModuleHero({
         <div className="mx-auto mb-5 flex size-14 items-center justify-center rounded-2xl bg-white/15 backdrop-blur-sm">
           <Icon className="size-7" />
         </div>
-        <p className="mb-2 text-sm font-medium tracking-widest text-white/60 uppercase">
+        <p className="mb-2 inline-block rounded-full bg-black/35 px-3 py-1 text-sm font-medium tracking-widest text-white uppercase backdrop-blur-sm">
           {kicker}
         </p>
         <h1 className="mb-4 text-3xl font-bold md:text-4xl">{title}</h1>

@@ -1269,6 +1269,8 @@
   "Destinations": {
     "indexTitle": "الوجهات",
     "indexDescription": "اكتشف وجهاتنا واحجز الفنادق والرحلات المنظمة والطيران نحو كل مدينة.",
+    "emptyTitle": "لا توجد وجهات متاحة حاليًا",
+    "emptyDescription": "سيتم إثراء كتالوج الوجهات قريبًا. عد لزيارتنا لاحقًا!",
     "breadcrumbHome": "الرئيسية",
     "breadcrumbDestinations": "الوجهات",
     "citiesInCountry": "المدن",

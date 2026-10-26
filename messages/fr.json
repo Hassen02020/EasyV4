@@ -1354,5 +1354,14 @@
     "submitting": "Réservation en cours...",
     "confirmBooking": "Confirmer la réservation",
     "priceChangedNotice": "Le prix a changé depuis votre consultation. Veuillez confirmer à nouveau au nouveau montant."
+  },
+  "SystemPages": {
+    "notFoundTitle": "Page introuvable",
+    "notFoundDescription": "La page que vous recherchez n'existe pas ou a été déplacée. Retournez à l'accueil pour continuer votre recherche.",
+    "backHome": "Retour à l'accueil",
+    "errorTitle": "Une erreur s'est produite",
+    "errorDescription": "Cette page a rencontré un problème inattendu. Vous pouvez réessayer ou revenir à l'accueil pour continuer votre recherche.",
+    "retry": "Réessayer",
+    "home": "Accueil"
   }
 }

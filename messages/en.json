@@ -1354,5 +1354,14 @@
     "submitting": "Booking in progress...",
     "confirmBooking": "Confirm booking",
     "priceChangedNotice": "The price has changed since you viewed it. Please confirm again at the new amount."
+  },
+  "SystemPages": {
+    "notFoundTitle": "Page not found",
+    "notFoundDescription": "The page you are looking for does not exist or has been moved. Return to the homepage to continue your search.",
+    "backHome": "Back to homepage",
+    "errorTitle": "Something went wrong",
+    "errorDescription": "This page ran into an unexpected problem. You can try again or return to the homepage to continue your search.",
+    "retry": "Try again",
+    "home": "Homepage"
   }
 }

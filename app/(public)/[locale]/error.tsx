@@ -3,6 +3,7 @@
 import { useEffect } from "react"
 import Link from "next/link"
 import { AlertTriangle, Home, RotateCcw } from "lucide-react"
+import { useTranslations } from "next-intl"
 import { Button } from "@/components/ui/button"
 
 export default function PublicLocaleError({
@@ -12,6 +13,8 @@ export default function PublicLocaleError({
   error: Error & { digest?: string }
   reset: () => void
 }) {
+  const t = useTranslations("SystemPages")
+
   useEffect(() => {
     console.error("[public/[locale]/error.tsx]", error)
   }, [error])
@@ -28,23 +31,22 @@ export default function PublicLocaleError({
           </div>
 
           <h1 className="text-foreground mt-6 text-2xl font-bold">
-            Une erreur s&apos;est produite
+            {t("errorTitle")}
           </h1>
 
           <p className="text-muted-foreground mt-3 text-sm leading-relaxed">
-            Cette page a rencontré un problème inattendu. Vous pouvez réessayer
-            ou revenir à l&apos;accueil pour continuer votre recherche.
+            {t("errorDescription")}
           </p>
 
           <div className="mt-8 flex flex-wrap justify-center gap-3">
             <Button variant="outline" onClick={() => reset()}>
               <RotateCcw className="mr-2 h-4 w-4" />
-              Réessayer
+              {t("retry")}
             </Button>
             <Button asChild>
               <Link href="/">
                 <Home className="mr-2 h-4 w-4" />
-                Accueil
+                {t("home")}
               </Link>
             </Button>
           </div>

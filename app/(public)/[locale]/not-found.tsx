@@ -1,5 +1,6 @@
 import Link from "next/link"
 import { Home, SearchX } from "lucide-react"
+import { getTranslations } from "next-intl/server"
 import { Button } from "@/components/ui/button"
 
 /**
@@ -11,8 +12,14 @@ import { Button } from "@/components/ui/button"
  * traffic. Without this file every 404 still hits getRequestTenantInfo() and
  * getDefaultAgencyId() before the router can resolve to a 404.
  * See ROADMAP NOT_FOUND-PERF-01.
+ *
+ * getTranslations() reads the static locale message bundle only (no DB,
+ * no tenant resolution) — it does not reintroduce the cost this file exists
+ * to avoid.
  */
-export default function LocaleNotFound() {
+export default async function LocaleNotFound() {
+  const t = await getTranslations("SystemPages")
+
   return (
     <div className="flex min-h-screen flex-col">
       <div className="bg-background h-16 border-b" />
@@ -24,19 +31,18 @@ export default function LocaleNotFound() {
           </div>
 
           <h1 className="text-foreground mt-6 text-2xl font-bold">
-            Page introuvable
+            {t("notFoundTitle")}
           </h1>
 
           <p className="text-muted-foreground mt-3 text-sm leading-relaxed">
-            La page que vous recherchez n&apos;existe pas ou a été déplacée.
-            Retournez à l&apos;accueil pour continuer votre recherche.
+            {t("notFoundDescription")}
           </p>
 
           <div className="mt-8">
             <Button asChild>
               <Link href="/">
                 <Home className="mr-2 h-4 w-4" />
-                Retour à l&apos;accueil
+                {t("backHome")}
               </Link>
             </Button>
           </div>

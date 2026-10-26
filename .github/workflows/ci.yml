@@ -273,6 +273,8 @@ jobs:
         run: |
           node --import tsx --test \
             lib/db/__tests__/app-runtime-grants.test.ts \
+            lib/finance/__tests__/create-customer-profile.integration.test.ts \
+            lib/booking/__tests__/link-guest-customer.integration.test.ts \
             lib/journeys/__tests__/journeys-core.test.ts \
             lib/pro/__tests__/booking-actions-concurrency.test.ts \
             lib/finance/__tests__/customer-wallet-concurrency.test.ts \
@@ -291,6 +293,7 @@ jobs:
             lib/payment/__tests__/customer-topup-webhook-core.integration.test.ts \
             lib/payment/__tests__/paymee-topup-webhook-route.integration.test.ts \
             lib/finance/__tests__/customer-topup-manual.integration.test.ts \
+            lib/finance/__tests__/topup-state-machine.integration.test.ts \
             lib/finance/__tests__/booking-financials-chain.integration.test.ts \
             lib/finance/__tests__/payment-settlement-chain.integration.test.ts \
             lib/finance/__tests__/commission-reversal-integration.test.ts \

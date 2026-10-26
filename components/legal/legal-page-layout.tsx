@@ -19,10 +19,18 @@ export function LegalPageLayout({
   title,
   intro,
   sections,
+  noticeOverride,
 }: {
   title: string
   intro: string
   sections: LegalSection[]
+  /**
+   * Remplace le bandeau d'avertissement générique (`t("legalNotice")`)
+   * par un texte spécifique — utilisé quand un contenu réel (mais non
+   * encore validé juridiquement) remplace le placeholder Lorem Ipsum
+   * pour une locale donnée. Voir LEGAL-CONTENT-REAL-01.
+   */
+  noticeOverride?: React.ReactNode
 }) {
   const t = useTranslations("Legal")
   return (
@@ -40,9 +48,10 @@ export function LegalPageLayout({
           <div className="border-warning/40 bg-warning/10 mt-6 flex items-start gap-3 rounded-2xl border p-4">
             <AlertTriangle className="text-warning-foreground mt-0.5 size-5 shrink-0" />
             <p className="text-warning-foreground text-sm leading-relaxed">
-              {t.rich("legalNotice", {
-                strong: (chunks) => <strong>{chunks}</strong>,
-              })}
+              {noticeOverride ??
+                t.rich("legalNotice", {
+                  strong: (chunks) => <strong>{chunks}</strong>,
+                })}
             </p>
           </div>
 

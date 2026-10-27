@@ -50,6 +50,18 @@ export default async function DestinationsIndexPage() {
             {t("indexDescription")}
           </p>
 
+          {countries.length === 0 && (
+            <div className="bg-card mt-8 rounded-xl border border-dashed p-12 text-center">
+              <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-violet-50">
+                <MapPin className="h-8 w-8 text-violet-700" />
+              </div>
+              <h3 className="mb-2 text-lg font-semibold">{t("emptyTitle")}</h3>
+              <p className="text-muted-foreground text-sm">
+                {t("emptyDescription")}
+              </p>
+            </div>
+          )}
+
           <div className="space-y-8">
             {countries.map((country) => (
               <section

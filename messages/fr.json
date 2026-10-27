@@ -1269,6 +1269,8 @@
   "Destinations": {
     "indexTitle": "Destinations",
     "indexDescription": "Explorez nos destinations et réservez hôtels, voyages organisés et vols vers chaque ville.",
+    "emptyTitle": "Aucune destination disponible pour le moment",
+    "emptyDescription": "Notre catalogue de destinations se remplit bientôt. Revenez nous voir !",
     "breadcrumbHome": "Accueil",
     "breadcrumbDestinations": "Destinations",
     "citiesInCountry": "Villes",

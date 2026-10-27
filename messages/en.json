@@ -1269,6 +1269,8 @@
   "Destinations": {
     "indexTitle": "Destinations",
     "indexDescription": "Explore our destinations and book hotels, package tours and flights to every city.",
+    "emptyTitle": "No destinations available yet",
+    "emptyDescription": "Our destination catalog is filling up soon. Check back shortly!",
     "breadcrumbHome": "Home",
     "breadcrumbDestinations": "Destinations",
     "citiesInCountry": "Cities",

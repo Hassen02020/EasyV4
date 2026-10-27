@@ -7,9 +7,9 @@ import {
 
 const ids = (list: readonly { id: string }[]) => list.map((m) => m.id)
 
-test("liste vide (DB indisponible) → les 8 modules, ordre de référence", () => {
+test("liste vide (DB indisponible) → les 10 modules, ordre de référence", () => {
   assert.deepEqual(ids(getVisiblePublicModules([])), ids(PUBLIC_MODULES))
-  assert.equal(PUBLIC_MODULES.length, 8)
+  assert.equal(PUBLIC_MODULES.length, 10)
 })
 
 test("module désactivé → absent", () => {
@@ -29,7 +29,7 @@ test("ordre de PUBLIC_MODULES conservé, pas l'ordre des lignes DB", () => {
   assert.deepEqual(ids(visible), ["hotels-monde", "car"])
 })
 
-test("tous désactivés → repli sur les 8 modules (comportement historique du moteur)", () => {
+test("tous désactivés → repli sur les 10 modules (comportement historique du moteur)", () => {
   const visible = getVisiblePublicModules(
     PUBLIC_MODULES.map((m) => ({ moduleSlug: m.id, enabled: false })),
   )
@@ -52,10 +52,12 @@ test("routes attendues par module", () => {
       "hotels-monde": "/hotels-monde",
       omraty: "/omra",
       "voyages-organises": "/packages",
+      "bateaux-croisieres": "/croisieres",
       attractions: "/attractions",
       vols: "/vols",
       transferts: "/transferts",
       car: "/car",
+      visa: "/visa",
     },
   )
 })

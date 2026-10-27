@@ -1,5 +1,10 @@
 {
   "Common": {
+    "activitiesEmptyTitle": "لا توجد أنشطة متاحة حاليًا",
+    "activitiesEmptyDescription": "سيتم إثراء كتالوجنا قريبًا. عد لزيارتنا لاحقًا!",
+    "activitiesSessionsTitle": "الجلسات المتاحة",
+    "activitiesNoSessionsOpen": "لا توجد أي جلسة مفتوحة للحجز حاليًا.",
+    "activitiesContactForDates": "تواصل معنا لمعرفة المواعيد القادمة.",
     "connexion": "تسجيل الدخول",
     "monCompte": "حسابي",
     "myBookings": "حجوزاتي",

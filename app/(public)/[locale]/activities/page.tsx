@@ -282,11 +282,9 @@ export default async function ActivitiesPage({
           {activities.length === 0 ? (
             <div className="py-16 text-center">
               <MapPin className="text-muted-foreground/30 mx-auto mb-4 h-12 w-12" />
-              <p className="font-medium">
-                Aucune activité disponible pour le moment
-              </p>
+              <p className="font-medium">{t("activitiesEmptyTitle")}</p>
               <p className="text-muted-foreground mt-1 text-sm">
-                Notre catalogue se remplit bientôt. Revenez nous voir !
+                {t("activitiesEmptyDescription")}
               </p>
             </div>
           ) : (

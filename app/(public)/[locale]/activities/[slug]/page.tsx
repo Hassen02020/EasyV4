@@ -9,6 +9,7 @@
 
 import { cache } from "react"
 import { Link } from "@/i18n/navigation"
+import { getTranslations } from "next-intl/server"
 import { notFound } from "next/navigation"
 import Image from "next/image"
 import { and, eq, gte, arrayContains } from "drizzle-orm"
@@ -135,9 +136,10 @@ export default async function ActivityDetailPage({
   params: Promise<{ slug: string }>
 }) {
   const { slug } = await params
-  const [result, contact] = await Promise.all([
+  const [result, contact, t] = await Promise.all([
     getActivityWithSessions(slug),
     getSiteContactInfo(),
+    getTranslations("Common"),
   ])
   if (!result) notFound()
   const { activity, sessions, media } = result
@@ -267,14 +269,12 @@ export default async function ActivityDetailPage({
             <section className="bg-card rounded-xl border p-5">
               <h2 className="mb-4 flex items-center gap-2 text-lg font-semibold">
                 <Calendar className="h-4.5 w-4.5" />
-                Prochaines sessions
+                {t("activitiesSessionsTitle")}
               </h2>
               {sessions.length === 0 ? (
                 <p className="text-muted-foreground text-sm">
-                  {
-                    "Aucune session n'est ouverte à la réservation pour le moment."
-                  }
-                  Contactez-nous pour connaître les prochaines dates.
+                  {t("activitiesNoSessionsOpen")}{" "}
+                  {t("activitiesContactForDates")}
                 </p>
               ) : (
                 <ul className="divide-y">

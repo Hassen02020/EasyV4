@@ -1,5 +1,10 @@
 {
   "Common": {
+    "activitiesEmptyTitle": "Aucune activité disponible pour le moment",
+    "activitiesEmptyDescription": "Notre catalogue se remplit bientôt. Revenez nous voir !",
+    "activitiesSessionsTitle": "Sessions disponibles",
+    "activitiesNoSessionsOpen": "Aucune session n'est ouverte à la réservation pour le moment.",
+    "activitiesContactForDates": "Contactez-nous pour connaître les prochaines dates.",
     "connexion": "Connexion",
     "monCompte": "Mon compte",
     "myBookings": "Mes réservations",

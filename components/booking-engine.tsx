@@ -178,7 +178,12 @@ export function BookingEngine({
   carLocations?: CarLocationLite[]
 }) {
   const enabledModules = modules.filter((module) => module.enabled)
-  const visibleTabs = getVisiblePublicModules(modules)
+  // Modules marqués `searchable: false` (ex. Visa, Bateaux & Croisières) :
+  // visibles dans la navigation du header, mais pas d'onglet de recherche
+  // ici (pas de formulaire de réservation pour ces modules).
+  const visibleTabs = getVisiblePublicModules(modules).filter(
+    (tab) => tab.searchable,
+  )
   const firstTab = visibleTabs[0]?.id ?? "hotels-tunisie"
   const [activeTab, setActiveTab] = useState<TabId>(firstTab)
   const [mobileOpen, setMobileOpen] = useState(false)

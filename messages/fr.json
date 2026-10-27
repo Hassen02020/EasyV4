@@ -20,10 +20,12 @@
     "tabHotelsMonde": "Hôtels Monde",
     "tabOmraty": "Omraty",
     "tabVoyages": "Voyages Organisés",
+    "tabCroisieres": "Bateaux & Croisières",
     "tabAttractions": "Attractions",
     "tabDestinations": "Destinations",
     "tabTransferts": "Transferts",
     "tabCar": "Car",
+    "tabVisa": "Visa",
     "departDe": "Départ de",
     "destination": "Destination",
     "dates": "Dates",
@@ -1370,5 +1372,12 @@
     "errorDescription": "Cette page a rencontré un problème inattendu. Vous pouvez réessayer ou revenir à l'accueil pour continuer votre recherche.",
     "retry": "Réessayer",
     "home": "Accueil"
+  },
+  "ModulePlaceholder": {
+    "backToHome": "Retour à l'accueil",
+    "visaTitle": "Visa",
+    "visaDescription": "Ce module arrive bientôt. Contactez-nous pour toute demande concernant votre visa.",
+    "croisieresTitle": "Bateaux & Croisières",
+    "croisieresDescription": "Ce module arrive bientôt. Contactez-nous pour toute demande concernant une croisière."
   }
 }

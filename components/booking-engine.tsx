@@ -157,7 +157,11 @@ function TabPills({
                 : "text-muted-foreground hover:bg-muted hover:text-foreground",
             )}
           >
-            <Icon className="size-4" />
+            <Icon
+              className={cn("size-4", !isActive && "text-accent")}
+              strokeWidth={1.75}
+              aria-hidden="true"
+            />
             {t(tab.labelKey)}
           </button>
         )

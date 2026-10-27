@@ -46,11 +46,6 @@ export function SearchHeader({ city, dateRange, paxLabel }: SearchHeaderProps) {
     .split(",")
     .map((a) => parseInt(a, 10))
     .filter((n) => Number.isFinite(n))
-  const starsParam = (searchParams.get("stars") ?? "")
-    .split(",")
-    .map((s) => parseInt(s, 10))
-    .filter((n) => Number.isFinite(n))
-  const onlyAvailableParam = searchParams.get("onlyAvailable") !== "0"
   const parseUrlDate = (value: string | null) => {
     if (!value) return undefined
     try {
@@ -166,8 +161,6 @@ export function SearchHeader({ city, dateRange, paxLabel }: SearchHeaderProps) {
               initialRooms={Number.isFinite(roomsCount) ? roomsCount : 1}
               initialAdults={Number.isFinite(adultsCount) ? adultsCount : 2}
               initialChildrenAges={childrenAgesParam}
-              initialOnlyAvailable={onlyAvailableParam}
-              initialStars={starsParam}
               onSearchSubmit={() => setEditOpen(false)}
             />
           </div>

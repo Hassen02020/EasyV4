@@ -4,18 +4,8 @@ import { useState, useMemo, useCallback } from "react"
 import { useRouter } from "@/i18n/navigation"
 import { useTranslations, useLocale } from "next-intl"
 import { useCities } from "@/hooks/use-cities"
-import {
-  MapPin,
-  Users,
-  Star,
-  X,
-  Plus,
-  Minus,
-  Search,
-  Check,
-} from "lucide-react"
+import { MapPin, Users, X, Plus, Minus, Search, Check } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Checkbox } from "@/components/ui/checkbox"
 import {
   Popover,
   PopoverContent,
@@ -29,8 +19,6 @@ import {
   CommandItem,
   CommandList,
 } from "@/components/ui/command"
-import { cn } from "@/lib/utils"
-import { Badge } from "@/components/ui/badge"
 import { FIELD_SHELL, FieldLabel } from "@/components/search-field"
 import { DateRangePicker } from "@/components/hotel-search/date-range-picker"
 import { calculateNights, formatDateIso } from "@/lib/hotels/date-utils"
@@ -65,17 +53,6 @@ interface HotelSearchRequest {
 }
 
 // ============================================================================
-// Static fallback (défini dans useCities)
-// ============================================================================
-
-const STAR_OPTIONS = [
-  { value: 5, label: "5 Etoiles" },
-  { value: 4, label: "4 Etoiles" },
-  { value: 3, label: "3 Etoiles" },
-  { value: 2, label: "2 Etoiles" },
-]
-
-// ============================================================================
 // Component
 // ============================================================================
 
@@ -87,8 +64,6 @@ export interface HotelsTunisieSearchProps {
   initialRooms?: number
   initialAdults?: number
   initialChildrenAges?: number[]
-  initialOnlyAvailable?: boolean
-  initialStars?: number[]
   /** Appelé juste avant la navigation vers /hotels/search (ex. fermer un Sheet). */
   onSearchSubmit?: () => void
 }
@@ -100,8 +75,6 @@ export function HotelsTunisieSearch({
   initialRooms = 1,
   initialAdults = 2,
   initialChildrenAges = [],
-  initialOnlyAvailable = true,
-  initialStars = [],
   onSearchSubmit,
 }: HotelsTunisieSearchProps = {}) {
   const router = useRouter()
@@ -144,11 +117,6 @@ export function HotelsTunisieSearch({
   const babiesCount = childrenAges.filter((age) => age <= 2).length
   const bigKidsCount = childrenAges.filter((age) => age > 2).length
 
-  // Filters state
-  const [onlyAvailable, setOnlyAvailable] = useState(initialOnlyAvailable)
-  const [selectedStars, setSelectedStars] = useState<number[]>(initialStars)
-  const [starsPopoverOpen, setStarsPopoverOpen] = useState(false)
-
   // Cities (TanStack Query — dedup, retries, stale-while-revalidate)
   const { cities, loading: citiesLoading, error: citiesError } = useCities()
 
@@ -169,19 +137,14 @@ export function HotelsTunisieSearch({
         Child: childrenAges,
       },
       Filters: {
-        OnlyAvailable: onlyAvailable,
-        Category: selectedStars,
+        // Filtres retirés du formulaire (HOTELS-TUNISIE-FILTERS-REMOVE-01) —
+        // comportement par défaut historique conservé : toujours
+        // "disponibilité réelle" et aucun filtre étoiles pré-recherche.
+        OnlyAvailable: true,
+        Category: [],
       },
     }
-  }, [
-    selectedCity,
-    checkinDate,
-    checkoutDate,
-    adults,
-    childrenAges,
-    onlyAvailable,
-    selectedStars,
-  ])
+  }, [selectedCity, checkinDate, checkoutDate, adults, childrenAges])
 
   const handleSearch = () => {
     const request = buildSearchRequest()
@@ -246,15 +209,6 @@ export function HotelsTunisieSearch({
     const newAges = [...childrenAges]
     newAges[index] = age
     setChildrenAges(newAges)
-  }
-
-  // Star filter toggle
-  const toggleStar = (star: number) => {
-    if (selectedStars.includes(star)) {
-      setSelectedStars(selectedStars.filter((s) => s !== star))
-    } else {
-      setSelectedStars([...selectedStars, star].sort((a, b) => b - a))
-    }
   }
 
   // Pax display
@@ -538,107 +492,6 @@ export function HotelsTunisieSearch({
             {t("searchButton")}
           </Button>
         </div>
-      </div>
-
-      {/* Filters Row */}
-      <div className="flex flex-wrap items-center gap-4 pt-1">
-        {/* Only Available Checkbox */}
-        <div className="flex items-center gap-2">
-          <Checkbox
-            id="only-available"
-            checked={onlyAvailable}
-            onCheckedChange={(checked) => setOnlyAvailable(checked === true)}
-            className="rounded"
-          />
-          <label
-            htmlFor="only-available"
-            className="text-muted-foreground cursor-pointer text-sm select-none"
-          >
-            {t("onlyAvailableFilter")}
-          </label>
-        </div>
-
-        {/* Star Category Filter */}
-        <Popover open={starsPopoverOpen} onOpenChange={setStarsPopoverOpen}>
-          <PopoverTrigger asChild>
-            <Button
-              variant="outline"
-              size="sm"
-              className="h-8 gap-1.5 rounded-full"
-            >
-              <Star className="size-3.5 fill-amber-400 text-amber-400" />
-              {selectedStars.length > 0 ? (
-                <span>
-                  {selectedStars.join(", ")} {t("starsUnit")}
-                </span>
-              ) : (
-                <span>{t("categoryFilter")}</span>
-              )}
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent className="w-[200px] p-2" align="start">
-            <div className="space-y-1">
-              {STAR_OPTIONS.map((option) => (
-                <button
-                  key={option.value}
-                  onClick={() => toggleStar(option.value)}
-                  className={cn(
-                    "flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors",
-                    selectedStars.includes(option.value)
-                      ? "bg-primary/10 text-primary"
-                      : "hover:bg-muted",
-                  )}
-                >
-                  <div className="flex items-center gap-0.5">
-                    {Array.from({ length: option.value }).map((_, i) => (
-                      <Star
-                        key={i}
-                        className="size-3 fill-amber-400 text-amber-400"
-                      />
-                    ))}
-                  </div>
-                  <span className="ms-auto">
-                    {selectedStars.includes(option.value) && (
-                      <Check className="text-primary size-4" />
-                    )}
-                  </span>
-                </button>
-              ))}
-            </div>
-            {selectedStars.length > 0 && (
-              <Button
-                variant="ghost"
-                size="sm"
-                className="mt-2 w-full text-xs"
-                onClick={() => setSelectedStars([])}
-              >
-                {t("clearFilters")}
-              </Button>
-            )}
-          </PopoverContent>
-        </Popover>
-
-        {/* Active Filters Display */}
-        {selectedStars.length > 0 && (
-          <div className="flex items-center gap-1.5">
-            {selectedStars.map((star) => (
-              <Badge
-                key={star}
-                variant="secondary"
-                className="gap-1 rounded-full pe-1"
-              >
-                {star}
-                <Star className="size-2.5 fill-amber-400 text-amber-400" />
-                <button
-                  onClick={() => toggleStar(star)}
-                  className="hover:bg-muted-foreground/20 ms-0.5 rounded-full p-0.5"
-                >
-                  <X className="size-3" />
-                </button>
-              </Badge>
-            ))}
-          </div>
-        )}
       </div>
     </div>
   )

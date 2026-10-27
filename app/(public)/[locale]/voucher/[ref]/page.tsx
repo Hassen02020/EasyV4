@@ -1,5 +1,5 @@
 import { notFound, redirect } from "next/navigation"
-import { getLocale } from "next-intl/server"
+import { getLocale, getTranslations } from "next-intl/server"
 import { and, eq } from "drizzle-orm"
 import { Download, Calendar, User, FileText, ArrowLeft } from "lucide-react"
 import { Link } from "@/i18n/navigation"
@@ -19,16 +19,16 @@ import { ConfirmationStatusBadge } from "@/components/booking/confirmation-statu
 
 export const dynamic = "force-dynamic"
 
-/** Modules connus avec leur libellé lisible. */
-const MODULE_LABELS: Record<string, string> = {
-  hotel: "Hôtel",
-  hotel_monde: "Hôtel International",
-  omra: "Omra",
-  package: "Voyage Organisé",
-  activity: "Activité",
-  flight: "Vol",
-  car: "Location de voiture",
-  transfer: "Transfert",
+/** Modules connus — clé de traduction (namespace Booking) par module. */
+const MODULE_LABEL_KEYS: Record<string, string> = {
+  hotel: "moduleLabelHotel",
+  hotel_monde: "moduleLabelHotelMonde",
+  omra: "moduleLabelOmra",
+  package: "moduleLabelPackage",
+  activity: "moduleLabelActivity",
+  flight: "moduleLabelFlight",
+  car: "moduleLabelCar",
+  transfer: "moduleLabelTransfer",
 }
 
 function formatDate(iso: string, locale: string): string {
@@ -87,7 +87,10 @@ export default async function VoucherPage({
 
   if (!row) notFound()
 
-  const locale = await getLocale()
+  const [locale, t] = await Promise.all([
+    getLocale(),
+    getTranslations("Booking"),
+  ])
 
   const pl = row.providerPayload as {
     offerLabel?: string
@@ -122,7 +125,7 @@ export default async function VoucherPage({
             className="text-muted-foreground hover:text-foreground mb-6 inline-flex items-center gap-1.5 text-sm"
           >
             <ArrowLeft className="size-4" />
-            Retour à la confirmation
+            {t("backToConfirmationLabel")}
           </Link>
 
           <Card className="overflow-hidden">
@@ -132,7 +135,7 @@ export default async function VoucherPage({
                 <div>
                   <CardTitle className="flex items-center gap-2 text-base">
                     <FileText className="text-primary size-5" />
-                    Bon de voyage
+                    {t("travelVoucherTitle")}
                   </CardTitle>
                   <p className="text-muted-foreground mt-1 font-mono text-sm">
                     {row.publicRef}
@@ -148,9 +151,13 @@ export default async function VoucherPage({
             <CardContent className="space-y-4 p-6">
               {/* Module */}
               <div className="flex items-baseline justify-between text-sm">
-                <span className="text-muted-foreground">Produit</span>
+                <span className="text-muted-foreground">
+                  {t("productLabel")}
+                </span>
                 <span className="font-medium">
-                  {MODULE_LABELS[row.module] ?? row.module}
+                  {MODULE_LABEL_KEYS[row.module]
+                    ? t(MODULE_LABEL_KEYS[row.module])
+                    : row.module}
                 </span>
               </div>
 
@@ -159,7 +166,7 @@ export default async function VoucherPage({
                 <div className="flex items-baseline justify-between text-sm">
                   <span className="text-muted-foreground inline-flex items-center gap-1.5">
                     <Calendar className="size-3.5" />
-                    Offre
+                    {t("offerLabel")}
                   </span>
                   <span className="max-w-[60%] text-right font-medium">
                     {pl.offerLabel}
@@ -172,7 +179,7 @@ export default async function VoucherPage({
                 <div className="flex items-baseline justify-between text-sm">
                   <span className="text-muted-foreground inline-flex items-center gap-1.5">
                     <Calendar className="size-3.5" />
-                    Dates
+                    {t("datesLabel")}
                   </span>
                   <span className="font-medium">
                     {formatDate(pl.startDate, locale)}
@@ -185,7 +192,7 @@ export default async function VoucherPage({
               <div className="flex items-baseline justify-between text-sm">
                 <span className="text-muted-foreground inline-flex items-center gap-1.5">
                   <User className="size-3.5" />
-                  Voyageur
+                  {t("travelerLabel")}
                 </span>
                 <span className="font-medium">{travelerName}</span>
               </div>
@@ -201,18 +208,17 @@ export default async function VoucherPage({
                     rel="noopener noreferrer"
                   >
                     <Download className="mr-2 size-4" />
-                    Télécharger le bon de voyage (PDF)
+                    {t("downloadVoucher")}
                   </a>
                 </Button>
               ) : (
                 <div className="space-y-3">
                   <Button className="w-full" disabled>
                     <Download className="mr-2 size-4" />
-                    Bon disponible après confirmation
+                    {t("voucherAvailableAfterConfirmation")}
                   </Button>
                   <p className="text-muted-foreground text-center text-xs">
-                    Le bon de voyage sera disponible une fois la réservation
-                    confirmée par l&apos;agence.
+                    {t("voucherAvailableAfterConfirmationDesc")}
                   </p>
                 </div>
               )}
@@ -220,7 +226,7 @@ export default async function VoucherPage({
               <Button asChild variant="outline" className="w-full">
                 <Link href={confirmationHref}>
                   <ArrowLeft className="mr-2 size-4" />
-                  Voir la confirmation complète
+                  {t("viewFullConfirmationLabel")}
                 </Link>
               </Button>
             </CardContent>

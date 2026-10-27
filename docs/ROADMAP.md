@@ -136,25 +136,39 @@ Error("FISCAL_RULE_NOT_FOUND")` si aucune règle active
 
 ## Chantier actif
 
-> **Aucun chantier en exécution.** PUBLIC STOREFRONT EXCELLENCE :
+> **Aucun chantier en exécution.**
 >
-> - FOOTER-HOTELS-FIX-01 et HEADER-MODULE-NAV-01 : **fusionnés dans `main`** (PR #263, merge `c656e40d`, CI verte sur la tête de PR). Production : NOT VERIFIED (accès Vercel 403).
-> - I18N-METADATA-01 (lot 2) : titres/descriptions (A03) **fusionnés** (PR #264, merge `e12afcfc`, sur la tête `1c0df69` — sans la canonical). Canonical (A10) **fusionnée** séparément (PR #265, merge `b782f290`, tête `05855c8`).
+> **Réconciliation 2026-10-27 (ROADMAP-RECONCILIATION-01)** : cette section contenait deux affirmations fausses, corrigées ci-dessous sur preuves (git log sur `main`, API GitHub, lecture directe de la base de production) — PR #269 et PR #270 étaient marquées « non fusionnées » alors qu'elles le sont. La mention générale « Production : NOT VERIFIED (accès Vercel 403) » est également obsolète : l'accès Vercel fonctionne désormais (MCP), et le déploiement production `dpl_FbnwzCM5doMT7U6JnKXjNSz3DBvw` (state=READY, target=production) a pour SHA `ac2eba4`, qui est un descendant direct de tous les commits cités ci-dessous (FOOTER-HOTELS-FIX-01 → VISA-CROISIERES-HERO-CONCEPT-01) — ils sont donc tous **réellement en production**, et pas seulement fusionnés dans `main`.
+>
+> PUBLIC STOREFRONT EXCELLENCE :
+>
+> - FOOTER-HOTELS-FIX-01 et HEADER-MODULE-NAV-01 : **fusionnés** (PR #263, merge `c656e40d`). **Production VÉRIFIÉE** (voir preuve de déploiement ci-dessus).
+> - I18N-METADATA-01 (lot 2) : titres/descriptions (A03) **fusionnés** (PR #264, merge `e12afcfc`). Canonical (A10) **fusionnée** séparément (PR #265, merge `b782f290`). **Production VÉRIFIÉE.**
 > - **Décision A10 (2026-10-24, propriétaire)** : canonical auto-référente localisée (variante b) — chaque locale est une page équivalente à indexer.
-> - DEST-CARD-FALLBACK-01 (lot 1, A08) : **fusionné** (PR #267, merge `ed96f254`).
-> - I18N-HEADER-STRINGS-01 (lot 3) : **fusionné** (PR #268, merge `2baf6942`).
-> - **PREVIEW-PROD-ISOLATION-01 (P0)** : « Code testé », PR #269 (non fusionnée). Refus prouvé sur Vercel (build Preview non isolé refusé). Base `EasyV4-preview` initialisée et vérifiée (empreinte 10/10) ; secrets Preview (mot de passe `app_runtime`, URL base, service role, clé Paymee sandbox) à définir par le propriétaire (`docs/ops/PREVIEW_ISOLATION.md`).
-> - **WALLET-PAYMEE-INIT-01 (P1)** : « Code testé », même PR #269. Bout en bout Paymee sandbox NOT VERIFIED (dépend de l'isolation Preview).
-> - **WALLET-B2C-RECHARGE-METHODS-01 (lot 1)** : « Code testé », PR séparée empilée sur #269 (branche `claude/wallet-b2c-recharge-methods-01`, non fusionnée). Migration 0141 **non appliquée** en Preview ni en production. Détail et preuves : entrée dédiée ci-dessous.
-> - Production de tous ces chantiers : NOT VERIFIED (accès Vercel 403).
+> - DEST-CARD-FALLBACK-01 (lot 1, A08) : **fusionné** (PR #267, merge `ed96f254`). **Production VÉRIFIÉE.**
+> - I18N-HEADER-STRINGS-01 (lot 3) : **fusionné** (PR #268, merge `2baf6942`). **Production VÉRIFIÉE.**
+> - **PREVIEW-PROD-ISOLATION-01 (P0) + WALLET-PAYMEE-INIT-01 (P1)** : PR #269 — **fusionnée** (`merged_at` 2026-10-25T15:43:50Z, confirmé dans l'historique de `main`). **Production VÉRIFIÉE.** Bout en bout Paymee sandbox : toujours NOT VERIFIED (non revérifié ici).
+> - **WALLET-B2C-RECHARGE-METHODS-01 (lot 1)** : PR #270 — **fusionnée** (commit `eb4a50f` sur `main`, malgré le champ `merged:false` renvoyé par l'API GitHub pour cette PR — l'historique de `main` fait foi). **Migration 0141 appliquée en production** (vérifié : les 6 colonnes `method`/`customer_reference`/`customer_note`/`reviewed_by_user_id`/`reviewed_at`/`rejection_reason` existent sur `customer_topup_requests`). **Production VÉRIFIÉE** pour le code ; parcours Paymee sandbox bout en bout toujours NOT VERIFIED.
 >
-> Programme wallet : WALLET-GUEST-INTEGRATION-TESTS-01 **fusionné** (PR #261, merge `8bcef2cc`) et WALLET-TOPUP-STATE-01 **fusionné** (PR #262, merge `efa4ccbc`) — 15/15 et 7/7 tests exécutés réellement sur PostgreSQL jetable local (hors CI : fichiers absents du job `financial-e2e`). WALLET-JOURNEY-AUDIT-01 et suivants : inchangés, en attente.
+> **9 chantiers supplémentaires, fusionnés et vérifiés en production pendant la session du 2026-10-27** (preuve de déploiement : voir ci-dessus) :
 >
-> Signalements propriétaire 2026-10-24 (audit lecture seule, aucune correction) :
+> - MODULE-HERO-KICKER-FIX-01 (PR #273)
+> - I18N-SYSTEM-PAGES-01 (PR #274)
+> - LEGAL-CONTENT-REAL-01 (PR #275) — contenu CGV/Mentions légales/Politique de confidentialité FR réel fourni par le propriétaire, non vérifié auprès d'un registre officiel ; EN/AR inchangés (placeholders)
+> - DESTINATIONS-EMPTY-STATE-01 (PR #276)
+> - ACTIVITIES-I18N-PARITY-01 (PR #277)
+> - VOUCHER-I18N-01 (PR #278)
+> - PUBLIC-NAV-VISA-CROISIERES-01 (PR #279) — ajout des modules Visa et Bateaux & Croisières à la navigation ; migration `0142` appliquée en production sur GO explicite séparé (2 lignes `public_module_visuals` ajoutées, 9 lignes préexistantes vérifiées inchangées avant/après)
+> - HOTELS-TUNISIE-FILTERS-REMOVE-01 (PR #280) — retrait des filtres « Disponibilité réelle uniquement » et « Catégorie » du formulaire de recherche Hôtels Tunisie
+> - BOOKING-ENGINE-TABS-ACCENT-HARMONIZE-01 (PR #281) — harmonisation des icônes des pastilles du moteur de recherche avec le header
+> - VISA-CROISIERES-HERO-CONCEPT-01 (PR #282) — pages Visa/Croisières alignées sur le gabarit ModuleHero des modules réels
 >
-> - Recharge wallet B2C Paymee en échec sur la preview (`customer_topup_requests` 1000 TND `failed`, sans token Paymee, aucun mouvement financier) — cause exacte NOT VERIFIED (logs Vercel 403). **La preview écrit dans la base de production.**
+> Programme wallet : WALLET-GUEST-INTEGRATION-TESTS-01 **fusionné** (PR #261, merge `8bcef2cc`) et WALLET-TOPUP-STATE-01 **fusionné** (PR #262, merge `efa4ccbc`) — 15/15 et 7/7 tests exécutés réellement sur PostgreSQL jetable local (hors CI : fichiers absents du job `financial-e2e`). WALLET-JOURNEY-AUDIT-01 et suivants : **non revérifiés dans cette réconciliation** — statut « inchangés, en attente » conservé tel quel, à auditer séparément.
+>
+> Signalements propriétaire 2026-10-24 (audit lecture seule, aucune correction) — **non revérifiés dans cette réconciliation** :
+>
+> - Recharge wallet B2C Paymee en échec sur la preview (`customer_topup_requests` 1000 TND `failed`, sans token Paymee, aucun mouvement financier) — cause exacte NOT VERIFIED. **La preview écrivait dans la base de production** (statut après PREVIEW-PROD-ISOLATION-01 : non revérifié ici).
 > - Contact footer : WhatsApp/adresse/réseaux sociaux NULL en production (`agencies` Easy2Book + `public_site_settings`) — données jamais saisies, aucun défaut de code.
-> - Recharge multi-moyens B2C : fiche WALLET-B2C-RECHARGE-METHODS-01 validée (GO 2026-10-25, décisions 1–5), lot 1 implémenté — voir ci-dessus.
 >
 > Aucune exécution sans GO explicite.
 

@@ -8,6 +8,7 @@ import {
   isHotelReservationVoucherEligible,
   isAdminReservationVoucherEligible,
   isWorldHotelVoucherEligible,
+  isCarVoucherEligible,
   voucherHrefForModule,
 } from "../voucher-eligibility"
 
@@ -267,7 +268,13 @@ test("voucherHrefForModule : construit le bon lien pour activity (gap Phase 38A 
 
 test("voucherHrefForModule : null pour un module sans route voucher (jamais un lien fabriqué vers une route inexistante)", () => {
   assert.equal(voucherHrefForModule("transfer", "TR-2026-000001", "tok"), null)
-  assert.equal(voucherHrefForModule("car", "CR-2026-000001", "tok"), null)
+})
+
+test("voucherHrefForModule : construit le bon lien pour car (VOUCHER-CAR-TRANSFER-DATA-01)", () => {
+  assert.equal(
+    voucherHrefForModule("car", "CR-2026-000001", "tok"),
+    "/api/cars/voucher/CR-2026-000001?token=tok",
+  )
 })
 
 test("voucherHrefForModule : route réelle pour vol (Virtual Flight Supplier — booking réel de bout en bout)", () => {
@@ -402,15 +409,20 @@ test("isHotelReservationVoucherEligible : false pour un module non-hôtel même 
 /* mêmes renderers/éligibilités que les routes guest publiques par module)   */
 /* -------------------------------------------------------------------------- */
 
-test("isAdminReservationVoucherEligible : true pour les 6 modules réservables, confirmé", () => {
-  for (const mod of [
-    "hotel",
-    "omra",
-    "package",
-    "activity",
-    "flight",
-    "hotel_monde",
-  ]) {
+const ADMIN_VOUCHER_MODULES = [
+  "hotel",
+  "omra",
+  "package",
+  "activity",
+  "flight",
+  "hotel_monde",
+  // VOUCHER-CAR-TRANSFER-DATA-01 (lot "car") — rejoint les modules admin/pro
+  // éligibles dès que "car" est entré dans VOUCHER_ROUTE_BY_MODULE.
+  "car",
+]
+
+test("isAdminReservationVoucherEligible : true pour les 7 modules réservables, confirmé", () => {
+  for (const mod of ADMIN_VOUCHER_MODULES) {
     assert.equal(
       isAdminReservationVoucherEligible(mod, "confirmed"),
       true,
@@ -419,15 +431,8 @@ test("isAdminReservationVoucherEligible : true pour les 6 modules réservables, 
   }
 })
 
-test("isAdminReservationVoucherEligible : true pour les 6 modules réservables, completed", () => {
-  for (const mod of [
-    "hotel",
-    "omra",
-    "package",
-    "activity",
-    "flight",
-    "hotel_monde",
-  ]) {
+test("isAdminReservationVoucherEligible : true pour les 7 modules réservables, completed", () => {
+  for (const mod of ADMIN_VOUCHER_MODULES) {
     assert.equal(
       isAdminReservationVoucherEligible(mod, "completed"),
       true,
@@ -437,14 +442,7 @@ test("isAdminReservationVoucherEligible : true pour les 6 modules réservables, 
 })
 
 test("isAdminReservationVoucherEligible : false pour un statut pending, quel que soit le module", () => {
-  for (const mod of [
-    "hotel",
-    "omra",
-    "package",
-    "activity",
-    "flight",
-    "hotel_monde",
-  ]) {
+  for (const mod of ADMIN_VOUCHER_MODULES) {
     assert.equal(
       isAdminReservationVoucherEligible(mod, "pending"),
       false,
@@ -458,10 +456,81 @@ test("isAdminReservationVoucherEligible : false pour cancelled/refunded (voucher
   assert.equal(isAdminReservationVoucherEligible("omra", "refunded"), false)
 })
 
-test("isAdminReservationVoucherEligible : false pour un module sans route voucher (transfert/voiture)", () => {
+test("isAdminReservationVoucherEligible : false pour un module sans route voucher (transfert)", () => {
   assert.equal(
     isAdminReservationVoucherEligible("transfer", "confirmed"),
     false,
   )
-  assert.equal(isAdminReservationVoucherEligible("car", "confirmed"), false)
+})
+
+/* -------------------------------------------------------------------------- */
+/* isCarVoucherEligible (VOUCHER-CAR-TRANSFER-DATA-01, lot "car")             */
+/* -------------------------------------------------------------------------- */
+
+const baseCarRow = {
+  module: "car",
+  categoryName: "SUV Confort",
+  pickupLocationName: "Aéroport Tunis-Carthage",
+  dropoffLocationName: "Centre-ville Sousse",
+}
+
+test("isCarVoucherEligible : true pour une réservation Voiture confirmée", () => {
+  assert.equal(
+    isCarVoucherEligible({ ...baseCarRow, status: "confirmed" }),
+    true,
+  )
+})
+
+test("isCarVoucherEligible : true pour une location terminée (completed)", () => {
+  assert.equal(
+    isCarVoucherEligible({ ...baseCarRow, status: "completed" }),
+    true,
+  )
+})
+
+test("isCarVoucherEligible : false pour une réservation encore pending (pas de faux voucher)", () => {
+  assert.equal(
+    isCarVoucherEligible({ ...baseCarRow, status: "pending" }),
+    false,
+  )
+})
+
+test("isCarVoucherEligible : false pour une réservation annulée", () => {
+  assert.equal(
+    isCarVoucherEligible({ ...baseCarRow, status: "cancelled" }),
+    false,
+  )
+})
+
+test("isCarVoucherEligible : false pour une réservation remboursée", () => {
+  assert.equal(
+    isCarVoucherEligible({ ...baseCarRow, status: "refunded" }),
+    false,
+  )
+})
+
+test("isCarVoucherEligible : false pour un module non-car même confirmé", () => {
+  assert.equal(
+    isCarVoucherEligible({
+      module: "transfer",
+      status: "confirmed",
+      categoryName: null,
+      pickupLocationName: null,
+      dropoffLocationName: null,
+    }),
+    false,
+  )
+})
+
+test("isCarVoucherEligible : false si catégorie/lieux incomplets (jamais un voucher avec des champs manquants)", () => {
+  assert.equal(
+    isCarVoucherEligible({
+      module: "car",
+      status: "confirmed",
+      categoryName: null,
+      pickupLocationName: "Aéroport Tunis-Carthage",
+      dropoffLocationName: "Centre-ville Sousse",
+    }),
+    false,
+  )
 })

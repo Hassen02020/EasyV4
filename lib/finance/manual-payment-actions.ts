@@ -45,6 +45,9 @@ import {
   omraPackages,
   reservationPackage,
   catalogPackages,
+  reservationCar,
+  carCategories,
+  carLocations,
   customers,
   payments,
   auditEvents,
@@ -505,6 +508,13 @@ export async function verifyManualPayment(
             pkgDepartureDate: reservationPackage.departureDate,
             pkgAdults: reservationPackage.adults,
             pkgChildrenAges: reservationPackage.childrenAges,
+            carCategoryId: reservationCar.categoryId,
+            carPickupLocationId: reservationCar.pickupLocationId,
+            carDropoffLocationId: reservationCar.dropoffLocationId,
+            carPickupAt: reservationCar.pickupAt,
+            carDropoffAt: reservationCar.dropoffAt,
+            carRentalDays: reservationCar.rentalDays,
+            carInsuranceLevel: reservationCar.insuranceLevel,
           })
           .from(reservations)
           .innerJoin(customers, eq(customers.id, reservations.customerId))
@@ -528,28 +538,37 @@ export async function verifyManualPayment(
             catalogPackages,
             eq(catalogPackages.id, reservationPackage.packageId),
           )
+          .leftJoin(
+            reservationCar,
+            eq(reservationCar.reservationId, reservations.id),
+          )
           .where(eq(reservations.id, outcome.reservationId))
           .limit(1),
     )
 
-    // Dispatch par module — VOUCHER-DISPATCH-MULTIMODULE-01. Même style que
+    // Dispatch par module — VOUCHER-DISPATCH-MULTIMODULE-01, étendu par
+    // VOUCHER-CAR-TRANSFER-DATA-01 (lot "car"). Même style que
     // lib/booking/reservation-voucher-render.ts (switch sur reservations.module,
     // chaque branche réutilisant un event déjà existant et déjà testé pour ce
-    // module, aucun nouveau gabarit). Avant cette extension, seul "hotel"
-    // déclenchait un event ici : un paiement manuel validé pour
+    // module, aucun nouveau gabarit). Avant VOUCHER-DISPATCH-MULTIMODULE-01,
+    // seul "hotel" déclenchait un event ici : un paiement manuel validé pour
     // hotel_monde/omra/package confirmait bien la réservation (correct
     // financièrement, géré plus haut) mais n'envoyait jamais la
     // confirmation/voucher au client — gap silencieux trouvé en audit.
     //
-    // car/transfer restent HORS PÉRIMÈTRE de cette extension : les champs
-    // nécessaires à leur event (rentalDays/insuranceLevel/pickupAt/dropoffAt
-    // pour car ; date/heure de prise en charge pour transfer) ne sont
-    // persistés nulle part en base après la création de la réservation
-    // (confirmé par lecture de lib/db/schema.ts : aucune colonne dédiée, et
-    // `reservations.providerPayload` ne capture que les noms de
-    // catégorie/zone, pas les dates/durées) — aucune valeur ne doit être
-    // inventée ici ; voir le rapport du chantier pour la décision requise
-    // (migration pour persister ces champs, ou event partiel accepté).
+    // "car" rejoint ce dispatch ici. L'affirmation précédente ("aucune
+    // colonne dédiée pour rentalDays/insuranceLevel/pickupAt/dropoffAt")
+    // était fausse : ces colonnes existent, NOT NULL, sur reservation_car
+    // (lib/db/schema/cars.ts — fichier séparé de lib/db/schema.ts, d'où
+    // l'erreur d'audit initiale). Le pipeline PDF+email (lib/pdf/voucher-car.tsx
+    // + lib/inngest/functions/process-car-confirmed.ts) existe déjà et est
+    // réutilisé tel quel, comme pour hotel/omra/package — aucun second
+    // système créé.
+    //
+    // "transfer" reste HORS PÉRIMÈTRE : reservation_transfer n'a réellement
+    // aucune colonne pickup date/heure dédiée (confirmé par lecture directe
+    // du schéma) — traité dans un chantier séparé (VOUCHER-CAR-TRANSFER-DATA-01,
+    // lot "transfer", nécessite une migration).
     if (
       (detail?.module === "hotel" || detail?.module === "hotel_monde") &&
       detail.customerEmail &&
@@ -633,6 +652,87 @@ export async function verifyManualPayment(
             publicRef: outcome.publicRef,
             hasCustomerEmail: Boolean(detail.customerEmail),
             hasPackageName: Boolean(detail.pkgTitle),
+          },
+        )
+      }
+    } else if (detail?.module === "car") {
+      // reservation_car.pickupAt/dropoffAt/rentalDays/insuranceLevel sont
+      // NOT NULL en base (lib/db/schema/cars.ts) — les `?? ...` ci-dessous
+      // ne sont qu'une garde défensive. categoryName/pickupLocationName/
+      // dropoffLocationName peuvent être NULL si la catégorie/le lieu
+      // catalogue a été supprimé après la réservation (jamais attendu en
+      // pratique, FK ON DELETE RESTRICT, mais jamais de nom inventé si ça
+      // arrivait — même convention que omra/package ci-dessus : log
+      // explicite plutôt qu'un échec silencieux).
+      const [category, pickupLocation, dropoffLocation] =
+        detail.carCategoryId &&
+        detail.carPickupLocationId &&
+        detail.carDropoffLocationId
+          ? await withTenantContext(
+              {
+                agencyId: isSuperAdmin ? null : finalAgencyId,
+                userId: user.id,
+                isSuperAdmin,
+              },
+              async (tx) => {
+                const [cat] = await tx
+                  .select({ name: carCategories.name })
+                  .from(carCategories)
+                  .where(eq(carCategories.id, detail.carCategoryId!))
+                const [pickup] = await tx
+                  .select({ name: carLocations.name })
+                  .from(carLocations)
+                  .where(eq(carLocations.id, detail.carPickupLocationId!))
+                const [dropoff] = await tx
+                  .select({ name: carLocations.name })
+                  .from(carLocations)
+                  .where(eq(carLocations.id, detail.carDropoffLocationId!))
+                return [
+                  cat?.name ?? null,
+                  pickup?.name ?? null,
+                  dropoff?.name ?? null,
+                ]
+              },
+            )
+          : [null, null, null]
+
+      if (
+        detail.customerEmail &&
+        category &&
+        pickupLocation &&
+        dropoffLocation &&
+        detail.carPickupAt &&
+        detail.carDropoffAt
+      ) {
+        await sendEvent("booking/car.confirmed", {
+          reservationId: outcome.reservationId,
+          publicRef: outcome.publicRef,
+          agencyId: finalAgencyId,
+          guestAccessToken: detail.guestAccessToken,
+          customerEmail: detail.customerEmail,
+          customerName:
+            `${detail.customerFirstName} ${detail.customerLastName}`.trim(),
+          categoryName: category,
+          pickupLocationName: pickupLocation,
+          dropoffLocationName: dropoffLocation,
+          pickupAt: detail.carPickupAt.toISOString(),
+          dropoffAt: detail.carDropoffAt.toISOString(),
+          rentalDays: detail.carRentalDays ?? 1,
+          insuranceLevel: detail.carInsuranceLevel ?? "basic",
+          totalTnd: Number.parseFloat(detail.tndAmount),
+        }).catch(() => {
+          /* fire-and-forget — le retry Inngest suffira */
+        })
+      } else {
+        console.error(
+          "[manual-payment] booking/car.confirmed non envoyé — données manquantes",
+          {
+            reservationId: outcome.reservationId,
+            publicRef: outcome.publicRef,
+            hasCustomerEmail: Boolean(detail.customerEmail),
+            hasCategoryName: Boolean(category),
+            hasPickupLocationName: Boolean(pickupLocation),
+            hasDropoffLocationName: Boolean(dropoffLocation),
           },
         )
       }

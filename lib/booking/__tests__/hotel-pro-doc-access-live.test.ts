@@ -26,6 +26,9 @@ import {
   customers,
   reservations,
   reservationHotel,
+  reservationCar,
+  carCategories,
+  carLocations,
 } from "@/lib/db/schema"
 import { renderReservationVoucher } from "@/lib/booking/reservation-voucher-render"
 
@@ -47,6 +50,9 @@ let agencyAId = ""
 let agencyBId = ""
 let reservationAId = "" // confirmée, hôtel, agence A
 let reservationBId = "" // confirmée, hôtel, agence B
+// VOUCHER-CAR-TRANSFER-DATA-01 (lot "car") — prouve que le dispatch
+// `renderReservationVoucher` rend bien un PDF réel pour le nouveau case "car".
+let reservationCarAId = ""
 
 before(async () => {
   dbAvailable = await isDbAvailable()
@@ -142,14 +148,62 @@ before(async () => {
       nights: 5,
       adults: 2,
     })
+
+    // --- Fixture "car" (agence A) — VOUCHER-CAR-TRANSFER-DATA-01 ---
+    const [category] = await tx
+      .insert(carCategories)
+      .values({ agencyId: agencyAId, code: `CAT-${suffix}`, name: "SUV Test" })
+      .returning({ id: carCategories.id })
+    const [pickupLoc] = await tx
+      .insert(carLocations)
+      .values({ agencyId: agencyAId, name: "Aéroport Test A", city: "Tunis" })
+      .returning({ id: carLocations.id })
+    const [dropoffLoc] = await tx
+      .insert(carLocations)
+      .values({ agencyId: agencyAId, name: "Gare Test A", city: "Tunis" })
+      .returning({ id: carLocations.id })
+
+    const [resCarA] = await tx
+      .insert(reservations)
+      .values({
+        agencyId: agencyAId,
+        publicRef: `DOC-CARA-${suffix}`,
+        customerId: customerA!.id,
+        module: "car",
+        source: "internal",
+        status: "confirmed",
+        originalCurrency: "TND",
+        originalAmount: "220.00",
+        tndAmount: "220.00",
+      })
+      .returning({ id: reservations.id })
+    reservationCarAId = resCarA!.id
+    await tx.insert(reservationCar).values({
+      reservationId: reservationCarAId,
+      agencyId: agencyAId,
+      categoryId: category!.id,
+      pickupLocationId: pickupLoc!.id,
+      dropoffLocationId: dropoffLoc!.id,
+      pickupAt: new Date("2027-04-01T09:00:00Z"),
+      dropoffAt: new Date("2027-04-04T09:00:00Z"),
+      rentalDays: 3,
+      driverFullName: "Pro Test A",
+      driverLicenseNumber: "LIC-PRO-A-001",
+    })
   })
 })
 
 after(async () => {
   if (!dbAvailable) return
   await withSystemContext(async (tx) => {
+    // reservation_car.reservationId -> reservations.id est ON DELETE CASCADE
+    // (lib/db/schema/cars.ts) : supprimer `reservations` nettoie déjà la
+    // ligne reservation_car de la fixture "car", aucune suppression
+    // explicite nécessaire.
     await tx.delete(reservations).where(eq(reservations.agencyId, agencyAId))
     await tx.delete(reservations).where(eq(reservations.agencyId, agencyBId))
+    await tx.delete(carCategories).where(eq(carCategories.agencyId, agencyAId))
+    await tx.delete(carLocations).where(eq(carLocations.agencyId, agencyAId))
     await tx.delete(customers).where(eq(customers.agencyId, agencyAId))
     await tx.delete(customers).where(eq(customers.agencyId, agencyBId))
     await tx.delete(agencies).where(eq(agencies.id, agencyAId))
@@ -184,6 +238,22 @@ test("voucher /pro : agence A ne voit JAMAIS une réservation de l'agence B (IDO
     "la réservation de l'agence B ne doit jamais être visible depuis le contexte agence A",
   )
   if (!result.ok) assert.equal(result.error, "not_found")
+})
+
+test('voucher /pro : rendu voucher Voiture (lot "car", VOUCHER-CAR-TRANSFER-DATA-01) — PDF réel, pas un succès d\'événement seul', async (t) => {
+  if (!dbAvailable) return void t.skip(skipReason())
+  const result = await withTenantContext(
+    { agencyId: agencyAId, userId: randomUUID(), isSuperAdmin: false },
+    (tx) => renderReservationVoucher(tx, reservationCarAId),
+  )
+  assert.equal(result.ok, true, 'le case "car" du dispatch doit réussir')
+  if (result.ok) {
+    assert.ok(
+      result.pdf.length > 0 &&
+        Buffer.from(result.pdf.subarray(0, 5)).toString("latin1") === "%PDF-",
+      "le PDF rendu côté back-office doit être un PDF réel",
+    )
+  }
 })
 
 /* ------------- Invoice (réplique exacte du where-clause de la route) ------------- */

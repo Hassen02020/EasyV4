@@ -20,14 +20,18 @@
  */
 
 import { eq } from "drizzle-orm"
+import { alias } from "drizzle-orm/pg-core"
 import type { DrizzleTransaction } from "@/lib/db/client"
 import {
   agencies,
+  carCategories,
+  carLocations,
   catalogActivities,
   catalogPackages,
   customers,
   omraPackages,
   reservationActivity,
+  reservationCar,
   reservationFlight,
   reservationHotel,
   reservationOmra,
@@ -39,6 +43,7 @@ import { renderOmraVoucherPdf } from "@/lib/pdf/voucher-omra"
 import { renderPackageVoucherPdf } from "@/lib/pdf/voucher-package"
 import { renderActivityVoucherPdf } from "@/lib/pdf/voucher-activity"
 import { renderFlightVoucherPdf } from "@/lib/pdf/voucher-flight"
+import { renderCarVoucherPdf } from "@/lib/pdf/voucher-car"
 import {
   isVoucherEligible,
   isOmraVoucherEligible,
@@ -46,6 +51,7 @@ import {
   isActivityVoucherEligible,
   isFlightVoucherEligible,
   isWorldHotelVoucherEligible,
+  isCarVoucherEligible,
 } from "@/lib/pro/voucher-eligibility"
 
 export type VoucherRenderResult =
@@ -324,6 +330,62 @@ export async function renderReservationVoucher(
         agencyName,
       })
       return { ok: true, pdf, filename: `voucher-vol-${base.publicRef}.pdf` }
+    }
+
+    case "car": {
+      const pickupLocation = alias(carLocations, "pickup_location")
+      const dropoffLocation = alias(carLocations, "dropoff_location")
+      const [row] = await tx
+        .select({
+          categoryName: carCategories.name,
+          pickupLocationName: pickupLocation.name,
+          dropoffLocationName: dropoffLocation.name,
+          pickupAt: reservationCar.pickupAt,
+          dropoffAt: reservationCar.dropoffAt,
+          rentalDays: reservationCar.rentalDays,
+          insuranceLevel: reservationCar.insuranceLevel,
+        })
+        .from(reservationCar)
+        .leftJoin(
+          carCategories,
+          eq(carCategories.id, reservationCar.categoryId),
+        )
+        .leftJoin(
+          pickupLocation,
+          eq(pickupLocation.id, reservationCar.pickupLocationId),
+        )
+        .leftJoin(
+          dropoffLocation,
+          eq(dropoffLocation.id, reservationCar.dropoffLocationId),
+        )
+        .where(eq(reservationCar.reservationId, reservationId))
+        .limit(1)
+      const input = {
+        module: base.module,
+        status: base.status,
+        categoryName: row?.categoryName,
+        pickupLocationName: row?.pickupLocationName,
+        dropoffLocationName: row?.dropoffLocationName,
+      }
+      if (!isCarVoucherEligible(input)) {
+        return unavailable(
+          "Le voucher n'est disponible qu'une fois la réservation confirmée.",
+        )
+      }
+      const pdf = await renderCarVoucherPdf({
+        publicRef: base.publicRef,
+        customerName,
+        categoryName: input.categoryName,
+        pickupLocationName: input.pickupLocationName,
+        dropoffLocationName: input.dropoffLocationName,
+        pickupAt: row!.pickupAt!.toISOString(),
+        dropoffAt: row!.dropoffAt!.toISOString(),
+        rentalDays: row!.rentalDays ?? 1,
+        insuranceLevel: row!.insuranceLevel ?? "basic",
+        totalTnd,
+        agencyName,
+      })
+      return { ok: true, pdf, filename: `voucher-car-${base.publicRef}.pdf` }
     }
 
     default:

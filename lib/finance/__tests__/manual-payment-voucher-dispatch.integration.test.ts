@@ -44,11 +44,14 @@ import { withSystemContext } from "@/lib/db/tenant-context"
 import {
   agencies,
   auditEvents,
+  carCategories,
+  carLocations,
   catalogPackages,
   customers,
   omraPackages,
   partnerInvoices,
   payments,
+  reservationCar,
   reservationOmra,
   reservationPackage,
   reservations,
@@ -297,6 +300,112 @@ async function createPackageFixture(
   }
 }
 
+interface CarFixture {
+  agencyId: string
+  customerId: string
+  authUserId: string
+  reservationId: string
+  categoryId: string
+  pickupLocationId: string
+  dropoffLocationId: string
+}
+
+async function createCarFixture(
+  opts: { tndAmount?: string; withExtension?: boolean } = {},
+): Promise<CarFixture> {
+  const agencyId = randomUUID()
+  const customerId = randomUUID()
+  const authUserId = randomUUID()
+  const reservationId = randomUUID()
+  const categoryId = randomUUID()
+  const pickupLocationId = randomUUID()
+  const dropoffLocationId = randomUUID()
+  const withExtension = opts.withExtension ?? true
+  const tndAmount = opts.tndAmount ?? "450.00"
+
+  await withSystemContext(async (tx) => {
+    await tx.insert(agencies).values({
+      id: agencyId,
+      slug: `voucher-dispatch-car-${agencyId.slice(0, 8)}`,
+      name: "VOUCHER-CAR-TRANSFER-DATA-01 — agence test",
+      agencyType: "ota",
+    })
+    await tx.insert(customers).values({
+      id: customerId,
+      agencyId,
+      firstName: "Test",
+      lastName: "Car",
+      email: `car-${customerId.slice(0, 8)}@example.test`,
+      phone: "20000002",
+    })
+    await tx.insert(carCategories).values({
+      id: categoryId,
+      agencyId,
+      code: `CAT-${categoryId.slice(0, 8)}`,
+      name: "SUV Confort — Test Fixture",
+    })
+    await tx.insert(carLocations).values({
+      id: pickupLocationId,
+      agencyId,
+      name: "Aéroport Tunis-Carthage — Test Fixture",
+      city: "Tunis",
+    })
+    await tx.insert(carLocations).values({
+      id: dropoffLocationId,
+      agencyId,
+      name: "Centre-ville Sousse — Test Fixture",
+      city: "Sousse",
+    })
+    await tx.insert(reservations).values({
+      id: reservationId,
+      agencyId,
+      customerId,
+      module: "car",
+      source: "manual",
+      status: "pending",
+      originalCurrency: "TND",
+      originalAmount: tndAmount,
+      tndAmount,
+      publicRef: `TST-CAR-${reservationId.slice(0, 8)}`,
+      guestAccessToken: randomUUID(),
+    })
+    // withExtension=false simule une anomalie d'intégrité (réservation "car"
+    // sans sa ligne reservation_car) plutôt qu'un "catalogue supprimé" comme
+    // pour omra/package : categoryId/pickupLocationId/dropoffLocationId
+    // portent de VRAIES contraintes FK ON DELETE RESTRICT sur reservation_car
+    // (lib/db/schema/cars.ts), contrairement à reservationOmra.omraPackageId
+    // (aucune FK déclarée) — un catalogue réellement supprimé après la
+    // réservation est donc impossible à simuler ici (et impossible en
+    // production tant qu'une réservation y réfère). La garde défensive du
+    // dispatch (aucun nom résolu => log + skip) reste exercée par ce chemin
+    // alternatif, réellement atteignable si cette ligne d'extension manque.
+    if (withExtension) {
+      await tx.insert(reservationCar).values({
+        reservationId,
+        agencyId,
+        categoryId,
+        pickupLocationId,
+        dropoffLocationId,
+        pickupAt: new Date("2027-06-01T10:00:00Z"),
+        dropoffAt: new Date("2027-06-05T10:00:00Z"),
+        rentalDays: 4,
+        driverFullName: "Test Car Driver",
+        driverLicenseNumber: "LIC-TEST-FIXTURE-001",
+      })
+    }
+  })
+
+  return {
+    agencyId,
+    customerId,
+    authUserId,
+    reservationId,
+    categoryId,
+    pickupLocationId,
+    dropoffLocationId,
+  }
+}
+
 async function cleanupReservation(reservationId: string): Promise<void> {
   await withSystemContext(async (tx) => {
     // generateInvoiceForReservation (appelée par verifyManualPayment sur
@@ -316,6 +425,9 @@ async function cleanupReservation(reservationId: string): Promise<void> {
     await tx
       .delete(reservationPackage)
       .where(eq(reservationPackage.reservationId, reservationId))
+    await tx
+      .delete(reservationCar)
+      .where(eq(reservationCar.reservationId, reservationId))
     await tx.delete(reservations).where(eq(reservations.id, reservationId))
   })
 }
@@ -323,7 +435,13 @@ async function cleanupReservation(reservationId: string): Promise<void> {
 async function cleanupAgency(
   agencyId: string,
   customerId: string,
-  opts: { omraPackageId?: string; catalogPackageId?: string } = {},
+  opts: {
+    omraPackageId?: string
+    catalogPackageId?: string
+    carCategoryId?: string
+    carPickupLocationId?: string
+    carDropoffLocationId?: string
+  } = {},
 ): Promise<void> {
   await withSystemContext(async (tx) => {
     if (opts.omraPackageId) {
@@ -335,6 +453,21 @@ async function cleanupAgency(
       await tx
         .delete(catalogPackages)
         .where(eq(catalogPackages.id, opts.catalogPackageId))
+    }
+    if (opts.carCategoryId) {
+      await tx
+        .delete(carCategories)
+        .where(eq(carCategories.id, opts.carCategoryId))
+    }
+    if (opts.carPickupLocationId) {
+      await tx
+        .delete(carLocations)
+        .where(eq(carLocations.id, opts.carPickupLocationId))
+    }
+    if (opts.carDropoffLocationId) {
+      await tx
+        .delete(carLocations)
+        .where(eq(carLocations.id, opts.carDropoffLocationId))
     }
     await tx.delete(customers).where(eq(customers.id, customerId))
     await tx.delete(agencies).where(eq(agencies.id, agencyId))
@@ -682,5 +815,247 @@ test("5b — Omra, rejeu d'un paiement partiel (réservation encore pending) : A
     captured.length,
     0,
     "aucun paiement n'est intégral ici — aucun event ne doit jamais être émis",
+  )
+})
+
+/* -------------------------------------------------------------------------- */
+/* Scénarios Car — VOUCHER-CAR-TRANSFER-DATA-01 (lot "car")                  */
+/* -------------------------------------------------------------------------- */
+
+test("Car — paiement intégral : booking/car.confirmed émis avec les données exactes des fixtures (catégorie/lieux résolus par jointure)", async (t) => {
+  if (!dbAvailable) return void t.skip(skip())
+
+  const fx = await createCarFixture()
+  t.after(() => cleanupReservation(fx.reservationId))
+  t.after(() =>
+    cleanupAgency(fx.agencyId, fx.customerId, {
+      carCategoryId: fx.categoryId,
+      carPickupLocationId: fx.pickupLocationId,
+      carDropoffLocationId: fx.dropoffLocationId,
+    }),
+  )
+
+  const { verifyManualPayment, captured } = await setupInterception(t, {
+    authUserId: fx.authUserId,
+    role: "super_admin",
+    agencyId: fx.agencyId,
+  })
+
+  const result = await verifyManualPayment({
+    reservationId: fx.reservationId,
+    method: "transfer",
+    reference: "CAR-FULL-001",
+    amountTnd: 450,
+  })
+
+  assert.equal(result.ok, true)
+  if (!result.ok) return
+  assert.equal(result.fullyPaid, true)
+  assert.equal(result.paymentState, "FULLY_PAID")
+
+  assert.equal(captured.length, 1)
+  assert.equal(captured[0]?.name, "booking/car.confirmed")
+  const data = captured[0]?.data as Record<string, unknown>
+  assert.equal(data.reservationId, fx.reservationId)
+  assert.equal(data.categoryName, "SUV Confort — Test Fixture")
+  assert.equal(
+    data.pickupLocationName,
+    "Aéroport Tunis-Carthage — Test Fixture",
+  )
+  assert.equal(data.dropoffLocationName, "Centre-ville Sousse — Test Fixture")
+  assert.equal(data.pickupAt, new Date("2027-06-01T10:00:00Z").toISOString())
+  assert.equal(data.dropoffAt, new Date("2027-06-05T10:00:00Z").toISOString())
+  assert.equal(data.rentalDays, 4)
+  assert.equal(data.insuranceLevel, "basic")
+  assert.equal(data.totalTnd, 450)
+  assert.equal(
+    data.customerEmail,
+    `car-${fx.customerId.slice(0, 8)}@example.test`,
+  )
+  assert.equal(data.customerName, "Test Car")
+
+  const [row] = await withSystemContext((tx) =>
+    tx
+      .select({ status: reservations.status })
+      .from(reservations)
+      .where(eq(reservations.id, fx.reservationId)),
+  )
+  assert.equal(row?.status, "confirmed")
+})
+
+test("Car — paiement partiel : aucun event, réservation reste pending, aucun voucher prématuré", async (t) => {
+  if (!dbAvailable) return void t.skip(skip())
+
+  const fx = await createCarFixture({ tndAmount: "450.00" })
+  t.after(() => cleanupReservation(fx.reservationId))
+  t.after(() =>
+    cleanupAgency(fx.agencyId, fx.customerId, {
+      carCategoryId: fx.categoryId,
+      carPickupLocationId: fx.pickupLocationId,
+      carDropoffLocationId: fx.dropoffLocationId,
+    }),
+  )
+
+  const { verifyManualPayment, captured } = await setupInterception(t, {
+    authUserId: fx.authUserId,
+    role: "super_admin",
+    agencyId: fx.agencyId,
+  })
+
+  const result = await verifyManualPayment({
+    reservationId: fx.reservationId,
+    method: "transfer",
+    reference: "CAR-PARTIAL-001",
+    amountTnd: 100, // < 450 attendu
+  })
+
+  assert.equal(result.ok, true)
+  if (!result.ok) return
+  assert.equal(result.fullyPaid, false)
+  assert.equal(result.paymentState, "PARTIALLY_PAID")
+  assert.equal(result.remainingTnd, 350)
+
+  assert.equal(
+    captured.length,
+    0,
+    "aucun event ne doit être émis pour un acompte partiel",
+  )
+
+  const [row] = await withSystemContext((tx) =>
+    tx
+      .select({ status: reservations.status })
+      .from(reservations)
+      .where(eq(reservations.id, fx.reservationId)),
+  )
+  assert.equal(
+    row?.status,
+    "pending",
+    "jamais confirmée sur un acompte partiel",
+  )
+})
+
+test('Car — réservation sans extension reservation_car (anomalie d\'intégrité, analogue au "catalogue absent") : aucun event, log explicite, réservation tout de même confirmée', async (t) => {
+  if (!dbAvailable) return void t.skip(skip())
+
+  const fx = await createCarFixture({ withExtension: false })
+  t.after(() => cleanupReservation(fx.reservationId))
+  t.after(() =>
+    cleanupAgency(fx.agencyId, fx.customerId, {
+      carCategoryId: fx.categoryId,
+      carPickupLocationId: fx.pickupLocationId,
+      carDropoffLocationId: fx.dropoffLocationId,
+    }),
+  )
+
+  const { verifyManualPayment, captured } = await setupInterception(t, {
+    authUserId: fx.authUserId,
+    role: "super_admin",
+    agencyId: fx.agencyId,
+  })
+
+  const errorCalls: unknown[][] = []
+  const originalError = console.error
+  console.error = (...args: unknown[]) => {
+    errorCalls.push(args)
+  }
+  t.after(() => {
+    console.error = originalError
+  })
+
+  const result = await verifyManualPayment({
+    reservationId: fx.reservationId,
+    method: "transfer",
+    reference: "CAR-NOEXT-001",
+    amountTnd: 450,
+  })
+
+  assert.equal(result.ok, true)
+  if (!result.ok) return
+  assert.equal(
+    result.fullyPaid,
+    true,
+    "le paiement reste financièrement correct même sans extension reservation_car",
+  )
+
+  assert.equal(
+    captured.length,
+    0,
+    "aucune donnée de voucher ne doit être inventée sans extension reservation_car",
+  )
+
+  const loggedMissingCar = errorCalls.some((args) =>
+    args.some(
+      (a) =>
+        typeof a === "string" && a.includes("booking/car.confirmed non envoyé"),
+    ),
+  )
+  assert.equal(
+    loggedMissingCar,
+    true,
+    "l'absence d'envoi doit être explicitement loggée, jamais silencieuse",
+  )
+
+  const [row] = await withSystemContext((tx) =>
+    tx
+      .select({ status: reservations.status })
+      .from(reservations)
+      .where(eq(reservations.id, fx.reservationId)),
+  )
+  assert.equal(
+    row?.status,
+    "confirmed",
+    "le paiement lui-même reste correct et indépendant du voucher",
+  )
+})
+
+test("Car — rejeu après paiement intégral : NOT_PENDING (garde de statut), 1 seul event au total", async (t) => {
+  if (!dbAvailable) return void t.skip(skip())
+
+  const fx = await createCarFixture()
+  t.after(() => cleanupReservation(fx.reservationId))
+  t.after(() =>
+    cleanupAgency(fx.agencyId, fx.customerId, {
+      carCategoryId: fx.categoryId,
+      carPickupLocationId: fx.pickupLocationId,
+      carDropoffLocationId: fx.dropoffLocationId,
+    }),
+  )
+
+  const { verifyManualPayment, captured } = await setupInterception(t, {
+    authUserId: fx.authUserId,
+    role: "super_admin",
+    agencyId: fx.agencyId,
+  })
+
+  const input = {
+    reservationId: fx.reservationId,
+    method: "transfer" as const,
+    reference: "CAR-REPLAY-001",
+    amountTnd: 450,
+  }
+
+  const first = await verifyManualPayment(input)
+  assert.equal(first.ok, true)
+  if (first.ok) assert.equal(first.fullyPaid, true)
+
+  const second = await verifyManualPayment(input)
+  assert.equal(second.ok, false)
+  if (!second.ok) assert.equal(second.code, "NOT_PENDING")
+
+  const paymentRows = await withSystemContext((tx) =>
+    tx
+      .select({ id: payments.id })
+      .from(payments)
+      .where(eq(payments.reservationId, fx.reservationId)),
+  )
+  assert.equal(
+    paymentRows.length,
+    1,
+    "une seule ligne payments capturée malgré le rejeu",
+  )
+  assert.equal(
+    captured.length,
+    1,
+    "le rejeu après confirmation ne doit jamais ré-émettre un second event",
   )
 })

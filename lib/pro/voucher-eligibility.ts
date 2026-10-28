@@ -155,6 +155,32 @@ export function isWorldHotelVoucherEligible(
 }
 
 /**
+ * Éligibilité voucher Voiture (VOUCHER-CAR-TRANSFER-DATA-01, lot "car") —
+ * même règle (Phase 11 : `confirmed`/`completed` uniquement), fonction
+ * dédiée plutôt qu'une extension des fonctions ci-dessus.
+ */
+export interface CarVoucherEligibilityInput {
+  module: string
+  status: string
+  categoryName: string | null | undefined
+  pickupLocationName: string | null | undefined
+  dropoffLocationName: string | null | undefined
+}
+
+export function isCarVoucherEligible(
+  row: CarVoucherEligibilityInput,
+): row is CarVoucherEligibilityInput & {
+  categoryName: string
+  pickupLocationName: string
+  dropoffLocationName: string
+} {
+  if (row.module !== "car") return false
+  if (!row.categoryName || !row.pickupLocationName || !row.dropoffLocationName)
+    return false
+  return VOUCHER_ELIGIBLE_STATUSES.has(row.status)
+}
+
+/**
  * PHASE 38B (Voucher Hardening) — SEULE source de vérité pour "quelle route
  * de téléchargement voucher pour quel module ?". Avant cette extraction,
  * deux copies indépendantes de cette table existaient
@@ -175,6 +201,7 @@ export const VOUCHER_ROUTE_BY_MODULE: Record<string, string> = {
   activity: "/api/activities/voucher",
   flight: "/api/vols/voucher",
   hotel_monde: "/api/hotels-monde/voucher",
+  car: "/api/cars/voucher",
 }
 
 /**
@@ -224,8 +251,8 @@ export function isAdminReservationVoucherEligible(
 
 /**
  * Construit le lien de téléchargement voucher pour un module donné, ou
- * `null` si ce module n'a pas de route voucher (vol/transfert/voiture —
- * jamais un lien fabriqué vers une route qui n'existe pas).
+ * `null` si ce module n'a pas de route voucher (transfert — jamais un
+ * lien fabriqué vers une route qui n'existe pas).
  */
 export function voucherHrefForModule(
   module: string,

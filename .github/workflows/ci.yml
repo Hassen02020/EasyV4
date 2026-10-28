@@ -271,7 +271,16 @@ jobs:
         env:
           DATABASE_URL: postgresql://app_runtime:${{ env.APP_RUNTIME_PASSWORD }}@localhost:5432/postgres
         run: |
-          node --import tsx --test \
+          # --experimental-test-module-mocks (Node 22.3+, présent sur le
+          # node-version: 22 de ce job) : requis uniquement par
+          # manual-payment-voucher-dispatch.integration.test.ts, pour
+          # t.mock.module() — createServerSupabase/getCurrentAdminProfile
+          # sont des exports de fonction ESM non reconfigurables, que
+          # t.mock.method() ne peut pas remplacer (même limite documentée
+          # dans lib/crm/__tests__/campaign-delivery-core.test.ts).
+          # Purement additif pour les autres fichiers de cette liste, qui
+          # n'appellent jamais t.mock.module().
+          node --experimental-test-module-mocks --import tsx --test \
             lib/db/__tests__/app-runtime-grants.test.ts \
             lib/finance/__tests__/create-customer-profile.integration.test.ts \
             lib/booking/__tests__/link-guest-customer.integration.test.ts \
@@ -303,7 +312,8 @@ jobs:
             lib/finance/__tests__/invoice-generation-loop.integration.test.ts \
             lib/finance/__tests__/mutuelle-invoice-settlement-concurrency-live.test.ts \
             lib/finance/__tests__/mutuelle-invoice-settlement-rls-live.test.ts \
-            lib/inngest/functions/__tests__/recover-mutuelle-missing-invoices-live.test.ts
+            lib/inngest/functions/__tests__/recover-mutuelle-missing-invoices-live.test.ts \
+            lib/finance/__tests__/manual-payment-voucher-dispatch.integration.test.ts
 
   build:
     runs-on: ubuntu-latest

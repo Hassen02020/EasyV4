@@ -41,6 +41,10 @@ import { withTenantContext } from "@/lib/db/tenant-context"
 import {
   reservations,
   reservationHotel,
+  reservationOmra,
+  omraPackages,
+  reservationPackage,
+  catalogPackages,
   customers,
   payments,
   auditEvents,
@@ -494,6 +498,13 @@ export async function verifyManualPayment(
             nights: reservationHotel.nights,
             adults: reservationHotel.adults,
             childrenAges: reservationHotel.childrenAges,
+            omraPackageName: omraPackages.name,
+            omraDepartureDate: reservationOmra.departureDate,
+            omraPilgrims: reservationOmra.pilgrims,
+            pkgTitle: catalogPackages.title,
+            pkgDepartureDate: reservationPackage.departureDate,
+            pkgAdults: reservationPackage.adults,
+            pkgChildrenAges: reservationPackage.childrenAges,
           })
           .from(reservations)
           .innerJoin(customers, eq(customers.id, reservations.customerId))
@@ -501,14 +512,46 @@ export async function verifyManualPayment(
             reservationHotel,
             eq(reservationHotel.reservationId, reservations.id),
           )
+          .leftJoin(
+            reservationOmra,
+            eq(reservationOmra.reservationId, reservations.id),
+          )
+          .leftJoin(
+            omraPackages,
+            eq(omraPackages.id, reservationOmra.omraPackageId),
+          )
+          .leftJoin(
+            reservationPackage,
+            eq(reservationPackage.reservationId, reservations.id),
+          )
+          .leftJoin(
+            catalogPackages,
+            eq(catalogPackages.id, reservationPackage.packageId),
+          )
           .where(eq(reservations.id, outcome.reservationId))
           .limit(1),
     )
 
-    // Le handler voucher (processConfirmedBooking) n'existe que pour le
-    // module hôtel — même garde que lib/booking/actions.ts/guest-actions.ts.
+    // Dispatch par module — VOUCHER-DISPATCH-MULTIMODULE-01. Même style que
+    // lib/booking/reservation-voucher-render.ts (switch sur reservations.module,
+    // chaque branche réutilisant un event déjà existant et déjà testé pour ce
+    // module, aucun nouveau gabarit). Avant cette extension, seul "hotel"
+    // déclenchait un event ici : un paiement manuel validé pour
+    // hotel_monde/omra/package confirmait bien la réservation (correct
+    // financièrement, géré plus haut) mais n'envoyait jamais la
+    // confirmation/voucher au client — gap silencieux trouvé en audit.
+    //
+    // car/transfer restent HORS PÉRIMÈTRE de cette extension : les champs
+    // nécessaires à leur event (rentalDays/insuranceLevel/pickupAt/dropoffAt
+    // pour car ; date/heure de prise en charge pour transfer) ne sont
+    // persistés nulle part en base après la création de la réservation
+    // (confirmé par lecture de lib/db/schema.ts : aucune colonne dédiée, et
+    // `reservations.providerPayload` ne capture que les noms de
+    // catégorie/zone, pas les dates/durées) — aucune valeur ne doit être
+    // inventée ici ; voir le rapport du chantier pour la décision requise
+    // (migration pour persister ces champs, ou event partiel accepté).
     if (
-      detail?.module === "hotel" &&
+      (detail?.module === "hotel" || detail?.module === "hotel_monde") &&
       detail.customerEmail &&
       detail.hotelName
     ) {
@@ -531,6 +574,68 @@ export async function verifyManualPayment(
       }).catch(() => {
         /* fire-and-forget — le retry Inngest suffira */
       })
+    } else if (detail?.module === "omra") {
+      // reservationOmra.departureDate/pilgrims sont NOT NULL en base — les
+      // `?? 1`/`?? ""` ci-dessous ne sont donc qu'une garde défensive, jamais
+      // censée s'activer tant que la jointure reservationOmra a matché.
+      // omraPackageName, lui, peut réellement être NULL (jointure LEFT JOIN
+      // vers omraPackages : un package catalogue supprimé après la
+      // réservation) — on ne fabrique jamais de nom de package, on log pour
+      // que ce cas reste visible plutôt que silencieux.
+      if (detail.customerEmail && detail.omraPackageName) {
+        await sendEvent("booking/omra.confirmed", {
+          reservationId: outcome.reservationId,
+          publicRef: outcome.publicRef,
+          agencyId: finalAgencyId,
+          packageName: detail.omraPackageName,
+          pilgrimsCount: detail.omraPilgrims ?? 1,
+          departureDate: detail.omraDepartureDate ?? "",
+          totalTnd: Number.parseFloat(detail.tndAmount),
+          contactEmail: detail.customerEmail,
+        }).catch(() => {
+          /* fire-and-forget — le retry Inngest suffira */
+        })
+      } else {
+        console.error(
+          "[manual-payment] booking/omra.confirmed non envoyé — données manquantes",
+          {
+            reservationId: outcome.reservationId,
+            publicRef: outcome.publicRef,
+            hasCustomerEmail: Boolean(detail.customerEmail),
+            hasPackageName: Boolean(detail.omraPackageName),
+          },
+        )
+      }
+    } else if (detail?.module === "package") {
+      // Même garde défensive que ci-dessus : reservationPackage.departureDate
+      // est NOT NULL en base, pkgTitle peut être NULL si le package
+      // catalogue a été supprimé après la réservation — jamais de valeur
+      // inventée, log explicite plutôt qu'un échec silencieux.
+      if (detail.customerEmail && detail.pkgTitle) {
+        await sendEvent("booking/package.confirmed", {
+          reservationId: outcome.reservationId,
+          publicRef: outcome.publicRef,
+          agencyId: finalAgencyId,
+          packageName: detail.pkgTitle,
+          departureDate: detail.pkgDepartureDate ?? "",
+          paxCount:
+            (detail.pkgAdults ?? 0) + (detail.pkgChildrenAges?.length ?? 0),
+          totalTnd: Number.parseFloat(detail.tndAmount),
+          contactEmail: detail.customerEmail,
+        }).catch(() => {
+          /* fire-and-forget — le retry Inngest suffira */
+        })
+      } else {
+        console.error(
+          "[manual-payment] booking/package.confirmed non envoyé — données manquantes",
+          {
+            reservationId: outcome.reservationId,
+            publicRef: outcome.publicRef,
+            hasCustomerEmail: Boolean(detail.customerEmail),
+            hasPackageName: Boolean(detail.pkgTitle),
+          },
+        )
+      }
     }
   } catch (err) {
     console.error(

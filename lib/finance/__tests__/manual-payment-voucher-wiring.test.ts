@@ -73,24 +73,22 @@ test("VOUCHER-WIRING-01/manual-payment : customerName assemblé via customerFirs
 
 // ─── Invariant 4 : fire-and-forget ────────────────────────────────────────
 
-test("VOUCHER-WIRING-01/manual-payment : sendEvent «booking/confirmed» est fire-and-forget (.catch)", () => {
-  assert.match(
-    src,
-    /sendEvent\(["']booking\/confirmed["'][\s\S]{0,800}?\)\.catch\(/,
-  )
+test("INNGEST-RELIABILITY-01/manual-payment : booking/confirmed via sendEventReliable (ne lève jamais, pas de .catch avalant l'erreur)", () => {
+  assert.match(src, /sendEventReliable\(\s*["']booking\/confirmed["']/)
+  assert.doesNotMatch(src, /\.catch\(\(\) => \{\s*\/\* fire-and-forget/)
 })
 
 // ─── Invariant 5 : utilise sendEvent (pas inngest.send direct) ────────────
 
 test("VOUCHER-WIRING-01/manual-payment : utilise sendEvent (helper typé) pour booking/confirmed", () => {
-  assert.match(src, /import.*sendEvent.*from.*inngest\/client/)
-  assert.match(src, /await sendEvent\(["']booking\/confirmed["']/)
+  assert.match(src, /import.*sendEventReliable.*from.*inngest\/send-reliable/)
+  assert.match(src, /await sendEventReliable\(\s*["']booking\/confirmed["']/)
 })
 
 // ─── Invariant 6 : champs payload complets ────────────────────────────────
 
 test("VOUCHER-WIRING-01/manual-payment : payload contient reservationId, publicRef, agencyId, guestAccessToken", () => {
-  const idx = src.indexOf('sendEvent("booking/confirmed"')
+  const idx = src.indexOf('"booking/confirmed"')
   const block = src.slice(idx, idx + 600)
   assert.match(block, /reservationId/)
   assert.match(block, /publicRef/)
@@ -99,8 +97,8 @@ test("VOUCHER-WIRING-01/manual-payment : payload contient reservationId, publicR
 })
 
 test("VOUCHER-WIRING-01/manual-payment : payload contient hotelName, checkIn, checkOut, nights, adults, children", () => {
-  const idx = src.indexOf('sendEvent("booking/confirmed"')
-  const block = src.slice(idx, idx + 600)
+  const idx = src.indexOf('"booking/confirmed"')
+  const block = src.slice(idx, idx + 900)
   assert.match(block, /hotelName/)
   assert.match(block, /checkIn/)
   assert.match(block, /checkOut/)

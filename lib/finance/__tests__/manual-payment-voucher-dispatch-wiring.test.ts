@@ -40,7 +40,8 @@ test("VOUCHER-DISPATCH-01 : hotel et hotel_monde combinés dans la même conditi
     /detail\?\.module\s*===\s*["']hotel["']\s*\|\|\s*detail\?\.module\s*===\s*["']hotel_monde["']/,
   )
   // Un seul sendEvent("booking/confirmed", ...) dans tout le fichier.
-  const matches = src.match(/sendEvent\(["']booking\/confirmed["']/g) ?? []
+  const matches =
+    src.match(/sendEventReliable\(\s*["']booking\/confirmed["']/g) ?? []
   assert.equal(matches.length, 1)
 })
 
@@ -51,11 +52,14 @@ test('VOUCHER-DISPATCH-01 : garde detail?.module === "omra" avant sendEvent omra
 })
 
 test("VOUCHER-DISPATCH-01 : omra — utilise sendEvent (pas inngest.send direct)", () => {
-  assert.match(src, /await sendEvent\(["']booking\/omra\.confirmed["']/)
+  assert.match(
+    src,
+    /await sendEventReliable\(\s*["']booking\/omra\.confirmed["']/,
+  )
 })
 
 test("VOUCHER-DISPATCH-01 : omra — payload contient packageName, pilgrimsCount, departureDate, contactEmail, totalTnd", () => {
-  const idx = src.indexOf('sendEvent("booking/omra.confirmed"')
+  const idx = src.indexOf('"booking/omra.confirmed"')
   const block = src.slice(idx, idx + 600)
   assert.match(block, /packageName/)
   assert.match(block, /pilgrimsCount/)
@@ -72,11 +76,9 @@ test("VOUCHER-DISPATCH-01 : omra — packageName source = omraPackages.name (jam
   )
 })
 
-test("VOUCHER-DISPATCH-01 : omra — fire-and-forget (.catch) comme le chemin hôtel", () => {
-  assert.match(
-    src,
-    /sendEvent\(["']booking\/omra\.confirmed["'][\s\S]{0,600}?\)\.catch\(/,
-  )
+test("INNGEST-RELIABILITY-01 : omra — envoi fiable (sendEventReliable), jamais d'erreur avalée", () => {
+  assert.match(src, /sendEventReliable\(\s*["']booking\/omra\.confirmed["']/)
+  assert.doesNotMatch(src, /\.catch\(\(\) => \{\s*\/\* fire-and-forget/)
 })
 
 // ─── Package : nouvel event booking/package.confirmed ─────────────────────
@@ -86,11 +88,14 @@ test('VOUCHER-DISPATCH-01 : garde detail?.module === "package" avant sendEvent p
 })
 
 test("VOUCHER-DISPATCH-01 : package — utilise sendEvent (pas inngest.send direct)", () => {
-  assert.match(src, /await sendEvent\(["']booking\/package\.confirmed["']/)
+  assert.match(
+    src,
+    /await sendEventReliable\(\s*["']booking\/package\.confirmed["']/,
+  )
 })
 
 test("VOUCHER-DISPATCH-01 : package — payload contient packageName, departureDate, paxCount, contactEmail, totalTnd", () => {
-  const idx = src.indexOf('sendEvent("booking/package.confirmed"')
+  const idx = src.indexOf('"booking/package.confirmed"')
   const block = src.slice(idx, idx + 600)
   assert.match(block, /packageName/)
   assert.match(block, /departureDate/)
@@ -114,11 +119,9 @@ test("VOUCHER-DISPATCH-01 : package — paxCount = adults + childrenAges.length 
   )
 })
 
-test("VOUCHER-DISPATCH-01 : package — fire-and-forget (.catch) comme le chemin hôtel", () => {
-  assert.match(
-    src,
-    /sendEvent\(["']booking\/package\.confirmed["'][\s\S]{0,600}?\)\.catch\(/,
-  )
+test("INNGEST-RELIABILITY-01 : package — envoi fiable (sendEventReliable), jamais d'erreur avalée", () => {
+  assert.match(src, /sendEventReliable\(\s*["']booking\/package\.confirmed["']/)
+  assert.doesNotMatch(src, /\.catch\(\(\) => \{\s*\/\* fire-and-forget/)
 })
 
 // ─── Validation renforcée : échec de garde jamais silencieux ──────────────
@@ -141,11 +144,14 @@ test('VOUCHER-DISPATCH-01 : garde detail?.module === "car" avant sendEvent car',
 })
 
 test("VOUCHER-DISPATCH-01 : car — utilise sendEvent (pas inngest.send direct)", () => {
-  assert.match(src, /await sendEvent\(["']booking\/car\.confirmed["']/)
+  assert.match(
+    src,
+    /await sendEventReliable\(\s*["']booking\/car\.confirmed["']/,
+  )
 })
 
 test("VOUCHER-DISPATCH-01 : car — payload contient categoryName, pickupLocationName, dropoffLocationName, pickupAt, dropoffAt, rentalDays, insuranceLevel, totalTnd", () => {
-  const idx = src.indexOf('sendEvent("booking/car.confirmed"')
+  const idx = src.indexOf('"booking/car.confirmed"')
   const block = src.slice(idx, idx + 800)
   assert.match(block, /categoryName/)
   assert.match(block, /pickupLocationName/)
@@ -166,18 +172,19 @@ test("VOUCHER-DISPATCH-01 : car — données manquantes loggées (jamais un éch
   assert.match(src, /booking\/car\.confirmed non envoyé — données manquantes/)
 })
 
-test("VOUCHER-DISPATCH-01 : car — fire-and-forget (.catch) comme le chemin hôtel", () => {
-  assert.match(
-    src,
-    /sendEvent\(["']booking\/car\.confirmed["'][\s\S]{0,900}?\)\.catch\(/,
-  )
+test("INNGEST-RELIABILITY-01 : car — envoi fiable (sendEventReliable), jamais d'erreur avalée", () => {
+  assert.match(src, /sendEventReliable\(\s*["']booking\/car\.confirmed["']/)
+  assert.doesNotMatch(src, /\.catch\(\(\) => \{\s*\/\* fire-and-forget/)
 })
 
 // ─── transfer (VOUCHER-CAR-TRANSFER-DATA-01, lot "transfer") ─────────────
 
 test("VOUCHER-TRANSFER-01 : branche transfer → booking/transfer.confirmed, pickupAt lu en base (jamais recalculé)", () => {
   assert.match(src, /detail\?\.module === "transfer"/)
-  assert.match(src, /sendEvent\(["']booking\/transfer\.confirmed["']/)
+  assert.match(
+    src,
+    /sendEventReliable\(\s*["']booking\/transfer\.confirmed["']/,
+  )
   assert.match(src, /transferPickupAt: reservationTransfer\.pickupAt/)
   assert.match(src, /pickupAt: detail\.transferPickupAt\.toISOString\(\)/)
 })

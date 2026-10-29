@@ -57,7 +57,7 @@ import { createServerSupabase } from "@/lib/supabase/server"
 import { getCurrentAdminProfile } from "@/lib/auth/profile"
 import { isTransitionAllowed } from "@/lib/admin/reservation-status"
 import { generateInvoiceForReservation } from "./invoice-actions"
-import { sendEvent } from "@/lib/inngest/client"
+import { sendEventReliable } from "@/lib/inngest/send-reliable"
 import {
   debitCustomerWallet,
   recordTargetedWalletSettlement,
@@ -586,25 +586,27 @@ export async function verifyManualPayment(
       detail.customerEmail &&
       detail.hotelName
     ) {
-      await sendEvent("booking/confirmed", {
-        reservationId: outcome.reservationId,
-        publicRef: outcome.publicRef,
-        agencyId: finalAgencyId,
-        guestAccessToken: detail.guestAccessToken,
-        customerEmail: detail.customerEmail,
-        customerName:
-          `${detail.customerFirstName} ${detail.customerLastName}`.trim(),
-        customerPhone: detail.customerPhone ?? "",
-        hotelName: detail.hotelName,
-        checkIn: detail.checkIn ?? "",
-        checkOut: detail.checkOut ?? "",
-        nights: detail.nights ?? 1,
-        adults: detail.adults ?? 1,
-        children: detail.childrenAges?.length ?? 0,
-        totalTnd: Number.parseFloat(detail.tndAmount),
-      }).catch(() => {
-        /* fire-and-forget — le retry Inngest suffira */
-      })
+      await sendEventReliable(
+        "booking/confirmed",
+        {
+          reservationId: outcome.reservationId,
+          publicRef: outcome.publicRef,
+          agencyId: finalAgencyId,
+          guestAccessToken: detail.guestAccessToken,
+          customerEmail: detail.customerEmail,
+          customerName:
+            `${detail.customerFirstName} ${detail.customerLastName}`.trim(),
+          customerPhone: detail.customerPhone ?? "",
+          hotelName: detail.hotelName,
+          checkIn: detail.checkIn ?? "",
+          checkOut: detail.checkOut ?? "",
+          nights: detail.nights ?? 1,
+          adults: detail.adults ?? 1,
+          children: detail.childrenAges?.length ?? 0,
+          totalTnd: Number.parseFloat(detail.tndAmount),
+        },
+        { reservationId: outcome.reservationId, agencyId: finalAgencyId },
+      )
     } else if (detail?.module === "omra") {
       // reservationOmra.departureDate/pilgrims sont NOT NULL en base — les
       // `?? 1`/`?? ""` ci-dessous ne sont donc qu'une garde défensive, jamais
@@ -614,18 +616,20 @@ export async function verifyManualPayment(
       // réservation) — on ne fabrique jamais de nom de package, on log pour
       // que ce cas reste visible plutôt que silencieux.
       if (detail.customerEmail && detail.omraPackageName) {
-        await sendEvent("booking/omra.confirmed", {
-          reservationId: outcome.reservationId,
-          publicRef: outcome.publicRef,
-          agencyId: finalAgencyId,
-          packageName: detail.omraPackageName,
-          pilgrimsCount: detail.omraPilgrims ?? 1,
-          departureDate: detail.omraDepartureDate ?? "",
-          totalTnd: Number.parseFloat(detail.tndAmount),
-          contactEmail: detail.customerEmail,
-        }).catch(() => {
-          /* fire-and-forget — le retry Inngest suffira */
-        })
+        await sendEventReliable(
+          "booking/omra.confirmed",
+          {
+            reservationId: outcome.reservationId,
+            publicRef: outcome.publicRef,
+            agencyId: finalAgencyId,
+            packageName: detail.omraPackageName,
+            pilgrimsCount: detail.omraPilgrims ?? 1,
+            departureDate: detail.omraDepartureDate ?? "",
+            totalTnd: Number.parseFloat(detail.tndAmount),
+            contactEmail: detail.customerEmail,
+          },
+          { reservationId: outcome.reservationId, agencyId: finalAgencyId },
+        )
       } else {
         console.error(
           "[manual-payment] booking/omra.confirmed non envoyé — données manquantes",
@@ -643,19 +647,21 @@ export async function verifyManualPayment(
       // catalogue a été supprimé après la réservation — jamais de valeur
       // inventée, log explicite plutôt qu'un échec silencieux.
       if (detail.customerEmail && detail.pkgTitle) {
-        await sendEvent("booking/package.confirmed", {
-          reservationId: outcome.reservationId,
-          publicRef: outcome.publicRef,
-          agencyId: finalAgencyId,
-          packageName: detail.pkgTitle,
-          departureDate: detail.pkgDepartureDate ?? "",
-          paxCount:
-            (detail.pkgAdults ?? 0) + (detail.pkgChildrenAges?.length ?? 0),
-          totalTnd: Number.parseFloat(detail.tndAmount),
-          contactEmail: detail.customerEmail,
-        }).catch(() => {
-          /* fire-and-forget — le retry Inngest suffira */
-        })
+        await sendEventReliable(
+          "booking/package.confirmed",
+          {
+            reservationId: outcome.reservationId,
+            publicRef: outcome.publicRef,
+            agencyId: finalAgencyId,
+            packageName: detail.pkgTitle,
+            departureDate: detail.pkgDepartureDate ?? "",
+            paxCount:
+              (detail.pkgAdults ?? 0) + (detail.pkgChildrenAges?.length ?? 0),
+            totalTnd: Number.parseFloat(detail.tndAmount),
+            contactEmail: detail.customerEmail,
+          },
+          { reservationId: outcome.reservationId, agencyId: finalAgencyId },
+        )
       } else {
         console.error(
           "[manual-payment] booking/package.confirmed non envoyé — données manquantes",
@@ -675,20 +681,22 @@ export async function verifyManualPayment(
         detail.transferPickupAt &&
         detail.transferVehicleType
       ) {
-        await sendEvent("booking/transfer.confirmed", {
-          reservationId: outcome.reservationId,
-          publicRef: outcome.publicRef,
-          agencyId: finalAgencyId,
-          customerEmail: detail.customerEmail ?? "",
-          customerPhone: detail.customerPhone ?? "",
-          fromZone: detail.transferFromZone,
-          toZone: detail.transferToZone,
-          pickupAt: detail.transferPickupAt.toISOString(),
-          vehicleType: detail.transferVehicleType,
-          totalTnd: Number.parseFloat(detail.tndAmount),
-        }).catch(() => {
-          /* fire-and-forget — le retry Inngest suffira */
-        })
+        await sendEventReliable(
+          "booking/transfer.confirmed",
+          {
+            reservationId: outcome.reservationId,
+            publicRef: outcome.publicRef,
+            agencyId: finalAgencyId,
+            customerEmail: detail.customerEmail ?? "",
+            customerPhone: detail.customerPhone ?? "",
+            fromZone: detail.transferFromZone,
+            toZone: detail.transferToZone,
+            pickupAt: detail.transferPickupAt.toISOString(),
+            vehicleType: detail.transferVehicleType,
+            totalTnd: Number.parseFloat(detail.tndAmount),
+          },
+          { reservationId: outcome.reservationId, agencyId: finalAgencyId },
+        )
       } else {
         console.error(
           "[manual-payment] booking/transfer.confirmed non envoyé — données manquantes",
@@ -750,25 +758,27 @@ export async function verifyManualPayment(
         detail.carPickupAt &&
         detail.carDropoffAt
       ) {
-        await sendEvent("booking/car.confirmed", {
-          reservationId: outcome.reservationId,
-          publicRef: outcome.publicRef,
-          agencyId: finalAgencyId,
-          guestAccessToken: detail.guestAccessToken,
-          customerEmail: detail.customerEmail,
-          customerName:
-            `${detail.customerFirstName} ${detail.customerLastName}`.trim(),
-          categoryName: category,
-          pickupLocationName: pickupLocation,
-          dropoffLocationName: dropoffLocation,
-          pickupAt: detail.carPickupAt.toISOString(),
-          dropoffAt: detail.carDropoffAt.toISOString(),
-          rentalDays: detail.carRentalDays ?? 1,
-          insuranceLevel: detail.carInsuranceLevel ?? "basic",
-          totalTnd: Number.parseFloat(detail.tndAmount),
-        }).catch(() => {
-          /* fire-and-forget — le retry Inngest suffira */
-        })
+        await sendEventReliable(
+          "booking/car.confirmed",
+          {
+            reservationId: outcome.reservationId,
+            publicRef: outcome.publicRef,
+            agencyId: finalAgencyId,
+            guestAccessToken: detail.guestAccessToken,
+            customerEmail: detail.customerEmail,
+            customerName:
+              `${detail.customerFirstName} ${detail.customerLastName}`.trim(),
+            categoryName: category,
+            pickupLocationName: pickupLocation,
+            dropoffLocationName: dropoffLocation,
+            pickupAt: detail.carPickupAt.toISOString(),
+            dropoffAt: detail.carDropoffAt.toISOString(),
+            rentalDays: detail.carRentalDays ?? 1,
+            insuranceLevel: detail.carInsuranceLevel ?? "basic",
+            totalTnd: Number.parseFloat(detail.tndAmount),
+          },
+          { reservationId: outcome.reservationId, agencyId: finalAgencyId },
+        )
       } else {
         console.error(
           "[manual-payment] booking/car.confirmed non envoyé — données manquantes",

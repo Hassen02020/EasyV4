@@ -316,7 +316,22 @@ jobs:
             lib/finance/__tests__/manual-payment-voucher-dispatch.integration.test.ts \
             lib/finance/__tests__/manual-payment-transfer-voucher.integration.test.ts \
             lib/finance/__tests__/manual-payment-inngest-reliability.integration.test.ts \
-            lib/inngest/functions/__tests__/transfer-email-idempotency.integration.test.ts
+            lib/inngest/functions/__tests__/transfer-email-idempotency.integration.test.ts \
+            lib/crm/__tests__/campaign-attribution-core-live.test.ts \
+            lib/crm/__tests__/campaign-core-live.test.ts \
+            lib/crm/__tests__/campaign-performance-core-live.test.ts \
+            lib/crm/__tests__/campaign-persistence-core-live.test.ts \
+            lib/crm/__tests__/consent-core-live.test.ts \
+            lib/crm/__tests__/contact-core-live.test.ts \
+            lib/crm/__tests__/customer-match-core-live.test.ts \
+            lib/crm/__tests__/network-demand-capture-live.test.ts \
+            lib/crm/__tests__/niche-audience-live.test.ts \
+            lib/crm/__tests__/promo-checkout-core-live.test.ts \
+            lib/crm/__tests__/promo-core-live.test.ts \
+            lib/crm/__tests__/search-demand-core-live.test.ts \
+            lib/crm/__tests__/vip-score-live.test.ts \
+            lib/crm/__tests__/website-lead-capture-core-live.test.ts \
+            lib/meta-leadads/__tests__/lead-capture-core.test.ts
 
   build:
     runs-on: ubuntu-latest

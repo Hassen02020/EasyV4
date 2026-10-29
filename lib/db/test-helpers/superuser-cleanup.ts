@@ -25,6 +25,7 @@
  * ce chantier lors du débogage par réexécutions successives).
  */
 import type { Sql } from "postgres"
+import type { DrizzleTransaction } from "@/lib/db/client"
 
 const ALLOWED_TEST_HOSTS = new Set(["localhost", "127.0.0.1", "::1"])
 
@@ -77,4 +78,27 @@ export async function cleanupAsSuperuser(
   } finally {
     await sql.end()
   }
+}
+
+/**
+ * CRM-LIVE-TESTS-CI-01 — même nettoyage superuser, exposé sous forme d'une
+ * transaction Drizzle (mêmes tables typées que les hooks `after()` des suites
+ * live CRM, qui utilisaient `withSystemContext` — donc `app_runtime` — et
+ * échouaient sur les tables en ajout seul : contacts, campaigns,
+ * campaign_targets, campaign_attributions, promos, lead_consent_events,
+ * lead_origin_events). Mêmes garde-fous que `cleanupAsSuperuser` : hôte local
+ * uniquement, refus en production, refus si DATABASE_DIRECT_URL est absente.
+ * Réservé au nettoyage de fixtures, jamais aux assertions.
+ */
+export async function cleanupAsSuperuserWithDrizzle(
+  run: (tx: DrizzleTransaction) => Promise<unknown>,
+): Promise<void> {
+  await cleanupAsSuperuser(async (sql) => {
+    const { drizzle } = await import("drizzle-orm/postgres-js")
+    const schema = await import("@/lib/db/schema")
+    const db = drizzle(sql, { schema, casing: "snake_case" })
+    await db.transaction(async (tx) => {
+      await run(tx)
+    })
+  })
 }

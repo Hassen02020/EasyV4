@@ -6,6 +6,7 @@
  * que les autres tests live de ce dépôt : se dégrade en `skip` sans
  * DATABASE_URL/Postgres local disponible.
  */
+import { cleanupAsSuperuserWithDrizzle } from "@/lib/db/test-helpers/superuser-cleanup"
 import test, { before, after } from "node:test"
 import assert from "node:assert/strict"
 import { randomUUID } from "node:crypto"
@@ -66,7 +67,7 @@ before(async () => {
 
 after(async () => {
   if (!dbAvailable) return
-  await withSystemContext(async (tx) => {
+  await cleanupAsSuperuserWithDrizzle(async (tx) => {
     await tx
       .delete(campaignTargets)
       .where(eq(campaignTargets.agencyId, agencyA))
@@ -175,6 +176,21 @@ test("launchCampaignCore : une campagne déjà lancée refuse un second lancemen
     userId: "",
     isSuperAdmin: true,
   }
+
+  // CRM-LIVE-TESTS-CI-01 — consentement marketing explicite : sans lui,
+  // filterAudienceByConsentCore exclut (à raison) le contact et le premier
+  // lancement ne snapshote aucune cible, ce qui ne permettait pas de prouver
+  // que le second lancement n'ajoute rien.
+  await withTenantContext(ctxA, (tx) =>
+    recordConsentEventCore(tx, {
+      agencyId: agencyA,
+      channel: "email",
+      contactRef: "double@example.com",
+      purpose: "marketing",
+      action: "granted",
+      source: "test",
+    }),
+  )
 
   const campaign = await withTenantContext(ctxA, (tx) =>
     createCampaignCore(tx, {

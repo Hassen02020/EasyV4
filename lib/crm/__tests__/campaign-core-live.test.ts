@@ -8,6 +8,7 @@
  * Couvre le flux imposé par l'audit : AUDIENCE → LEADs → CONTACTs
  * uniques (CONTACT-01) → CONSENT (CONSENT-01) → CONTACTs éligibles.
  */
+import { cleanupAsSuperuserWithDrizzle } from "@/lib/db/test-helpers/superuser-cleanup"
 import test, { before, after } from "node:test"
 import assert from "node:assert/strict"
 import { randomUUID } from "node:crypto"
@@ -68,7 +69,7 @@ before(async () => {
 
 after(async () => {
   if (!dbAvailable) return
-  await withSystemContext(async (tx) => {
+  await cleanupAsSuperuserWithDrizzle(async (tx) => {
     await tx
       .delete(leadConsentEvents)
       .where(eq(leadConsentEvents.agencyId, agencyA))

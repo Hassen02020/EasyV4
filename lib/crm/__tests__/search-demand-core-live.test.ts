@@ -4,6 +4,7 @@
  * (agencyId, "hotel", destination, jour), jamais une ligne par recherche
  * — et jamais de tracking individuel (aucun champ identité dans la table).
  */
+import { cleanupAsSuperuserWithDrizzle } from "@/lib/db/test-helpers/superuser-cleanup"
 import test, { before, after } from "node:test"
 import assert from "node:assert/strict"
 import { randomUUID } from "node:crypto"
@@ -51,7 +52,7 @@ after(async () => {
   // que lead_consent_events/contacts — voir drizzle/manual/0122) : on ne
   // supprime jamais directement dedans. ON DELETE CASCADE sur agency_id
   // nettoie les lignes de test quand l'agence elle-même est supprimée.
-  await withSystemContext(async (tx) => {
+  await cleanupAsSuperuserWithDrizzle(async (tx) => {
     await tx.delete(agencies).where(eq(agencies.id, agencyId))
   })
 })

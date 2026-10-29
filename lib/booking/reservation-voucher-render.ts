@@ -32,6 +32,7 @@ import {
   omraPackages,
   reservationActivity,
   reservationCar,
+  reservationTransfer,
   reservationFlight,
   reservationHotel,
   reservationOmra,
@@ -44,6 +45,7 @@ import { renderPackageVoucherPdf } from "@/lib/pdf/voucher-package"
 import { renderActivityVoucherPdf } from "@/lib/pdf/voucher-activity"
 import { renderFlightVoucherPdf } from "@/lib/pdf/voucher-flight"
 import { renderCarVoucherPdf } from "@/lib/pdf/voucher-car"
+import { renderTransferVoucherPdf } from "@/lib/pdf/voucher-transfer"
 import {
   isVoucherEligible,
   isOmraVoucherEligible,
@@ -52,6 +54,7 @@ import {
   isFlightVoucherEligible,
   isWorldHotelVoucherEligible,
   isCarVoucherEligible,
+  isTransferVoucherEligible,
 } from "@/lib/pro/voucher-eligibility"
 
 export type VoucherRenderResult =
@@ -386,6 +389,46 @@ export async function renderReservationVoucher(
         agencyName,
       })
       return { ok: true, pdf, filename: `voucher-car-${base.publicRef}.pdf` }
+    }
+
+    case "transfer": {
+      const [row] = await tx
+        .select({
+          fromZone: reservationTransfer.pickupAddress,
+          toZone: reservationTransfer.dropoffAddress,
+          pickupAt: reservationTransfer.pickupAt,
+          vehicleType: reservationTransfer.vehicleType,
+        })
+        .from(reservationTransfer)
+        .where(eq(reservationTransfer.reservationId, reservationId))
+        .limit(1)
+      const input = {
+        module: base.module,
+        status: base.status,
+        fromZone: row?.fromZone,
+        toZone: row?.toZone,
+        pickupAt: row?.pickupAt,
+      }
+      if (!isTransferVoucherEligible(input) || !row?.vehicleType) {
+        return unavailable(
+          "Le voucher n'est disponible qu'une fois la réservation confirmée.",
+        )
+      }
+      const pdf = await renderTransferVoucherPdf({
+        publicRef: base.publicRef,
+        customerName,
+        fromZone: input.fromZone,
+        toZone: input.toZone,
+        pickupAt: input.pickupAt.toISOString(),
+        vehicleType: row.vehicleType,
+        totalTnd,
+        agencyName,
+      })
+      return {
+        ok: true,
+        pdf,
+        filename: `voucher-transfert-${base.publicRef}.pdf`,
+      }
     }
 
     default:

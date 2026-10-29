@@ -21,6 +21,7 @@ import { Resend } from "resend"
 import { withSystemContext } from "@/lib/db/tenant-context"
 import { reservationTransfer } from "@/lib/db/schema"
 import { eq } from "drizzle-orm"
+import { formatTransferPickupAt } from "@/lib/transfers/pickup-at"
 import { makeOnFailure } from "@/lib/inngest/on-failure"
 import { generateInvoiceForReservation } from "@/lib/finance/invoice-actions"
 
@@ -53,7 +54,7 @@ export const processTransferConfirmed = inngest.createFunction(
           <h2>Votre transfert est confirmé !</h2>
           <p><strong>Référence :</strong> ${d.publicRef}</p>
           <p><strong>Trajet :</strong> ${d.fromZone} → ${d.toZone}</p>
-          <p><strong>Date & heure :</strong> ${new Date(d.pickupAt).toLocaleString("fr-FR")}</p>
+          <p><strong>Date & heure :</strong> ${formatTransferPickupAt(d.pickupAt)}</p>
           <p><strong>Véhicule :</strong> ${d.vehicleType}</p>
           <p><strong>Total :</strong> ${d.totalTnd.toLocaleString("fr-FR")} DT</p>
           <hr/>
@@ -96,7 +97,7 @@ export const processTransferConfirmed = inngest.createFunction(
       const body = new URLSearchParams({
         From: process.env.TWILIO_FROM_NUMBER,
         To: transfer.driverPhone,
-        Body: `Nouvelle course Easy2Book ${d.publicRef} : ${d.fromZone}→${d.toZone}, ${new Date(d.pickupAt).toLocaleString("fr-FR")}. Véhicule : ${d.vehicleType}.`,
+        Body: `Nouvelle course Easy2Book ${d.publicRef} : ${d.fromZone}→${d.toZone}, ${formatTransferPickupAt(d.pickupAt)}. Véhicule : ${d.vehicleType}.`,
       })
 
       const response = await fetch(url, {

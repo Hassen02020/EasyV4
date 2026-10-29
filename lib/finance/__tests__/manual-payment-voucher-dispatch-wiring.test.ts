@@ -173,8 +173,29 @@ test("VOUCHER-DISPATCH-01 : car — fire-and-forget (.catch) comme le chemin hô
   )
 })
 
-// ─── transfer : explicitement non câblé dans ce chantier ─────────────────
+// ─── transfer (VOUCHER-CAR-TRANSFER-DATA-01, lot "transfer") ─────────────
 
-test("VOUCHER-DISPATCH-01 : aucun sendEvent booking/transfer.confirmed depuis le paiement manuel (hors périmètre documenté)", () => {
-  assert.doesNotMatch(src, /sendEvent\(["']booking\/transfer\.confirmed["']/)
+test("VOUCHER-TRANSFER-01 : branche transfer → booking/transfer.confirmed, pickupAt lu en base (jamais recalculé)", () => {
+  assert.match(src, /detail\?\.module === "transfer"/)
+  assert.match(src, /sendEvent\(["']booking\/transfer\.confirmed["']/)
+  assert.match(src, /transferPickupAt: reservationTransfer\.pickupAt/)
+  assert.match(src, /pickupAt: detail\.transferPickupAt\.toISOString\(\)/)
+})
+
+test("VOUCHER-TRANSFER-01 : pas d'heure enregistrée → aucun événement, log explicite", () => {
+  assert.match(
+    src,
+    /booking\/transfer\.confirmed non envoyé — données manquantes/,
+  )
+  assert.match(src, /hasPickupAt: Boolean\(detail\.transferPickupAt\)/)
+})
+
+test("VOUCHER-TRANSFER-01 : la branche transfer ne touche ni wallet ni ledger ni montants", () => {
+  const start = src.indexOf('detail?.module === "transfer"')
+  const end = src.indexOf('detail?.module === "car"')
+  const branch = src.slice(start, end)
+  assert.doesNotMatch(
+    branch,
+    /creditCustomerWallet|debitCustomerWallet|walletLedger|\.update\(|\.insert\(/,
+  )
 })

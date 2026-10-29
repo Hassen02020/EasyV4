@@ -36,6 +36,7 @@ import { creditPlatformCommission } from "@/lib/finance/platform-commission"
 import { resolveCheckoutPromoCore } from "@/lib/crm/promo-checkout-core"
 import { applyPromoDiscountCore } from "@/lib/finance/promo-discount-core"
 import { priceDrifted } from "@/lib/booking/pricing"
+import { buildTransferPickupAt } from "@/lib/transfers/pickup-at"
 
 /* -------------------------------------------------------------------------- */
 /* Types                                                                      */
@@ -129,6 +130,12 @@ export async function createGuestTransferBooking(
   }
   if (input.pax <= 0 || input.pax > 50) {
     return { ok: false, error: "Nombre de passagers invalide (1-50)" }
+  }
+
+  // Heure locale tunisienne → instant UTC (voir lib/transfers/pickup-at.ts).
+  const pickupAt = buildTransferPickupAt(input.pickupDate, input.pickupTime)
+  if (!pickupAt) {
+    return { ok: false, error: "Date ou heure de prise en charge invalide" }
   }
 
   const { createHash } = await import("node:crypto")
@@ -411,6 +418,11 @@ async function runCreateGuestTransferBooking(
         })
 
         // 7. Extension Transfer
+        const pickupAt = buildTransferPickupAt(
+          input.pickupDate,
+          input.pickupTime,
+        )
+        if (!pickupAt) throw new Error("INVALID_PICKUP_DATETIME")
         await tx.insert(reservationTransfer).values({
           reservationId,
           agencyId,
@@ -418,6 +430,7 @@ async function runCreateGuestTransferBooking(
           dropoffZoneId: input.toZoneId,
           pickupAddress: fromZone?.name,
           dropoffAddress: toZone?.name,
+          pickupAt,
           flightNumber: input.flightNumber,
           flightArrivalAt: input.flightArrivalAt
             ? new Date(input.flightArrivalAt)

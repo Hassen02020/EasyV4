@@ -46,6 +46,7 @@ import {
   reservationPackage,
   catalogPackages,
   reservationCar,
+  reservationTransfer,
   carCategories,
   carLocations,
   customers,
@@ -515,6 +516,10 @@ export async function verifyManualPayment(
             carDropoffAt: reservationCar.dropoffAt,
             carRentalDays: reservationCar.rentalDays,
             carInsuranceLevel: reservationCar.insuranceLevel,
+            transferFromZone: reservationTransfer.pickupAddress,
+            transferToZone: reservationTransfer.dropoffAddress,
+            transferPickupAt: reservationTransfer.pickupAt,
+            transferVehicleType: reservationTransfer.vehicleType,
           })
           .from(reservations)
           .innerJoin(customers, eq(customers.id, reservations.customerId))
@@ -542,6 +547,10 @@ export async function verifyManualPayment(
             reservationCar,
             eq(reservationCar.reservationId, reservations.id),
           )
+          .leftJoin(
+            reservationTransfer,
+            eq(reservationTransfer.reservationId, reservations.id),
+          )
           .where(eq(reservations.id, outcome.reservationId))
           .limit(1),
     )
@@ -565,10 +574,13 @@ export async function verifyManualPayment(
     // réutilisé tel quel, comme pour hotel/omra/package — aucun second
     // système créé.
     //
-    // "transfer" reste HORS PÉRIMÈTRE : reservation_transfer n'a réellement
-    // aucune colonne pickup date/heure dédiée (confirmé par lecture directe
-    // du schéma) — traité dans un chantier séparé (VOUCHER-CAR-TRANSFER-DATA-01,
-    // lot "transfer", nécessite une migration).
+    // "transfer" (VOUCHER-CAR-TRANSFER-DATA-01, lot "transfer") : l'instant
+    // de prise en charge est persisté dans reservation_transfer.pickup_at
+    // (migration 0143, heure locale Africa/Tunis convertie en UTC à la
+    // réservation). Les transferts antérieurs à la migration n'ont pas
+    // d'heure : aucun événement n'est envoyé pour eux (log explicite, jamais
+    // d'heure inventée). Les noms de zones sont ceux figés à la réservation
+    // (pickup_address / dropoff_address).
     if (
       (detail?.module === "hotel" || detail?.module === "hotel_monde") &&
       detail.customerEmail &&
@@ -652,6 +664,40 @@ export async function verifyManualPayment(
             publicRef: outcome.publicRef,
             hasCustomerEmail: Boolean(detail.customerEmail),
             hasPackageName: Boolean(detail.pkgTitle),
+          },
+        )
+      }
+    } else if (detail?.module === "transfer") {
+      if (
+        (detail.customerEmail || detail.customerPhone) &&
+        detail.transferFromZone &&
+        detail.transferToZone &&
+        detail.transferPickupAt &&
+        detail.transferVehicleType
+      ) {
+        await sendEvent("booking/transfer.confirmed", {
+          reservationId: outcome.reservationId,
+          publicRef: outcome.publicRef,
+          agencyId: finalAgencyId,
+          customerEmail: detail.customerEmail ?? "",
+          customerPhone: detail.customerPhone ?? "",
+          fromZone: detail.transferFromZone,
+          toZone: detail.transferToZone,
+          pickupAt: detail.transferPickupAt.toISOString(),
+          vehicleType: detail.transferVehicleType,
+          totalTnd: Number.parseFloat(detail.tndAmount),
+        }).catch(() => {
+          /* fire-and-forget — le retry Inngest suffira */
+        })
+      } else {
+        console.error(
+          "[manual-payment] booking/transfer.confirmed non envoyé — données manquantes",
+          {
+            reservationId: outcome.reservationId,
+            publicRef: outcome.publicRef,
+            hasContact: Boolean(detail.customerEmail || detail.customerPhone),
+            hasZones: Boolean(detail.transferFromZone && detail.transferToZone),
+            hasPickupAt: Boolean(detail.transferPickupAt),
           },
         )
       }

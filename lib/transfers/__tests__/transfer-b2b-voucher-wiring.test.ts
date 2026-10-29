@@ -87,11 +87,12 @@ test("TRANSFER-B2B-VOUCHER-01 : payload contient vehicleType depuis input", () =
   assert.match(src, /vehicleType:\s*input\.vehicleType/)
 })
 
-test("TRANSFER-B2B-VOUCHER-01 : payload contient pickupAt construit depuis pickupDate + pickupTime", () => {
+test("TRANSFER-B2B-VOUCHER-01 : payload contient pickupAt (instant UTC issu de l'heure locale tunisienne)", () => {
   assert.match(
     src,
-    /pickupAt:\s*`\$\{input\.pickupDate\}T\$\{input\.pickupTime\}:00`/,
+    /buildTransferPickupAt\(input\.pickupDate, input\.pickupTime\)/,
   )
+  assert.match(src, /pickupAt:\s*pickupAt\.toISOString\(\)/)
 })
 
 test("TRANSFER-B2B-VOUCHER-01 : payload contient totalTnd depuis outcome.result", () => {

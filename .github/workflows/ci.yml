@@ -314,7 +314,8 @@ jobs:
             lib/finance/__tests__/mutuelle-invoice-settlement-rls-live.test.ts \
             lib/inngest/functions/__tests__/recover-mutuelle-missing-invoices-live.test.ts \
             lib/finance/__tests__/manual-payment-voucher-dispatch.integration.test.ts \
-            lib/finance/__tests__/manual-payment-transfer-voucher.integration.test.ts
+            lib/finance/__tests__/manual-payment-transfer-voucher.integration.test.ts \
+            lib/finance/__tests__/manual-payment-inngest-reliability.integration.test.ts
 
   build:
     runs-on: ubuntu-latest

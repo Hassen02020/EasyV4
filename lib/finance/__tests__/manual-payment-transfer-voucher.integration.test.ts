@@ -423,6 +423,64 @@ test("Transfert — rejeu du même paiement : refusé, un seul événement, un s
   assert.equal(pays.length, 1, "aucun double encaissement")
 })
 
+test("Transfert — acompte puis solde : aucun événement à l'acompte, exactement un au solde, aucun au rejeu ni au paiement ultérieur", async (t) => {
+  if (!dbAvailable) return void t.skip(skip())
+  const fx = await createTransferFixture()
+  t.after(() => cleanup(fx))
+  const { verifyManualPayment, captured } = await setupInterception(t, {
+    authUserId: fx.authUserId,
+    role: "super_admin",
+    agencyId: fx.agencyId,
+  })
+
+  // 1. Acompte : ni confirmation ni voucher.
+  const deposit = await verifyManualPayment({
+    reservationId: fx.reservationId,
+    method: "transfer",
+    reference: "TR-SEQ-DEPOSIT",
+    amountTnd: 50,
+  })
+  assert.equal(deposit.ok && deposit.fullyPaid, false)
+  assert.equal(captured.length, 0)
+  assert.equal(await reservationStatus(fx.reservationId), "pending")
+
+  // 2. Solde : confirmation + un seul événement.
+  const balance = {
+    reservationId: fx.reservationId,
+    method: "transfer" as const,
+    reference: "TR-SEQ-BALANCE",
+    amountTnd: 70,
+  }
+  const settled = await verifyManualPayment(balance)
+  assert.equal(settled.ok && settled.fullyPaid, true)
+  assert.equal(captured.length, 1)
+  assert.equal(captured[0]?.name, "booking/transfer.confirmed")
+  assert.equal(await reservationStatus(fx.reservationId), "confirmed")
+
+  // 3. Rejeu du même règlement : refusé, pas de second événement.
+  const replay = await verifyManualPayment(balance)
+  assert.equal(replay.ok, false)
+  assert.equal(captured.length, 1)
+
+  // 4. Nouveau règlement (autre référence) sur une réservation déjà
+  //    confirmée : refusé, pas de second événement, pas de second voucher.
+  const extra = await verifyManualPayment({
+    ...balance,
+    reference: "TR-SEQ-EXTRA",
+  })
+  assert.equal(extra.ok, false)
+  assert.equal(captured.length, 1)
+
+  // Grand livre : exactement une paire par règlement accepté (acompte + solde),
+  // aucune pour les règlements refusés.
+  assert.deepEqual(await ledgerForReservation(fx.reservationId), [
+    { type: "credit", amount: "50.00" },
+    { type: "credit", amount: "70.00" },
+    { type: "debit", amount: "50.00" },
+    { type: "debit", amount: "70.00" },
+  ])
+})
+
 /* -------------------------------------------------------------------------- */
 /* Route guest + rendu back-office                                            */
 /* -------------------------------------------------------------------------- */

@@ -199,6 +199,12 @@ export const processTransferConfirmed = inngest.createFunction(
     id: "process-transfer-confirmed",
     name: "Transfert confirmé — notifications",
     retries: 3,
+    // Une seule exécution à la fois par réservation : deux livraisons
+    // simultanées du même événement ne peuvent pas passer toutes deux la
+    // garde « déjà envoyé » avant que la première ait enregistré son envoi
+    // (notification_idempotency est en ajout seul : pas de réservation
+    // préalable libérable après un échec).
+    concurrency: { key: "event.data.reservationId", limit: 1 },
     triggers: { event: "booking/transfer.confirmed" },
     onFailure: makeOnFailure("process-transfer-confirmed"),
   },

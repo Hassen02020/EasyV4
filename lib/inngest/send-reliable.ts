@@ -8,17 +8,26 @@
  *
  * Ce module reprend le modèle déjà éprouvé pour le vol
  * (lib/vols/fulfillment-action.ts, G13) et le complète :
- *  - `id` d'événement stable → déduplication côté Inngest (fenêtre 24 h) ;
- *  - 3 tentatives avec backoff exponentiel ;
+ *  - `id` d'événement stable `nom:reservationId` → déduplication côté Inngest
+ *    (fenêtre de 24 h, portée : un même événement pour une même réservation) ;
+ *  - 3 tentatives au plus, chacune bornée par un délai (`timeoutMs`), avec
+ *    backoff exponentiel : durée maximale ≈ 3 × timeout + 300 ms ;
  *  - en échec définitif : trace DURABLE dans `audit_events`
- *    (`inngest.dispatch_failed`, charge utile complète pour un rejeu), journal
- *    structuré SANS charge utile (elle contient l'email et parfois le token
- *    d'accès du client) et `captureError` ;
+ *    (`inngest.dispatch_failed`), journal structuré et `captureError` ;
  *  - ne lève JAMAIS : un paiement déjà commité ne doit pas être invalidé par
  *    une panne de notification.
  *
- * Ce module n'effectue AUCUNE relecture automatique : celle-ci attend que les
- * handlers soient idempotents (sinon un rejeu peut doubler les emails).
+ * CONFIDENTIALITÉ — la charge utile de l'événement n'est JAMAIS persistée,
+ * journalisée ni envoyée à Sentry : elle contient l'email et le téléphone du
+ * client et, selon le module, le token d'accès à son voucher. La trace ne
+ * contient que des données techniques (nom et id d'événement, réservation,
+ * agence, nombre de tentatives, présence de la clé Inngest, message d'erreur
+ * assaini et tronqué). Un futur rejeu reconstruira la charge utile à partir
+ * de la réservation en base, jamais à partir de la trace.
+ *
+ * Ce module n'effectue AUCUN rejeu automatique. Le rejeu manuel reste interdit
+ * tant que les handlers concernés ne sont pas idempotents : voir
+ * docs/ops/INNGEST_DISPATCH_FAILURES.md.
  */
 
 import { inngest, type Events } from "@/lib/inngest/client"
@@ -28,19 +37,22 @@ import { captureError } from "@/lib/observability/capture-error"
 
 export const INNGEST_DISPATCH_MAX_ATTEMPTS = 3
 export const INNGEST_DISPATCH_RETRY_BASE_MS = 100
+/** Délai maximal d'UNE tentative d'envoi (le SDK n'impose aucun délai). */
+export const INNGEST_DISPATCH_ATTEMPT_TIMEOUT_MS = 3000
 /** Action `audit_events` d'un envoi définitivement échoué (≤ 32 caractères). */
 export const INNGEST_DISPATCH_FAILED_ACTION = "inngest.dispatch_failed"
+const MAX_ERROR_LENGTH = 300
 
 export type ReliableSendResult =
   | { ok: true; attempts: number; eventId: string }
   | { ok: false; attempts: number; eventId: string; traced: boolean }
 
+/** Données techniques UNIQUEMENT — aucune charge utile d'événement. */
 export interface FailedDispatchRecord {
   agencyId: string
   reservationId: string
   eventName: string
   eventId: string
-  payload: unknown
   error: string
   attempts: number
   eventKeyConfigured: boolean
@@ -56,6 +68,65 @@ export interface ReliableSendDeps {
   }) => Promise<unknown>
   sleep?: (ms: number) => Promise<void>
   record?: (record: FailedDispatchRecord) => Promise<void>
+  timeoutMs?: number
+}
+
+const SENSITIVE_KEY = /email|token|phone|customer/i
+const EMAIL_PATTERN = /[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/g
+/** Numéro de téléphone (7 chiffres ou plus, séparateurs tolérés). */
+const PHONE_PATTERN = /\+?\d[\d\s.-]{5,}\d/g
+/** Jeton opaque : 24 caractères ou plus de [A-Za-z0-9_-]. */
+const TOKEN_PATTERN = /[A-Za-z0-9_-]{24,}/g
+
+/**
+ * Message d'erreur sûr à persister : retire toute valeur sensible de la
+ * charge utile (email, téléphone, token, nom du client) qui aurait été
+ * recopiée dans le message, puis tout motif d'email, de numéro de téléphone
+ * ou de jeton opaque, et tronque.
+ */
+export function sanitizeErrorMessage(message: string, data: unknown): string {
+  let out = message
+  if (data && typeof data === "object") {
+    for (const [key, value] of Object.entries(
+      data as Record<string, unknown>,
+    )) {
+      if (
+        SENSITIVE_KEY.test(key) &&
+        typeof value === "string" &&
+        value.length >= 3
+      ) {
+        out = out.split(value).join("[redacted]")
+      }
+    }
+  }
+  // Défense en profondeur : motifs génériques, même si la valeur n'est pas
+  // dans la charge utile courante.
+  out = out
+    .replace(EMAIL_PATTERN, "[email]")
+    .replace(PHONE_PATTERN, "[phone]")
+    .replace(TOKEN_PATTERN, "[token]")
+  return out.length > MAX_ERROR_LENGTH
+    ? `${out.slice(0, MAX_ERROR_LENGTH)}…`
+    : out
+}
+
+function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(
+      () => reject(new Error(`timeout après ${ms} ms`)),
+      ms,
+    )
+    promise.then(
+      (value) => {
+        clearTimeout(timer)
+        resolve(value)
+      },
+      (err) => {
+        clearTimeout(timer)
+        reject(err)
+      },
+    )
+  })
 }
 
 async function recordFailureInAudit(
@@ -70,7 +141,6 @@ async function recordFailureInAudit(
       diff: {
         eventName: record.eventName,
         eventId: record.eventId,
-        payload: record.payload,
         error: record.error,
         attempts: record.attempts,
         eventKeyConfigured: record.eventKeyConfigured,
@@ -101,6 +171,7 @@ export async function sendEventReliable<K extends keyof Events>(
   const sleep =
     deps.sleep ?? ((ms: number) => new Promise<void>((r) => setTimeout(r, ms)))
   const record = deps.record ?? recordFailureInAudit
+  const timeoutMs = deps.timeoutMs ?? INNGEST_DISPATCH_ATTEMPT_TIMEOUT_MS
 
   const eventName = name as string
   const eventId = reliableEventId(eventName, ctx.reservationId)
@@ -111,14 +182,22 @@ export async function sendEventReliable<K extends keyof Events>(
       if (attempt > 1) {
         await sleep(INNGEST_DISPATCH_RETRY_BASE_MS * 2 ** (attempt - 2))
       }
-      await send({ id: eventId, name: eventName, data })
+      await withTimeout(
+        Promise.resolve(send({ id: eventId, name: eventName, data })),
+        timeoutMs,
+      )
       return { ok: true, attempts: attempt, eventId }
     } catch (err) {
-      lastError = err instanceof Error ? err.message : String(err)
+      lastError = sanitizeErrorMessage(
+        err instanceof Error ? err.message : String(err),
+        data,
+      )
     }
   }
 
-  // Échec définitif. Journal structuré SANS charge utile (email, token).
+  const eventKeyConfigured = Boolean(process.env.INNGEST_EVENT_KEY)
+
+  // Échec définitif. Journal structuré : données techniques uniquement.
   console.error(
     JSON.stringify({
       tag: "INNGEST_DISPATCH_FAILURE",
@@ -126,7 +205,7 @@ export async function sendEventReliable<K extends keyof Events>(
       eventId,
       reservationId: ctx.reservationId,
       attempts: INNGEST_DISPATCH_MAX_ATTEMPTS,
-      eventKeyConfigured: Boolean(process.env.INNGEST_EVENT_KEY),
+      eventKeyConfigured,
       error: lastError,
       ts: new Date().toISOString(),
     }),
@@ -146,10 +225,9 @@ export async function sendEventReliable<K extends keyof Events>(
       reservationId: ctx.reservationId,
       eventName,
       eventId,
-      payload: data,
       error: lastError,
       attempts: INNGEST_DISPATCH_MAX_ATTEMPTS,
-      eventKeyConfigured: Boolean(process.env.INNGEST_EVENT_KEY),
+      eventKeyConfigured,
       failedAt: new Date().toISOString(),
     })
     traced = true
@@ -162,8 +240,10 @@ export async function sendEventReliable<K extends keyof Events>(
         event: eventName,
         eventId,
         reservationId: ctx.reservationId,
-        error:
+        error: sanitizeErrorMessage(
           recordErr instanceof Error ? recordErr.message : String(recordErr),
+          data,
+        ),
         ts: new Date().toISOString(),
       }),
     )

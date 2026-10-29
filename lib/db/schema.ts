@@ -1054,6 +1054,13 @@ export const reservationTransfer = pgTable(
     dropoffZoneId: uuid("dropoff_zone_id"),
     pickupAddress: text("pickup_address"),
     dropoffAddress: text("dropoff_address"),
+    /**
+     * Instant de prise en charge (heure locale Africa/Tunis convertie en UTC —
+     * lib/transfers/pickup-at.ts). Nullable : les transferts antérieurs à la
+     * migration 0143 n'ont pas d'heure enregistrée et ne produisent pas de
+     * voucher (jamais d'heure inventée).
+     */
+    pickupAt: timestamp("pickup_at", { withTimezone: true }),
     flightNumber: varchar("flight_number", { length: 16 }),
     flightArrivalAt: timestamp("flight_arrival_at", { withTimezone: true }),
     flightStatus: varchar("flight_status", { length: 32 }),

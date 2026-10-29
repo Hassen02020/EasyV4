@@ -181,6 +181,32 @@ export function isCarVoucherEligible(
 }
 
 /**
+ * Éligibilité voucher Transfert (VOUCHER-CAR-TRANSFER-DATA-01, lot
+ * "transfer") — même règle de statut. Un transfert sans heure de prise en
+ * charge enregistrée (réservation antérieure à la migration 0143) n'a pas de
+ * voucher : l'heure n'est jamais inventée.
+ */
+export interface TransferVoucherEligibilityInput {
+  module: string
+  status: string
+  fromZone: string | null | undefined
+  toZone: string | null | undefined
+  pickupAt: Date | null | undefined
+}
+
+export function isTransferVoucherEligible(
+  row: TransferVoucherEligibilityInput,
+): row is TransferVoucherEligibilityInput & {
+  fromZone: string
+  toZone: string
+  pickupAt: Date
+} {
+  if (row.module !== "transfer") return false
+  if (!row.fromZone || !row.toZone || !row.pickupAt) return false
+  return VOUCHER_ELIGIBLE_STATUSES.has(row.status)
+}
+
+/**
  * PHASE 38B (Voucher Hardening) — SEULE source de vérité pour "quelle route
  * de téléchargement voucher pour quel module ?". Avant cette extraction,
  * deux copies indépendantes de cette table existaient
@@ -202,6 +228,7 @@ export const VOUCHER_ROUTE_BY_MODULE: Record<string, string> = {
   flight: "/api/vols/voucher",
   hotel_monde: "/api/hotels-monde/voucher",
   car: "/api/cars/voucher",
+  transfer: "/api/transfers/voucher",
 }
 
 /**
@@ -251,7 +278,7 @@ export function isAdminReservationVoucherEligible(
 
 /**
  * Construit le lien de téléchargement voucher pour un module donné, ou
- * `null` si ce module n'a pas de route voucher (transfert — jamais un
+ * `null` si ce module n'a pas de route voucher (jamais un
  * lien fabriqué vers une route qui n'existe pas).
  */
 export function voucherHrefForModule(

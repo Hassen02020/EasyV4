@@ -37,6 +37,7 @@ import { getActiveFiscalRuleInTx } from "@/lib/finance/fiscal-rules"
 import { sendEvent } from "@/lib/inngest/client"
 import { recordReservationFinancials } from "@/lib/finance/reservation-financials"
 import { creditPlatformCommission } from "@/lib/finance/platform-commission"
+import { buildTransferPickupAt } from "@/lib/transfers/pickup-at"
 import { recordReservationTransition } from "@/lib/admin/reservation-status-history"
 
 /* -------------------------------------------------------------------------- */
@@ -137,6 +138,13 @@ export async function createTransferBooking(
 
   if (input.pax <= 0 || input.pax > 50) {
     return { ok: false, error: "Nombre de passagers invalide (1-50)" }
+  }
+
+  // Heure locale tunisienne → instant UTC (jamais interprétée dans le fuseau
+  // du serveur). Refus explicite d'une date/heure invalide.
+  const pickupAt = buildTransferPickupAt(input.pickupDate, input.pickupTime)
+  if (!pickupAt) {
+    return { ok: false, error: "Date ou heure de prise en charge invalide" }
   }
 
   // Résout la session Supabase + pose le contexte RLS (app.current_agency_id
@@ -392,6 +400,7 @@ export async function createTransferBooking(
         dropoffZoneId: input.toZoneId,
         pickupAddress: fromZone?.name,
         dropoffAddress: toZone?.name,
+        pickupAt,
         flightNumber: input.flightNumber,
         flightArrivalAt: input.flightArrivalAt
           ? new Date(input.flightArrivalAt)
@@ -455,7 +464,7 @@ export async function createTransferBooking(
         customerPhone: input.customer.phone,
         fromZone: outcome.result.fromZoneName,
         toZone: outcome.result.toZoneName,
-        pickupAt: `${input.pickupDate}T${input.pickupTime}:00`,
+        pickupAt: pickupAt.toISOString(),
         vehicleType: input.vehicleType,
         totalTnd: outcome.result.totalTnd,
       }).catch(() => {

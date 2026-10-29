@@ -66,6 +66,14 @@ export interface VoucherLabels {
   rentalDaysLabel: string
   rentalDaysText: (n: number) => string
   carInsuranceLevel: string
+  /* Transfer fields (VOUCHER-CAR-TRANSFER-DATA-01, lot "transfer") */
+  transferTitle: string
+  transferSection: string
+  transferFrom: string
+  transferTo: string
+  transferPickupAt: string
+  transferVehicle: string
+  transferVehicleLabel: (vehicleType: string) => string
   /* Total */
   totalAmount: string
   /* Stamp */
@@ -130,6 +138,20 @@ const FR: VoucherLabels = {
   rentalDaysLabel: "Durée",
   rentalDaysText: (n) => `${n} jour${n > 1 ? "s" : ""}`,
   carInsuranceLevel: "Assurance",
+  transferTitle: "Voucher de Confirmation Transfert",
+  transferSection: "Transfert",
+  transferFrom: "Départ",
+  transferTo: "Destination",
+  transferPickupAt: "Prise en charge",
+  transferVehicle: "Véhicule",
+  transferVehicleLabel: (v) =>
+    ({
+      sedan: "Berline",
+      van: "Van",
+      minibus: "Minibus",
+      bus: "Autocar",
+      luxury: "Luxe",
+    })[v] ?? v,
   totalAmount: "Montant Total TTC",
   confirmedStamp: "✓ Réservation Confirmée",
   generatedOn: "Généré le",
@@ -190,6 +212,20 @@ const EN: VoucherLabels = {
   rentalDaysLabel: "Duration",
   rentalDaysText: (n) => `${n} day${n > 1 ? "s" : ""}`,
   carInsuranceLevel: "Insurance",
+  transferTitle: "Transfer Booking Confirmation",
+  transferSection: "Transfer",
+  transferFrom: "From",
+  transferTo: "To",
+  transferPickupAt: "Pick-up",
+  transferVehicle: "Vehicle",
+  transferVehicleLabel: (v) =>
+    ({
+      sedan: "Sedan",
+      van: "Van",
+      minibus: "Minibus",
+      bus: "Coach",
+      luxury: "Luxury",
+    })[v] ?? v,
   totalAmount: "Total Amount (incl. taxes)",
   confirmedStamp: "✓ Booking Confirmed",
   generatedOn: "Generated on",
@@ -250,6 +286,20 @@ const AR: VoucherLabels = {
   rentalDaysLabel: "المدة",
   rentalDaysText: (n) => `${n} يوم`,
   carInsuranceLevel: "التأمين",
+  transferTitle: "تأكيد حجز النقل",
+  transferSection: "النقل",
+  transferFrom: "نقطة الانطلاق",
+  transferTo: "الوجهة",
+  transferPickupAt: "موعد الاستلام",
+  transferVehicle: "المركبة",
+  transferVehicleLabel: (v) =>
+    ({
+      sedan: "سيارة سيدان",
+      van: "فان",
+      minibus: "حافلة صغيرة",
+      bus: "حافلة",
+      luxury: "سيارة فاخرة",
+    })[v] ?? v,
   totalAmount: "المبلغ الإجمالي شامل الضريبة",
   confirmedStamp: "✓ تم تأكيد الحجز",
   generatedOn: "تاريخ الإصدار",
@@ -283,7 +333,11 @@ export function formatDateForLocale(iso: string, locale?: string): string {
   }
 }
 
-export function formatDateTimeForLocale(iso: string, locale?: string): string {
+export function formatDateTimeForLocale(
+  iso: string,
+  locale?: string,
+  timeZone?: string,
+): string {
   const l = locale === "en" ? "en-GB" : locale === "ar" ? "ar-TN" : "fr-FR"
   try {
     return new Date(iso).toLocaleString(l, {
@@ -293,6 +347,7 @@ export function formatDateTimeForLocale(iso: string, locale?: string): string {
       year: "numeric",
       hour: "2-digit",
       minute: "2-digit",
+      ...(timeZone ? { timeZone } : {}),
     })
   } catch {
     return iso

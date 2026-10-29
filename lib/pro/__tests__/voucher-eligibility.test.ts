@@ -9,6 +9,7 @@ import {
   isAdminReservationVoucherEligible,
   isWorldHotelVoucherEligible,
   isCarVoucherEligible,
+  isTransferVoucherEligible,
   voucherHrefForModule,
 } from "../voucher-eligibility"
 
@@ -267,7 +268,17 @@ test("voucherHrefForModule : construit le bon lien pour activity (gap Phase 38A 
 })
 
 test("voucherHrefForModule : null pour un module sans route voucher (jamais un lien fabriqué vers une route inexistante)", () => {
-  assert.equal(voucherHrefForModule("transfer", "TR-2026-000001", "tok"), null)
+  assert.equal(
+    voucherHrefForModule("unknown_module", "XX-2026-000001", "tok"),
+    null,
+  )
+})
+
+test("voucherHrefForModule : construit le bon lien pour transfer (VOUCHER-CAR-TRANSFER-DATA-01)", () => {
+  assert.equal(
+    voucherHrefForModule("transfer", "TR-2026-000001", "tok"),
+    "/api/transfers/voucher/TR-2026-000001?token=tok",
+  )
 })
 
 test("voucherHrefForModule : construit le bon lien pour car (VOUCHER-CAR-TRANSFER-DATA-01)", () => {
@@ -456,9 +467,73 @@ test("isAdminReservationVoucherEligible : false pour cancelled/refunded (voucher
   assert.equal(isAdminReservationVoucherEligible("omra", "refunded"), false)
 })
 
-test("isAdminReservationVoucherEligible : false pour un module sans route voucher (transfert)", () => {
+test("isAdminReservationVoucherEligible : false pour un module sans route voucher", () => {
   assert.equal(
-    isAdminReservationVoucherEligible("transfer", "confirmed"),
+    isAdminReservationVoucherEligible("unknown_module", "confirmed"),
+    false,
+  )
+})
+
+test("isAdminReservationVoucherEligible : true pour transfert confirmé, false sinon", () => {
+  assert.equal(isAdminReservationVoucherEligible("transfer", "confirmed"), true)
+  assert.equal(isAdminReservationVoucherEligible("transfer", "pending"), false)
+})
+
+/* -------------------------------------------------------------------------- */
+/* isTransferVoucherEligible (VOUCHER-CAR-TRANSFER-DATA-01, lot "transfer")   */
+/* -------------------------------------------------------------------------- */
+
+const baseTransferRow = {
+  module: "transfer",
+  fromZone: "Aéroport Tunis-Carthage",
+  toZone: "Hammamet",
+  pickupAt: new Date("2026-11-03T13:30:00.000Z"),
+}
+
+test("isTransferVoucherEligible : true pour confirmed/completed avec zones et heure", () => {
+  for (const status of ["confirmed", "completed"]) {
+    assert.equal(
+      isTransferVoucherEligible({ ...baseTransferRow, status }),
+      true,
+    )
+  }
+})
+
+test("isTransferVoucherEligible : false si non confirmé (pending/cancelled/expired)", () => {
+  for (const status of ["pending", "cancelled", "expired", "draft"]) {
+    assert.equal(
+      isTransferVoucherEligible({ ...baseTransferRow, status }),
+      false,
+    )
+  }
+})
+
+test("isTransferVoucherEligible : false pour une ancienne réservation sans heure enregistrée (jamais d'heure inventée)", () => {
+  assert.equal(
+    isTransferVoucherEligible({
+      ...baseTransferRow,
+      status: "confirmed",
+      pickupAt: null,
+    }),
+    false,
+  )
+})
+
+test("isTransferVoucherEligible : false si zone manquante ou mauvais module", () => {
+  assert.equal(
+    isTransferVoucherEligible({
+      ...baseTransferRow,
+      status: "confirmed",
+      fromZone: null,
+    }),
+    false,
+  )
+  assert.equal(
+    isTransferVoucherEligible({
+      ...baseTransferRow,
+      status: "confirmed",
+      module: "car",
+    }),
     false,
   )
 })

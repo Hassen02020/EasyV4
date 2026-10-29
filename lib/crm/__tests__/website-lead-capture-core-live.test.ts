@@ -4,6 +4,7 @@
  * web" doit créer lead + provenance (channel/website_form) + contact,
  * exactement comme le canal Meta Lead Ads déjà conforme.
  */
+import { cleanupAsSuperuserWithDrizzle } from "@/lib/db/test-helpers/superuser-cleanup"
 import test, { before, after } from "node:test"
 import assert from "node:assert/strict"
 import { randomUUID } from "node:crypto"
@@ -48,7 +49,7 @@ before(async () => {
 
 after(async () => {
   if (!dbAvailable) return
-  await withSystemContext(async (tx) => {
+  await cleanupAsSuperuserWithDrizzle(async (tx) => {
     await tx.delete(contacts).where(eq(contacts.agencyId, agencyId))
     await tx
       .delete(leadOriginEvents)

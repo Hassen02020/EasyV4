@@ -6,6 +6,7 @@
  * convention que les autres tests live de ce dépôt : se dégrade en
  * `skip` sans DATABASE_URL/Postgres local disponible.
  */
+import { cleanupAsSuperuserWithDrizzle } from "@/lib/db/test-helpers/superuser-cleanup"
 import test, { before, after } from "node:test"
 import assert from "node:assert/strict"
 import { randomUUID } from "node:crypto"
@@ -64,7 +65,7 @@ before(async () => {
 
 after(async () => {
   if (!dbAvailable) return
-  await withSystemContext(async (tx) => {
+  await cleanupAsSuperuserWithDrizzle(async (tx) => {
     await tx.delete(promos).where(eq(promos.agencyId, agencyA))
     await tx
       .delete(campaignTargets)

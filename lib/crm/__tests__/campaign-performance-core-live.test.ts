@@ -8,6 +8,7 @@
  * live de ce dépôt : se dégrade en `skip` sans DATABASE_URL/Postgres
  * local disponible.
  */
+import { cleanupAsSuperuserWithDrizzle } from "@/lib/db/test-helpers/superuser-cleanup"
 import test, { before, after } from "node:test"
 import assert from "node:assert/strict"
 import { randomUUID } from "node:crypto"
@@ -63,7 +64,7 @@ before(async () => {
 
 after(async () => {
   if (!dbAvailable) return
-  await withSystemContext(async (tx) => {
+  await cleanupAsSuperuserWithDrizzle(async (tx) => {
     await tx
       .delete(reservationFinancials)
       .where(
@@ -235,8 +236,13 @@ test("PREUVE CENTRALE — exposed/converted/revenueTnd/marginTnd reflètent des 
     sent: 0,
     failed: 0,
     skipped: 0,
-    pending: 0,
-    totalTargets: 0,
+    // CRM-LIVE-TESTS-CI-01 — les 3 cibles snapshotées sont en attente
+    // d'envoi (deliveryStatus par défaut 'pending') : invariant documenté
+    // de campaign-performance-core, totalTargets = sent + failed + skipped
+    // + pending = exposed. L'attente précédente (0/0) datait d'avant le
+    // suivi de livraison.
+    pending: 3,
+    totalTargets: 3,
   })
 })
 

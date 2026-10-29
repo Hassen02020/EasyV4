@@ -9,6 +9,7 @@
  * même valeur brute produit un contact différent, et confirme que
  * lib/crm/consent-core.ts n'est pas touché par ce chantier.
  */
+import { cleanupAsSuperuserWithDrizzle } from "@/lib/db/test-helpers/superuser-cleanup"
 import test, { before, after } from "node:test"
 import assert from "node:assert/strict"
 import { randomUUID } from "node:crypto"
@@ -68,7 +69,7 @@ before(async () => {
 
 after(async () => {
   if (!dbAvailable) return
-  await withSystemContext(async (tx) => {
+  await cleanupAsSuperuserWithDrizzle(async (tx) => {
     await tx.delete(contacts).where(eq(contacts.agencyId, agencyA))
     await tx.delete(contacts).where(eq(contacts.agencyId, agencyB))
     await tx.delete(agencies).where(eq(agencies.id, agencyA))

@@ -2,6 +2,7 @@
  * META-LEADADS-WEBHOOK-01 — preuve live contre un Postgres réel, même
  * convention que lib/crm/__tests__/inbox-core.test.ts.
  */
+import { cleanupAsSuperuserWithDrizzle } from "@/lib/db/test-helpers/superuser-cleanup"
 import test, { before, after } from "node:test"
 import assert from "node:assert/strict"
 import { randomUUID } from "node:crypto"
@@ -47,7 +48,7 @@ before(async () => {
 
 after(async () => {
   if (!dbAvailable) return
-  await withSystemContext(async (tx) => {
+  await cleanupAsSuperuserWithDrizzle(async (tx) => {
     await tx.delete(contacts).where(eq(contacts.agencyId, agencyId))
     await tx.delete(leads).where(eq(leads.agencyId, agencyId))
     await tx.delete(agencies).where(eq(agencies.id, agencyId))

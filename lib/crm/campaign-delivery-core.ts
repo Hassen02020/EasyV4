@@ -34,9 +34,15 @@
  * Pas un fichier "use server" — importé par la fonction Inngest côté serveur.
  */
 
-import { eq, and } from "drizzle-orm"
+import { eq, and, desc, inArray } from "drizzle-orm"
 import type { DrizzleTransaction } from "@/lib/db/client"
-import { agencies, campaignTargets, contacts, campaigns } from "@/lib/db/schema"
+import {
+  agencies,
+  campaignTargets,
+  contacts,
+  campaigns,
+  leads,
+} from "@/lib/db/schema"
 import {
   sendCampaignEmail,
   type SendCampaignEmailInput,
@@ -121,6 +127,44 @@ export async function loadCampaignSignatureCore(
     .where(eq(agencies.id, agencyId))
     .limit(1)
   return { ...(row ?? {}), siteUrl }
+}
+
+/**
+ * CRM-CAMPAIGN-PERSONALIZATION-01 — remplace « [Prénom] » par le prénom
+ * réel du destinataire. Sans prénom connu, le marqueur est retiré proprement
+ * (« Bonjour [Prénom], » → « Bonjour, ») : il n'est JAMAIS envoyé tel quel
+ * (constaté en production le 2026-10-30 sur la 1re campagne réelle).
+ */
+export function personalizeCampaignMessage(
+  message: string,
+  firstName: string | null | undefined,
+): string {
+  const name = firstName?.trim().slice(0, 60)
+  return name
+    ? message.replace(/\[Prénom\]/g, name)
+    : message.replace(/[ \t]*\[Prénom\]/g, "")
+}
+
+/** Prénom du lead le plus récent de la cible (RLS : agence courante). */
+async function targetFirstName(
+  tx: DrizzleTransaction,
+  agencyId: string,
+  leadIds: unknown,
+): Promise<string | null> {
+  const ids = Array.isArray(leadIds)
+    ? leadIds.filter(
+        (id): id is string =>
+          typeof id === "string" && /^[0-9a-f-]{36}$/i.test(id),
+      )
+    : []
+  if (ids.length === 0) return null
+  const [row] = await tx
+    .select({ firstName: leads.firstName })
+    .from(leads)
+    .where(and(eq(leads.agencyId, agencyId), inArray(leads.id, ids)))
+    .orderBy(desc(leads.createdAt))
+    .limit(1)
+  return row?.firstName ?? null
 }
 
 async function setTargetStatus(
@@ -236,6 +280,7 @@ export async function deliverCampaignCore(
       .select({
         id: campaignTargets.id,
         contactRef: contacts.contactRef,
+        leadIds: campaignTargets.leadIds,
       })
       .from(campaignTargets)
       .leftJoin(contacts, eq(contacts.id, campaignTargets.contactId))
@@ -284,7 +329,7 @@ export async function deliverCampaignCore(
         await setTargetStatus(tx, target.id, "skipped")
         return "CONSENT_REVOKED" as const
       }
-      return null
+      return { firstName: await targetFirstName(tx, agencyId, target.leadIds) }
     })
 
     if (guard === "CAMPAIGN_NOT_ACTIVE") {
@@ -296,7 +341,7 @@ export async function deliverCampaignCore(
       })
       break
     }
-    if (guard) {
+    if (typeof guard === "string") {
       outcomes.push({
         targetId: target.id,
         contactRef,
@@ -323,7 +368,7 @@ export async function deliverCampaignCore(
         await sendEmail({
           to: contactRef,
           campaignName: campaign.name,
-          message,
+          message: personalizeCampaignMessage(message, guard.firstName),
           agencyName: params.agencyName,
           unsubscribeUrl: urls.page,
           oneClickUnsubscribeUrl: urls.oneClick,

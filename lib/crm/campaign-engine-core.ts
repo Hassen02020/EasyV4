@@ -142,34 +142,37 @@ function buildSuggestedObjective(
   )
 }
 
-function buildSuggestedMessage(
+/**
+ * Message proposé au client. CRM-CAMPAIGN-PERSONALIZATION-01 : l'analyse de
+ * marché (tendance, taux) reste dans la description interne de la
+ * proposition — le texte client n'en reprend rien (avant : « un mouvement
+ * nouveau segment est en cours », « affiche une en hausse », et un marché
+ * « en baisse » annoncé au client). Aucune affirmation non vérifiable.
+ * « [Prénom] » est remplacé à l'envoi (personalizeCampaignMessage).
+ */
+export function buildSuggestedMessage(
   offerFocus: string,
   channel: ActionChannel,
-  trend: SignalTrend,
-  growthRate: string,
 ): string {
-  const trendStr = `${TREND_LABEL[trend]}${growthRate && growthRate !== "N/A" && growthRate !== "+∞" ? ` ${growthRate}` : ""}`
-
   switch (channel) {
     case "phone":
       return (
-        `Bonjour [Prénom], je vous appelle au sujet de ${offerFocus}` +
-        ` qui est en ${trendStr}. Nous avons une offre exclusive pour nos clients VIP —` +
+        `Bonjour [Prénom], je vous appelle d'Easy2Book au sujet de nos offres ${offerFocus}.` +
+        ` En tant que client privilégié, vous avez un accès prioritaire à nos meilleures disponibilités —` +
         ` seriez-vous disponible pour en discuter ?`
       )
     case "whatsapp":
       return (
-        `Bonjour [Prénom] 👋\n\n${offerFocus} affiche une ${trendStr}.` +
-        ` En tant que client privilégié, vous bénéficiez d'une offre exclusive.` +
+        `Bonjour [Prénom] 👋\n\nNous avons sélectionné pour vous nos meilleures offres ${offerFocus}.` +
+        ` En tant que client privilégié, vous y avez un accès prioritaire.` +
         ` Quand seriez-vous disponible pour en discuter ?`
       )
     case "email":
       return (
         `Bonjour [Prénom],\n\n` +
-        `Nous avons le plaisir de vous informer qu'un mouvement ${trendStr}` +
-        ` est en cours sur ${offerFocus}.\n\n` +
-        `En tant que client VIP, vous bénéficiez d'un accès prioritaire` +
-        ` à nos meilleures offres. Consultez nos disponibilités et contactez-nous.`
+        `Nous avons sélectionné pour vous nos meilleures offres ${offerFocus}.\n\n` +
+        `En tant que client privilégié, vous bénéficiez d'un accès prioritaire` +
+        ` à nos disponibilités. Contactez-nous pour réserver.`
       )
   }
 }
@@ -242,12 +245,7 @@ export function buildCampaignEngineCore(
         champion.campaignHints.marketGrowthRate,
         leadIds.length,
       ),
-      suggestedMessage: buildSuggestedMessage(
-        offerFocus,
-        channel,
-        champion.campaignHints.marketTrend,
-        champion.campaignHints.marketGrowthRate,
-      ),
+      suggestedMessage: buildSuggestedMessage(offerFocus, channel),
       marketTrend: champion.campaignHints.marketTrend,
       marketGrowthRate: champion.campaignHints.marketGrowthRate,
       actionCount: allActions.length,

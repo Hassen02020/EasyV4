@@ -1388,5 +1388,23 @@
     "visaDescription": "Ce module arrive bientôt. Contactez-nous pour toute demande concernant votre visa.",
     "croisieresTitle": "Bateaux & Croisières",
     "croisieresDescription": "Ce module arrive bientôt. Contactez-nous pour toute demande concernant une croisière."
+  },
+  "Landing": {
+    "kicker": "Easy2Book",
+    "hotelTitle": "Votre séjour à l'hôtel avec Easy2Book",
+    "hotelSubtitle": "Indiquez vos dates et vos envies : un conseiller vous propose les hôtels disponibles.",
+    "omraTitle": "Votre Omra avec Easy2Book",
+    "omraSubtitle": "Laissez vos coordonnées : un conseiller vous présente les programmes Omra disponibles et répond à vos questions.",
+    "packageTitle": "Voyages organisés Easy2Book",
+    "packageSubtitle": "Un conseiller vous aide à choisir le voyage qui vous correspond.",
+    "activityTitle": "Activités et excursions",
+    "activitySubtitle": "Un conseiller vous recommande les activités disponibles pour votre séjour.",
+    "generalTitle": "Préparez votre voyage avec Easy2Book",
+    "generalSubtitle": "Hôtels, Omra, voyages organisés, activités : décrivez votre projet, un conseiller vous recontacte.",
+    "benefit1": "Un conseiller Easy2Book vous recontacte.",
+    "benefit2": "Demande gratuite et sans engagement.",
+    "benefit3": "Vos coordonnées servent à traiter votre demande ; les offres marketing seulement si vous l'acceptez.",
+    "formTitle": "Être recontacté par un conseiller",
+    "browseOffers": "Voir les offres en ligne"
   }
 }

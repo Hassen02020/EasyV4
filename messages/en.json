@@ -1388,5 +1388,23 @@
     "visaDescription": "This module is coming soon. Contact us for any visa-related request.",
     "croisieresTitle": "Cruises",
     "croisieresDescription": "This module is coming soon. Contact us for any cruise-related request."
+  },
+  "Landing": {
+    "kicker": "Easy2Book",
+    "hotelTitle": "Your hotel stay with Easy2Book",
+    "hotelSubtitle": "Tell us your dates and wishes: an advisor will suggest the available hotels.",
+    "omraTitle": "Your Umrah with Easy2Book",
+    "omraSubtitle": "Leave your details: an advisor will present the available Umrah programmes and answer your questions.",
+    "packageTitle": "Easy2Book organised trips",
+    "packageSubtitle": "An advisor helps you choose the trip that suits you.",
+    "activityTitle": "Activities and excursions",
+    "activitySubtitle": "An advisor recommends the activities available for your stay.",
+    "generalTitle": "Plan your trip with Easy2Book",
+    "generalSubtitle": "Hotels, Umrah, organised trips, activities: describe your project and an advisor will contact you.",
+    "benefit1": "An Easy2Book advisor will contact you.",
+    "benefit2": "Free, no-obligation request.",
+    "benefit3": "Your details are used to handle your request; marketing offers only if you agree.",
+    "formTitle": "Get a call back from an advisor",
+    "browseOffers": "See offers online"
   }
 }

@@ -187,6 +187,25 @@ Error("FISCAL_RULE_NOT_FOUND")` si aucune règle active
 >
 > **NOT VERIFIED / reste ouvert** : (1) aucun prospect envoyé en production depuis une landing page (attribution de campagne de bout en bout) ; (2) rendu visuel du bloc Contact avec un vrai hôtel ; (3) WhatsApp, Facebook et Instagram non renseignés sur l'agence Easy2Book (`/admin/brand`, `/admin/site`) ; (4) **cron `purge-audit`** : échoue chaque jour (``lt(createdAt, sql`${cutoff}`)``), mais le corriger tel quel supprimerait les traces de plus de 30 jours (17/22 lignes au 2026-10-30) dont les marqueurs anti-doublon — décision de conservation à prendre avant toute correction (AUDIT-PURGE-FIX-01) ; (5) aucun pixel Meta / Conversions API sur le site (CRM-META-PIXEL-01, non lancé).
 >
+> **Réconciliation 2026-10-30 (soir) — PR #297 à #312** (vérifié : historique de `main`, CI verte sur chaque PR fusionnée, déploiements production `easy2book-new` `state=READY` consultés via Vercel au fil de la session ; dernier SHA déployé à consulter avant toute affirmation) :
+>
+> - **Fiabilité des notifications** : CAR-EMAIL-IDEMPOTENCY-01 (#297), OMRA-PACKAGE-NOTIFY-RELIABILITY-01 (#298), HOTEL-NOTIFY-RELIABILITY-01 (#299) — envois uniques et émissions `sendEventReliable`.
+> - **CRM-E2B-P0** (#300) : cartographie `docs/crm/CRM_CARTOGRAPHY.md` (registre G-01 à G-54).
+> - **CRM-CAMPAIGN-SAFETY-01** (#301) + migration **0144 appliquée en production** (GO séparé) : G-01, G-06, G-07, G-08, G-10. **Prouvé en production le 2026-10-30** : 1re campagne réelle « VIP × Omra — Email » envoyée (cible `sent`), email reçu en Gmail, désinscription par le lien → événement `withdrawn` (`campaign_unsubscribe`) en base.
+> - **ANALYTICS-TIMESERIES-FIX-01** (#302) : erreur 42803 des tendances.
+> - **CRM-CAMPAIGN-EMAIL-SIGNATURE-01** (#303) : gabarit de marque + signature construite uniquement depuis les champs réels de l'agence.
+> - **SITE-MEDIA-UPLOAD-01** (#304) + migration **0145 appliquée en production** (GO séparé) : le compartiment Storage `product-media` **n'existait pas** en production (aucun envoi de média n'avait jamais pu aboutir) ; envoi de fichier pour logo / Hero / visuels / promos dans `/admin/site`.
+> - **SITE-PROMO-BANNERS-01** (#305) : promotions programmées (dates, statuts) + **2 bugs de production** : (a) écritures `public_promotions` / `public_module_visuals` sans effet (RLS `is_super_admin()` alors que l'action passait `isSuperAdmin: false` → 0 ligne sans erreur ; aucun enregistrement n'avait jamais été modifié en production) ; (b) `/admin/brand` refusait tout le monde (rôle lu dans `user_profiles`, table inexistante).
+> - **CRM-CAMPAIGN-PERSONALIZATION-01** (#306) : `[Prénom]` remplacé à l'envoi (retiré proprement sans prénom) ; textes proposés sans jargon de marché.
+> - **CRM-CAMPAIGN-LAUNCH-CONFIRM-01** (#307) : G-34 (édition + confirmation) et G-09 (anti-doublon par verrou transactionnel ; test de concurrence qui échoue sans le verrou).
+> - **B2C-CLIENTS-SEARCH-01** (#308) : G-54.
+> - **BRAND-LOGO-UPLOAD-01** (#309) : envoi du logo par fichier sur `/admin/brand`.
+> - **CRM-ANALYTICS-COPY-ACTIONS-01** (#310) : G-31 + texte inbox.
+> - **CRM-LEADS-SYNC-01** (#311) : G-23 (test statique ; rendu navigateur NOT VERIFIED).
+> - **CRM-DASHBOARD-BLOCK-01** (#312) : bloc CRM sur l'accueil admin.
+>
+> **NOT VERIFIED / reste ouvert** : (1) envois réels de logo/Hero, modification d'une promo et enregistrement `/admin/brand` par l'utilisateur en production ; (2) G-23 dans un navigateur ; (3) les variables `FEATURE_*` de Vercel (ex. `FEATURE_HOTELS_MONDE=false`) ne sont lues nulle part dans le code — la promo « Istanbul » pointe vers `/hotels-monde` ; (4) `lib/public/__tests__/site-content-robustness.test.ts` (timeout 1 500 ms) échoue en local sur `main` aussi — hors CI live, à diagnostiquer ; (5) couleur d'accent de `/admin/brand` non appliquée au site public OTA (SITE-BRAND-THEME-01) ; (6) vidéos (SITE-VIDEO-01) ; (7) canaux Meta (WhatsApp/Instagram/Messenger) non connectés.
+>
 > Programme wallet : WALLET-GUEST-INTEGRATION-TESTS-01 **fusionné** (PR #261, merge `8bcef2cc`) et WALLET-TOPUP-STATE-01 **fusionné** (PR #262, merge `efa4ccbc`) — 15/15 et 7/7 tests exécutés réellement sur PostgreSQL jetable local (hors CI : fichiers absents du job `financial-e2e`).
 >
 > **Réconciliation 2026-10-27 (bis)** : « WALLET-JOURNEY-AUDIT-01 et suivants : inchangés, en attente » était faux — **fusionné** (PR #272, merge `1012a92`, 2026-10-26, donc avant le début de la session du 2026-10-27 ci-dessus — manqué lors de la première réconciliation). CI 11/11 verte dont `financial-e2e`. Nouveau test d'intégration (319 lignes, niveau de preuve N3 : Postgres isolé, rôle `app_runtime`, RLS active — pas N4, le débit est simulé via `debitCustomerWallet()` plutôt qu'une vraie réservation hôtel de bout en bout, limite documentée dans la PR) prouvant le parcours complet profil → recharge (manuelle ou carte Paymee) → crédit → débit → solde final, sur un seul client. **Production VÉRIFIÉE** (ancêtre du SHA de déploiement cité plus haut).

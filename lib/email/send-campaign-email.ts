@@ -16,7 +16,10 @@
  */
 
 import { Resend } from "resend"
-import { renderCampaignEmailHtml } from "./templates/campaign-email"
+import {
+  renderCampaignEmailHtml,
+  type CampaignEmailSignature,
+} from "./templates/campaign-email"
 
 function getResend() {
   if (!process.env.RESEND_API_KEY) {
@@ -36,6 +39,8 @@ export interface SendCampaignEmailInput {
   oneClickUnsubscribeUrl: string
   /** Clé stable par destinataire et par campagne. */
   idempotencyKey: string
+  /** Coordonnées réelles de l'agence pour la signature. */
+  signature?: CampaignEmailSignature
 }
 
 export async function sendCampaignEmail(
@@ -46,6 +51,7 @@ export async function sendCampaignEmail(
     message: input.message,
     agencyName: input.agencyName,
     unsubscribeUrl: input.unsubscribeUrl,
+    signature: input.signature,
   })
 
   const resend = getResend()

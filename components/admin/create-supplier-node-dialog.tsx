@@ -33,6 +33,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog"
+import { NEW_SUPPLIER } from "@/lib/suppliers/node-constants"
 import { createSupplierNodeAction } from "@/lib/suppliers/portal-actions"
 import type { SupplierRow } from "@/lib/suppliers/list-suppliers"
 
@@ -52,7 +53,9 @@ export function CreateSupplierNodeDialog({
 }) {
   const router = useRouter()
   const [open, setOpen] = useState(false)
-  const [supplierId, setSupplierId] = useState("")
+  // SUPPLIER-NODE-CREATE-01 : par défaut, nouveau fournisseur créé avec le
+  // nœud (avant : bouton désactivé dès que chaque fournisseur avait un nœud).
+  const [supplierId, setSupplierId] = useState<string>(NEW_SUPPLIER)
   const [slug, setSlug] = useState("")
   const [displayName, setDisplayName] = useState("")
   const [contactEmail, setContactEmail] = useState("")
@@ -67,7 +70,7 @@ export function CreateSupplierNodeDialog({
   }
 
   function reset() {
-    setSupplierId("")
+    setSupplierId(NEW_SUPPLIER)
     setSlug("")
     setDisplayName("")
     setContactEmail("")
@@ -106,11 +109,7 @@ export function CreateSupplierNodeDialog({
       }}
     >
       <DialogTrigger asChild>
-        <Button
-          size="sm"
-          className="gap-1.5"
-          disabled={availableSuppliers.length === 0}
-        >
+        <Button size="sm" className="gap-1.5">
           <Plus className="h-4 w-4" />
           Créer un nœud
         </Button>
@@ -119,9 +118,9 @@ export function CreateSupplierNodeDialog({
         <DialogHeader>
           <DialogTitle>Créer un nœud fournisseur</DialogTitle>
           <DialogDescription>
-            Rattache un fournisseur technique existant au réseau (identité,
-            contact, modules couverts). Le portail reste désactivé jusqu&apos;à
-            validation.
+            Crée un nouveau fournisseur (ou rattache un fournisseur technique
+            existant) au réseau : identité, contact, modules couverts. Le
+            portail reste désactivé jusqu&apos;à validation.
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -136,6 +135,9 @@ export function CreateSupplierNodeDialog({
                 <SelectValue placeholder="Sélectionner un fournisseur" />
               </SelectTrigger>
               <SelectContent>
+                <SelectItem value={NEW_SUPPLIER}>
+                  + Nouveau fournisseur (créé avec le nœud)
+                </SelectItem>
                 {availableSuppliers.map((s) => (
                   <SelectItem key={s.id} value={s.id}>
                     {s.name} · {s.type}

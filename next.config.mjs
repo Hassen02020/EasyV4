@@ -35,6 +35,15 @@ const cspConnectSrc = [
   .filter(Boolean)
   .join(" ")
 
+const cspMediaSrc = [
+  "'self'",
+  "blob:",
+  "https://*.supabase.co",
+  SUPABASE_HOST ? `https://${SUPABASE_HOST}` : "",
+]
+  .filter(Boolean)
+  .join(" ")
+
 const csp = [
   `default-src 'self'`,
   `script-src 'self' 'unsafe-inline' 'unsafe-eval' https://va.vercel-scripts.com`,
@@ -45,6 +54,9 @@ const csp = [
   // vraie violation CSP navigateur pendant les tests E2E du Media System.
   `img-src 'self' data: blob: https:`,
   `font-src 'self' data:`,
+  // SITE-VIDEO-01 : vidéo Hero servie par Supabase Storage. Sans cette
+  // directive, `default-src 'self'` bloquait toute vidéo hors du domaine.
+  `media-src ${cspMediaSrc}`,
   `connect-src ${cspConnectSrc}`,
   `frame-ancestors 'none'`,
   `base-uri 'self'`,

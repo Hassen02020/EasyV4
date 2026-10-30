@@ -1,17 +1,24 @@
 "use server"
 
 import { randomUUID } from "crypto"
-import { eq, and } from "drizzle-orm"
+import { eq } from "drizzle-orm"
 import { revalidatePath } from "next/cache"
-import {
-  agencies,
-  publicSiteSettings,
-  publicModuleVisuals,
-  publicPromotions,
-} from "@/lib/db/schema"
+import { agencies, publicSiteSettings } from "@/lib/db/schema"
 import { assertProductManager } from "./product-guard"
 import { withTenantContext } from "@/lib/db/tenant-context"
-import { getMediaStorage } from "@/lib/media/storage"
+import {
+  createSignedUpload,
+  getMediaStorage,
+  readObjectHead,
+} from "@/lib/media/storage"
+import {
+  SITE_VIDEO_ERROR_MESSAGES,
+  hasVideoSignature,
+  isOwnSiteVideoKey,
+  mimeFromSiteVideoKey,
+  siteVideoKey,
+  validateSiteVideoRequest,
+} from "@/lib/media/site-video"
 import { MediaValidationError } from "@/lib/media/optimize"
 import {
   parseTunisLocalDateTime,
@@ -49,6 +56,7 @@ export async function savePublicSiteSettings(formData: FormData) {
   const ctx = await assertProductManager()
   const logoUrl = optionalUrl(clean(formData.get("logoUrl")))
   const heroImageUrl = optionalUrl(clean(formData.get("heroImageUrl")))
+  const heroVideoUrl = optionalUrl(clean(formData.get("heroVideoUrl")))
   const facebookUrl = optionalUrl(clean(formData.get("facebookUrl")))
   const instagramUrl = optionalUrl(clean(formData.get("instagramUrl")))
   const tiktokUrl = optionalUrl(clean(formData.get("tiktokUrl")))
@@ -90,6 +98,7 @@ export async function savePublicSiteSettings(formData: FormData) {
           .update(publicSiteSettings)
           .set({
             heroImageUrl,
+            heroVideoUrl,
             facebookUrl,
             instagramUrl,
             tiktokUrl,
@@ -100,6 +109,7 @@ export async function savePublicSiteSettings(formData: FormData) {
         await tx.insert(publicSiteSettings).values({
           agencyId: ctx.agencyId,
           heroImageUrl,
+          heroVideoUrl,
           facebookUrl,
           instagramUrl,
           tiktokUrl,
@@ -219,4 +229,69 @@ export async function uploadSiteImage(
   } catch {
     return { ok: false, error: "Échec de l'envoi vers le stockage." }
   }
+}
+
+export type SiteVideoUploadResult =
+  | { ok: true; uploadUrl: string; key: string }
+  | { ok: false; error: string }
+
+/**
+ * SITE-VIDEO-01 — étape 1 : URL d'envoi signée pour la vidéo Hero. Le
+ * navigateur envoie ensuite le fichier directement au stockage (PUT).
+ */
+export async function createSiteVideoUpload(input: {
+  contentType: string
+  size: number
+}): Promise<SiteVideoUploadResult> {
+  let ctx
+  try {
+    ctx = await assertProductManager()
+  } catch {
+    return { ok: false, error: "Accès refusé." }
+  }
+  const invalid = validateSiteVideoRequest(input)
+  if (invalid) return { ok: false, error: SITE_VIDEO_ERROR_MESSAGES[invalid] }
+  const key = siteVideoKey(
+    ctx.agencyId,
+    randomUUID(),
+    input.contentType as "video/mp4" | "video/webm",
+  )
+  try {
+    const { uploadUrl } = await createSignedUpload(key)
+    return { ok: true, uploadUrl, key }
+  } catch (e) {
+    return {
+      ok: false,
+      error:
+        e instanceof Error && e.message === "SIGNED_UPLOAD_UNSUPPORTED_LOCAL"
+          ? "Envoi de vidéo indisponible en stockage local."
+          : "Échec de la préparation de l'envoi.",
+    }
+  }
+}
+
+/**
+ * SITE-VIDEO-01 — étape 2 : après l'envoi, vérifie la signature binaire du
+ * fichier (MP4/WebM réels). Un fichier invalide est supprimé et refusé.
+ */
+export async function confirmSiteVideoUpload(
+  key: string,
+): Promise<UploadSiteImageResult> {
+  let ctx
+  try {
+    ctx = await assertProductManager()
+  } catch {
+    return { ok: false, error: "Accès refusé." }
+  }
+  const mime = mimeFromSiteVideoKey(key)
+  if (!isOwnSiteVideoKey(ctx.agencyId, key) || !mime) {
+    return { ok: false, error: "Emplacement invalide." }
+  }
+  const storage = getMediaStorage()
+  const head = await readObjectHead(key, 16)
+  if (!head || !hasVideoSignature(head, mime)) {
+    await storage.remove([key]).catch(() => {})
+    return { ok: false, error: SITE_VIDEO_ERROR_MESSAGES.not_a_video }
+  }
+  return { ok: true, url: storage.getPublicUrl(key) }
 }

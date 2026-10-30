@@ -70,7 +70,10 @@ function link(href: string, text: string): string {
   return `<a href="${escapeHtml(href)}" style="color:${NAVY};text-decoration:none;font-weight:600">${text}</a>`
 }
 
-function renderSignature(agencyName: string, s: CampaignEmailSignature): string {
+function renderSignature(
+  agencyName: string,
+  s: CampaignEmailSignature,
+): string {
   const rows: string[] = []
 
   if (s.phone) {
@@ -100,7 +103,10 @@ function renderSignature(agencyName: string, s: CampaignEmailSignature): string 
     rows.push(
       contactLine(
         "Site web",
-        link(site, escapeHtml(site.replace(/^https?:\/\//i, "").replace(/\/+$/, ""))),
+        link(
+          site,
+          escapeHtml(site.replace(/^https?:\/\//i, "").replace(/\/+$/, "")),
+        ),
       ),
     )
   }

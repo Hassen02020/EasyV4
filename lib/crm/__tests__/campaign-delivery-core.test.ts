@@ -64,8 +64,14 @@ test("signature : seules les coordonnées renseignées sont affichées, rien n'e
   assert.match(html, /L'équipe Easy2Book/)
   assert.match(html, /href="tel:\+21698140514"/)
   assert.match(html, />easy2book-new\.vercel\.app</)
-  assert.match(html, /src="https:\/\/easy2book-new\.vercel\.app\/easy2book-logo\.png"/)
-  assert.doesNotMatch(html, /WhatsApp|mailto:|Adresse|Facebook|Instagram|TikTok/)
+  assert.match(
+    html,
+    /src="https:\/\/easy2book-new\.vercel\.app\/easy2book-logo\.png"/,
+  )
+  assert.doesNotMatch(
+    html,
+    /WhatsApp|mailto:|Adresse|Facebook|Instagram|TikTok/,
+  )
 })
 
 test("signature : liens non http(s) ignorés et valeurs échappées", () => {

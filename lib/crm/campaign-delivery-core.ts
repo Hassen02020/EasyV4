@@ -36,12 +36,7 @@
 
 import { eq, and } from "drizzle-orm"
 import type { DrizzleTransaction } from "@/lib/db/client"
-import {
-  agencies,
-  campaignTargets,
-  contacts,
-  campaigns,
-} from "@/lib/db/schema"
+import { agencies, campaignTargets, contacts, campaigns } from "@/lib/db/schema"
 import {
   sendCampaignEmail,
   type SendCampaignEmailInput,

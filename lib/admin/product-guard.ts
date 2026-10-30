@@ -19,6 +19,7 @@ const PRODUCT_MANAGER_ROLES = ["super_admin", "manager"] as const
 export interface ProductManagerContext {
   userId: string
   agencyId: string
+  role: (typeof PRODUCT_MANAGER_ROLES)[number]
 }
 
 /**
@@ -45,5 +46,9 @@ export async function assertProductManager(): Promise<ProductManagerContext> {
   }
   if (profile.agencyType !== "ota") throw new Error("FORBIDDEN")
 
-  return { userId: user.id, agencyId: profile.agencyId }
+  return {
+    userId: user.id,
+    agencyId: profile.agencyId,
+    role: profile.role as ProductManagerContext["role"],
+  }
 }

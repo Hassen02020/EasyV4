@@ -14,6 +14,11 @@ import { withTenantContext } from "@/lib/db/tenant-context"
 import { getMediaStorage } from "@/lib/media/storage"
 import { MediaValidationError } from "@/lib/media/optimize"
 import {
+  parseTunisLocalDateTime,
+  saveModuleVisualCore,
+  savePromotionCore,
+} from "@/lib/public/site-admin-core"
+import {
   SITE_IMAGE_ERROR_MESSAGES,
   isSiteImageSlot,
   prepareSiteImage,
@@ -107,36 +112,30 @@ export async function savePublicSiteSettings(formData: FormData) {
   revalidatePath("/admin/site")
 }
 
-export async function savePublicModuleVisual(formData: FormData) {
+/**
+ * SITE-PROMO-BANNERS-01 — la RLS réserve l'écriture des visuels de modules et
+ * des promotions au super admin (drizzle/manual/0119) : rôle vérifié ici,
+ * puis contexte super admin réel. Avant, isSuperAdmin: false → rien ne
+ * s'enregistrait (voir lib/public/site-admin-core.ts).
+ */
+async function assertSiteContentAdmin() {
   const ctx = await assertProductManager()
-  const moduleSlug = clean(formData.get("moduleSlug"))
-  const heroImageUrl = optionalUrl(clean(formData.get("heroImageUrl")))
-  const enabled = clean(formData.get("enabled")) === "on"
-  const sortOrder = Number.parseInt(clean(formData.get("sortOrder")) || "0", 10)
+  if (ctx.role !== "super_admin") throw new Error("FORBIDDEN_SUPER_ADMIN_ONLY")
+  return ctx
+}
 
-  if (!/^[a-z0-9-]{2,64}$/.test(moduleSlug)) throw new Error("INVALID_MODULE")
-  if (!Number.isInteger(sortOrder)) throw new Error("INVALID_SORT_ORDER")
+export async function savePublicModuleVisual(formData: FormData) {
+  const ctx = await assertSiteContentAdmin()
+  const input = {
+    moduleSlug: clean(formData.get("moduleSlug")),
+    heroImageUrl: optionalUrl(clean(formData.get("heroImageUrl"))),
+    enabled: clean(formData.get("enabled")) === "on",
+    sortOrder: Number.parseInt(clean(formData.get("sortOrder")) || "0", 10),
+  }
 
   await withTenantContext(
-    { agencyId: ctx.agencyId, userId: ctx.userId, isSuperAdmin: false },
-    async (tx) => {
-      await tx
-        .insert(publicModuleVisuals)
-        .values({
-          agencyId: ctx.agencyId,
-          moduleSlug,
-          heroImageUrl,
-          enabled,
-          sortOrder,
-        })
-        .onConflictDoUpdate({
-          target: [
-            publicModuleVisuals.agencyId,
-            publicModuleVisuals.moduleSlug,
-          ],
-          set: { heroImageUrl, enabled, sortOrder, updatedAt: new Date() },
-        })
-    },
+    { agencyId: ctx.agencyId, userId: ctx.userId, isSuperAdmin: true },
+    (tx) => saveModuleVisualCore(tx, ctx.agencyId, input),
   )
 
   revalidatePath("/[locale]", "layout")
@@ -144,57 +143,25 @@ export async function savePublicModuleVisual(formData: FormData) {
 }
 
 export async function savePublicPromotion(formData: FormData) {
-  const ctx = await assertProductManager()
-  const id = clean(formData.get("id"))
-  const title = clean(formData.get("title"))
-  const subtitle = clean(formData.get("subtitle"))
-  const destination = clean(formData.get("destination"))
-  const moduleSlug = clean(formData.get("moduleSlug"))
-  const href = clean(formData.get("href"))
-  const imageUrl = optionalUrl(clean(formData.get("imageUrl")))
-  const flag = clean(formData.get("flag"))
-  const enabled = clean(formData.get("enabled")) === "on"
-  const sortOrder = Number.parseInt(clean(formData.get("sortOrder")) || "0", 10)
-
-  if (!title || title.length > 200) throw new Error("INVALID_TITLE")
-  if (!destination || destination.length > 120)
-    throw new Error("INVALID_DESTINATION")
-  if (!/^[a-z0-9-]{2,64}$/.test(moduleSlug)) throw new Error("INVALID_MODULE")
-  if (!href.startsWith("/")) throw new Error("INVALID_HREF")
-  if (!imageUrl) throw new Error("IMAGE_REQUIRED")
-  if (!Number.isInteger(sortOrder)) throw new Error("INVALID_SORT_ORDER")
+  const ctx = await assertSiteContentAdmin()
+  const id = clean(formData.get("id")) || null
+  const input = {
+    title: clean(formData.get("title")),
+    subtitle: clean(formData.get("subtitle")) || null,
+    destination: clean(formData.get("destination")),
+    moduleSlug: clean(formData.get("moduleSlug")),
+    href: clean(formData.get("href")),
+    imageUrl: optionalUrl(clean(formData.get("imageUrl"))) ?? "",
+    flag: clean(formData.get("flag")) || null,
+    enabled: clean(formData.get("enabled")) === "on",
+    sortOrder: Number.parseInt(clean(formData.get("sortOrder")) || "0", 10),
+    startsAt: parseTunisLocalDateTime(clean(formData.get("startsAt"))),
+    endsAt: parseTunisLocalDateTime(clean(formData.get("endsAt"))),
+  }
 
   await withTenantContext(
-    { agencyId: ctx.agencyId, userId: ctx.userId, isSuperAdmin: false },
-    async (tx) => {
-      const values = {
-        agencyId: ctx.agencyId,
-        title,
-        subtitle: subtitle || null,
-        destination,
-        moduleSlug,
-        href,
-        imageUrl,
-        flag: flag || null,
-        enabled,
-        sortOrder,
-        updatedAt: new Date(),
-      }
-
-      if (id) {
-        await tx
-          .update(publicPromotions)
-          .set(values)
-          .where(
-            and(
-              eq(publicPromotions.id, id),
-              eq(publicPromotions.agencyId, ctx.agencyId),
-            ),
-          )
-      } else {
-        await tx.insert(publicPromotions).values(values)
-      }
-    },
+    { agencyId: ctx.agencyId, userId: ctx.userId, isSuperAdmin: true },
+    (tx) => savePromotionCore(tx, ctx.agencyId, id, input),
   )
 
   revalidatePath("/[locale]", "layout")

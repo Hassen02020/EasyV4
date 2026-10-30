@@ -31,6 +31,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
+import type { LeadPatch } from "@/components/admin/leads-table"
 import {
   updateLeadStatus,
   updateLeadNotes,
@@ -468,16 +469,24 @@ export function LeadPipeline({
   leads: initialLeads,
   scoreRules,
   relanceSettings,
+  onLeadChange,
 }: {
   leads: LeadRow[]
   scoreRules: LeadScoreRuleMap
   relanceSettings: LeadRelanceSettingsValue
+  /** Fourni par LeadsViewTabs : l'état est alors celui, partagé, du parent. */
+  onLeadChange?: (id: string, patch: LeadPatch) => void
 }) {
-  const [leads, setLeads] = useState<LeadRow[]>(initialLeads)
+  const [localLeads, setLocalLeads] = useState<LeadRow[]>(initialLeads)
+  const leads = onLeadChange ? initialLeads : localLeads
 
   function handleStatusChange(id: string, next: LeadStatus | null) {
     if (next === null) return
-    setLeads((prev) =>
+    if (onLeadChange) {
+      onLeadChange(id, { status: next, updatedAt: new Date() })
+      return
+    }
+    setLocalLeads((prev) =>
       prev.map((l) => (l.id === id ? { ...l, status: next } : l)),
     )
   }

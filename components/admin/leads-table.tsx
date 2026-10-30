@@ -285,9 +285,26 @@ function LeadScoreCell({
   )
 }
 
-function LeadStatusCell({ lead: initialLead }: { lead: LeadRow }) {
+export type LeadPatch = Partial<
+  Pick<LeadRow, "status" | "updatedAt" | "reservationId" | "convertedAt">
+>
+
+function LeadStatusCell({
+  lead: initialLead,
+  onLeadChange,
+}: {
+  lead: LeadRow
+  onLeadChange?: (id: string, patch: LeadPatch) => void
+}) {
   const [lead, setLead] = useState(initialLead)
   const [status, setStatus] = useState<LeadStatus>(initialLead.status)
+  // Changement fait dans une autre vue (pipeline) : on se resynchronise
+  // (motif React « ajuster l'état quand une prop change », sans effet).
+  const [seenStatus, setSeenStatus] = useState<LeadStatus>(initialLead.status)
+  if (initialLead.status !== seenStatus) {
+    setSeenStatus(initialLead.status)
+    setStatus(initialLead.status)
+  }
   const [updatedAt, setUpdatedAt] = useState(
     () => new Date(initialLead.updatedAt),
   )
@@ -305,8 +322,10 @@ function LeadStatusCell({ lead: initialLead }: { lead: LeadRow }) {
     updateLeadStatus({ id: lead.id, status: next })
       .then((result) => {
         if (result.ok) {
+          const now = new Date()
           setStatus(next)
-          setUpdatedAt(new Date())
+          setUpdatedAt(now)
+          onLeadChange?.(lead.id, { status: next, updatedAt: now })
         } else {
           toast.error(result.error || "Échec de la mise à jour du statut.")
         }
@@ -316,10 +335,17 @@ function LeadStatusCell({ lead: initialLead }: { lead: LeadRow }) {
   }
 
   function handleConverted(reservationId: string) {
+    const now = new Date()
     setStatus("converted")
-    setUpdatedAt(new Date())
-    setLead((l) => ({ ...l, reservationId, convertedAt: new Date() }))
+    setUpdatedAt(now)
+    setLead((l) => ({ ...l, reservationId, convertedAt: now }))
     setConvertOpen(false)
+    onLeadChange?.(lead.id, {
+      status: "converted",
+      updatedAt: now,
+      reservationId,
+      convertedAt: now,
+    })
   }
 
   return (
@@ -375,10 +401,12 @@ export function LeadsTable({
   leads,
   scoreRules,
   relanceSettings,
+  onLeadChange,
 }: {
   leads: LeadRow[]
   scoreRules: LeadScoreRuleMap
   relanceSettings: LeadRelanceSettingsValue
+  onLeadChange?: (id: string, patch: LeadPatch) => void
 }) {
   const [search, setSearch] = useState("")
   const [statusFilter, setStatusFilter] = useState("all")
@@ -504,7 +532,7 @@ export function LeadsTable({
                       <LeadScoreCell lead={lead} rules={scoreRules} />
                     </TableCell>
                     <TableCell>
-                      <LeadStatusCell lead={lead} />
+                      <LeadStatusCell lead={lead} onLeadChange={onLeadChange} />
                       {isLeadStale(lead, relanceSettings) && (
                         <Badge
                           variant="outline"

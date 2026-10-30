@@ -28,6 +28,7 @@ import { getDefaultAgencyId } from "@/lib/agencies/default-agency"
 import { verifyWhatsAppSignature } from "@/lib/whatsapp/signing"
 import { fetchMetaLeadFieldDataCore } from "@/lib/meta-leadads/provider"
 import { captureMetaLeadCore } from "@/lib/meta-leadads/lead-capture-core"
+import { notifyLeadCreated } from "@/lib/crm/lead-created-notify"
 
 interface MetaLeadgenWebhookPayload {
   object?: string
@@ -113,11 +114,20 @@ export async function POST(request: NextRequest) {
     }
 
     try {
-      await withTenantContext(
+      const captured = await withTenantContext(
         { agencyId, userId: "", isSuperAdmin: true },
         (tx) => captureMetaLeadCore(tx, { agencyId, data: fetched.lead }),
       )
       processed++
+      // G-03 — email « nouveau lead » seulement à la création (jamais sur
+      // un leadgen_id déjà traité, que Meta peut relivrer).
+      if (!captured.alreadyProcessed) {
+        await notifyLeadCreated({
+          agencyId,
+          leadId: captured.leadId,
+          channel: "meta_lead_ads",
+        })
+      }
     } catch (err) {
       console.error(
         "[Webhook/MetaLeadAds] Échec traitement lead",

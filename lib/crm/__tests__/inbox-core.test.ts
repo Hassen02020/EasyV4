@@ -2,6 +2,7 @@
  * CRM / Inbox omnicanal — moteur central. Suit les mêmes conventions DB
  * (before/after agence, isDbAvailable) que lead-relance-core.test.ts.
  */
+import { cleanupAsSuperuserWithDrizzle } from "@/lib/db/test-helpers/superuser-cleanup"
 import test, { before, after } from "node:test"
 import assert from "node:assert/strict"
 import { randomUUID } from "node:crypto"
@@ -108,7 +109,9 @@ before(async () => {
 
 after(async () => {
   if (!dbAvailable) return
-  await withSystemContext(async (tx) => {
+  // app_runtime n'a pas DELETE sur `contacts` : nettoyage en superuser,
+  // sinon les lignes de test restaient et faussaient les comptages suivants.
+  await cleanupAsSuperuserWithDrizzle(async (tx) => {
     await tx.delete(crmMessages).where(eq(crmMessages.agencyId, agencyA))
     await tx
       .delete(crmConversations)
@@ -157,6 +160,8 @@ test("upsertConversationForInboundCore : premier message → crée conversation 
   assert.equal(thread!.conversation.contactPhone, phone)
   assert.equal(thread!.conversation.contactName, "Amine")
   assert.ok(thread!.conversation.leadId, "un lead doit avoir été créé et lié")
+  // G-03 : la création est signalée (déclenche l'email « nouveau lead »).
+  assert.equal(result.createdLeadId, thread!.conversation.leadId)
   assert.equal(thread!.messages.length, 1)
   assert.equal(thread!.messages[0]!.direction, "inbound")
 
@@ -254,6 +259,9 @@ test("upsertConversationForInboundCore : second message du même contact → mê
     }),
   )
   assert.equal(second.conversationId, first.conversationId)
+  // G-03 : un seul email « nouveau lead » — au premier message seulement.
+  assert.ok(first.createdLeadId)
+  assert.equal(second.createdLeadId, null)
 
   const thread = await withTenantContext(ctxFor(agencyA), (tx) =>
     getConversationWithMessagesCore(tx, {
@@ -298,6 +306,7 @@ test("upsertConversationForInboundCore : redélivrance webhook (même externalMe
     }),
   )
   assert.equal(redelivered.messageInserted, false)
+  assert.equal(redelivered.createdLeadId, null)
 
   const thread = await withTenantContext(ctxFor(agencyA), (tx) =>
     getConversationWithMessagesCore(tx, {
@@ -343,6 +352,8 @@ test("upsertConversationForInboundCore : un lead existant (même téléphone) es
     }),
   )
   assert.equal(thread!.conversation.leadId, existingLead!.id)
+  // G-03 : lead déjà existant → pas de nouvel email.
+  assert.equal(result.createdLeadId, null)
 
   const leadRows = await withTenantContext(ctxFor(agencyA), (tx) =>
     tx.select().from(leads).where(eq(leads.phone, phone)),

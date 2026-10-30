@@ -7,6 +7,7 @@
  */
 
 import { Inngest } from "inngest"
+import type { LeadNotifyChannel } from "@/lib/crm/lead-notify-channel"
 
 export type Events = {
   /**
@@ -199,6 +200,8 @@ export type Events = {
       productType: string
       productLabel: string | null
       sourcePage: string
+      /** Canal d'arrivée (absent sur les événements émis avant G-03 = formulaire du site). */
+      channel?: LeadNotifyChannel
     }
   }
 }

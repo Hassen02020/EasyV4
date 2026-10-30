@@ -3,7 +3,9 @@
  *
  * Déclenchée par l'événement "crm/lead.created".
  * Envoie un email de notification à l'agence (agencies.contact_email)
- * dès qu'un visiteur soumet le formulaire "Être rappelé" / "Demander un devis".
+ * dès qu'un nouveau lead arrive : formulaire du site ("Être rappelé" /
+ * "Demander un devis") et, depuis CRM-LEAD-NOTIFY-CHANNELS-01 (G-03),
+ * Lead Ads, WhatsApp, Messenger, Instagram et email entrant.
  *
  * Pas d'idempotence : un lead = un email, retries Inngest acceptables
  * (l'agent reçoit au pire deux notifications identiques, sans risque financier).
@@ -16,6 +18,11 @@ import { makeOnFailure } from "@/lib/inngest/on-failure"
 import { withSystemContext } from "@/lib/db/tenant-context"
 import { agencies } from "@/lib/db/schema"
 import { escapeHtml } from "@/lib/email/escape-html"
+import {
+  leadChannelIntro,
+  leadChannelLabel,
+  type LeadNotifyChannel,
+} from "@/lib/crm/lead-notify-channel"
 
 function getResend() {
   if (!process.env.RESEND_API_KEY) {
@@ -54,6 +61,7 @@ export function buildNewLeadEmailHtml(p: {
   sourcePage: string
   message?: string | null
   adminUrl: string
+  channel?: LeadNotifyChannel | null
 }): string {
   const contactLine = [
     p.email
@@ -68,16 +76,20 @@ export function buildNewLeadEmailHtml(p: {
       <div style="font-family: system-ui, sans-serif; max-width: 560px; margin: 0 auto; padding: 24px;">
         <h2 style="color: #7c3aed; margin-bottom: 4px;">📥 Nouveau lead CRM</h2>
         <p style="color: #6b7280; margin-top: 0;">Bonjour <strong>${escapeHtml(p.agencyName)}</strong>,</p>
-        <p>Un visiteur vient de remplir le formulaire de contact sur votre site.</p>
+        <p>${escapeHtml(leadChannelIntro(p.channel))}</p>
 
         <table style="width: 100%; border-collapse: collapse; margin: 16px 0;">
           <tr>
-            <td style="padding: 8px; border-bottom: 1px solid #e5e7eb; color: #6b7280; white-space: nowrap;">Visiteur</td>
+            <td style="padding: 8px; border-bottom: 1px solid #e5e7eb; color: #6b7280; white-space: nowrap;">Prospect</td>
             <td style="padding: 8px; border-bottom: 1px solid #e5e7eb; font-weight: 600;">${escapeHtml(p.visitorName)}</td>
           </tr>
           <tr>
             <td style="padding: 8px; border-bottom: 1px solid #e5e7eb; color: #6b7280;">Contact</td>
             <td style="padding: 8px; border-bottom: 1px solid #e5e7eb;">${contactLine || "—"}</td>
+          </tr>
+          <tr>
+            <td style="padding: 8px; border-bottom: 1px solid #e5e7eb; color: #6b7280;">Canal</td>
+            <td style="padding: 8px; border-bottom: 1px solid #e5e7eb;">${escapeHtml(leadChannelLabel(p.channel))}</td>
           </tr>
           <tr>
             <td style="padding: 8px; border-bottom: 1px solid #e5e7eb; color: #6b7280;">Intérêt</td>
@@ -133,6 +145,7 @@ export const processNewLead = inngest.createFunction(
       productType,
       productLabel,
       sourcePage,
+      channel,
     } = event.data
 
     const [agency] = await withSystemContext((db) =>
@@ -147,7 +160,7 @@ export const processNewLead = inngest.createFunction(
     }
 
     const visitorName = [firstName, lastName].filter(Boolean).join(" ")
-    const subject = `📥 Nouveau lead — ${visitorName}`
+    const subject = `📥 Nouveau lead (${leadChannelLabel(channel)}) — ${visitorName}`
     const html = buildNewLeadEmailHtml({
       agencyName: agency.name,
       visitorName,
@@ -156,6 +169,7 @@ export const processNewLead = inngest.createFunction(
       product: resolveProductLabel(productType, productLabel),
       sourcePage,
       message,
+      channel,
       adminUrl: `${process.env.NEXT_PUBLIC_SITE_URL ?? "https://easy2book.tn"}/admin/support`,
     })
 

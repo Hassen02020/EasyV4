@@ -14,6 +14,7 @@ import { withTenantContext } from "@/lib/db/tenant-context"
 import { getDefaultAgencyId } from "@/lib/agencies/default-agency"
 import { verifyWhatsAppSignature } from "@/lib/whatsapp/signing"
 import { upsertConversationForInboundCore } from "@/lib/crm/inbox-core"
+import { notifyLeadCreated } from "@/lib/crm/lead-created-notify"
 
 interface InstagramWebhookPayload {
   object?: string
@@ -95,7 +96,7 @@ export async function POST(request: NextRequest) {
       : new Date()
 
     try {
-      await withTenantContext(
+      const inbound = await withTenantContext(
         { agencyId, userId: "", isSuperAdmin: true },
         (tx) =>
           upsertConversationForInboundCore(tx, {
@@ -108,6 +109,14 @@ export async function POST(request: NextRequest) {
           }),
       )
       processed++
+      // G-03 — email « nouveau lead » seulement si ce message a créé le lead.
+      if (inbound.createdLeadId) {
+        await notifyLeadCreated({
+          agencyId,
+          leadId: inbound.createdLeadId,
+          channel: "instagram",
+        })
+      }
     } catch (err) {
       console.error("[Webhook/Instagram] Échec traitement message", mid, err)
     }

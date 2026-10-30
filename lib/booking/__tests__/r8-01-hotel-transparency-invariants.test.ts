@@ -55,7 +55,9 @@ describe("R8-01 — Transparence tarifaire hôtel", () => {
 
   describe("Page détail hôtel — transmission données d'annulation", () => {
     it("transmet hasFreeCancellation depuis la page détail hôtel", () => {
-      const src = read("app/(public)/[locale]/hotels/[id]/page.tsx")
+      const src = read(
+        "app/(public)/[locale]/hotels/[id]/hotel-detail-client.tsx",
+      )
       assert.ok(
         src.includes("hasFreeCancellation"),
         "hotels/[id]/page.tsx doit inclure hasFreeCancellation dans le draft metadata",
@@ -63,7 +65,9 @@ describe("R8-01 — Transparence tarifaire hôtel", () => {
     })
 
     it("transmet freeCancellationDate depuis la page détail hôtel", () => {
-      const src = read("app/(public)/[locale]/hotels/[id]/page.tsx")
+      const src = read(
+        "app/(public)/[locale]/hotels/[id]/hotel-detail-client.tsx",
+      )
       assert.ok(
         src.includes("freeCancellationDate"),
         "hotels/[id]/page.tsx doit inclure freeCancellationDate dans le draft metadata",

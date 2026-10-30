@@ -3,7 +3,7 @@
  * "Qu'est-ce qui change ?" — tendances période-sur-période par module
  * de réservation, canal lead et type de produit.
  *
- * Trois vues tabulées : Modules (CA/marge), Canaux (leads), Produits (leads).
+ * Trois tableaux : Modules (CA/marge), Canaux (leads), Produits (leads).
  * Sélecteur de fenêtre : 4 semaines / 8 semaines / 12 semaines.
  */
 

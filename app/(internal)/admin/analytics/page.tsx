@@ -82,13 +82,14 @@ const SECTIONS = [
     href: "/admin/analytics/action",
     icon: Lightbulb,
     title: "Actions",
-    description: "Règles d'actions automatiques déclenchées par les signaux.",
+    description:
+      "Recommandations commerciales dérivées des signaux, à traiter par l'équipe.",
   },
   {
     href: "/admin/analytics/learning",
     icon: BookCheck,
     title: "Apprentissage",
-    description: "Historique des actions passées — taux de succès observé.",
+    description: "Conversion des leads par segment VIP sur la période.",
   },
   {
     href: "/admin/analytics/campaign-engine",

@@ -317,6 +317,7 @@ jobs:
             lib/finance/__tests__/manual-payment-transfer-voucher.integration.test.ts \
             lib/finance/__tests__/manual-payment-inngest-reliability.integration.test.ts \
             lib/inngest/functions/__tests__/transfer-email-idempotency.integration.test.ts \
+            lib/inngest/functions/__tests__/car-flight-email-idempotency.integration.test.ts \
             lib/crm/__tests__/campaign-attribution-core-live.test.ts \
             lib/crm/__tests__/campaign-core-live.test.ts \
             lib/crm/__tests__/campaign-performance-core-live.test.ts \

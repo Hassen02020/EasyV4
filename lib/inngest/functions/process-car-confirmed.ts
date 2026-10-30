@@ -25,9 +25,12 @@ import { pgErrorCode } from "@/lib/db/pg-error"
 import { Resend } from "resend"
 import { generateInvoiceForReservation } from "@/lib/finance/invoice-actions"
 
-const ACTION_CAR_VOUCHER_SENT = "notification.car_voucher_email.sent"
+// ≤ 32 caractères : audit_events.action est un varchar(32). L'ancien nom
+// (35) faisait échouer l'insertion avant le verrou anti-doublon → email
+// renvoyé à chaque nouvelle tentative (CAR-EMAIL-IDEMPOTENCY-01).
+export const ACTION_CAR_VOUCHER_SENT = "notification.car_mail.sent"
 
-async function hasCarVoucherAlreadySent(
+export async function hasCarVoucherAlreadySent(
   reservationId: string,
 ): Promise<boolean> {
   const [existing] = await withSystemContext((db) =>
@@ -45,7 +48,7 @@ async function hasCarVoucherAlreadySent(
   return Boolean(existing)
 }
 
-async function recordCarVoucherSent(
+export async function recordCarVoucherSent(
   agencyId: string,
   reservationId: string,
   publicRef: string,

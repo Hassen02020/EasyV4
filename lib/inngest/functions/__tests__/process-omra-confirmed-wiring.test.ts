@@ -46,8 +46,11 @@ test("INNGEST-HANDLER-WIRING-01/omra : step send-omra-email présent", () => {
   assert.match(processSrc, /["']send-omra-email["']/)
 })
 
-test("INNGEST-HANDLER-WIRING-01/omra : email envoyé via Resend", () => {
-  assert.match(processSrc, /resend\.emails\.send/)
+test("INNGEST-HANDLER-WIRING-01/omra : email envoyé une seule fois via sendEmailOnce (Resend)", () => {
+  // OMRA-PACKAGE-NOTIFY-RELIABILITY-01 : Resend est appelé par
+  // lib/inngest/send-email-once.ts, derrière la garde anti-doublon.
+  assert.match(processSrc, /sendEmailOnce\(\{/)
+  assert.match(processSrc, /action:\s*OMRA_EMAIL_SENT_ACTION/)
 })
 
 test("INNGEST-HANDLER-WIRING-01/omra : email adressé à d.contactEmail (jamais d.customerEmail)", () => {
@@ -55,8 +58,13 @@ test("INNGEST-HANDLER-WIRING-01/omra : email adressé à d.contactEmail (jamais 
   assert.doesNotMatch(processSrc, /to:\s*d\.customerEmail/)
 })
 
-test("INNGEST-HANDLER-WIRING-01/omra : email conditionné sur RESEND_API_KEY", () => {
-  assert.match(processSrc, /RESEND_API_KEY/)
+test("INNGEST-HANDLER-WIRING-01/omra : email conditionné sur RESEND_API_KEY (dans sendEmailOnce)", () => {
+  const helperSrc = readFileSync(
+    join(process.cwd(), "lib/inngest/send-email-once.ts"),
+    "utf8",
+  )
+  assert.match(helperSrc, /process\.env\.RESEND_API_KEY/)
+  assert.match(helperSrc, /resend\.emails\.send/)
 })
 
 // ─── Invariant 3 : déclaration dans client.ts ─────────────────────────────

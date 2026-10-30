@@ -48,7 +48,7 @@ import {
 } from "@/lib/db/schema"
 import { getDefaultAgencyId } from "@/lib/agencies/default-agency"
 import { generateInvoiceForReservation } from "@/lib/finance/invoice-actions"
-import { sendEvent } from "@/lib/inngest/client"
+import { sendEventReliable } from "@/lib/inngest/send-reliable"
 import { getPaymentProvider } from "@/lib/payment/provider"
 import { withGuestIdempotency } from "@/lib/booking/guest-idempotency"
 import { omraGuestBookingSchema, type OmraGuestBookingInput } from "./schemas"
@@ -528,18 +528,20 @@ async function runCreateGuestOmraBooking(
     )
 
     if (result.contactEmail) {
-      await sendEvent("booking/omra.confirmed", {
-        reservationId: result.reservationId,
-        publicRef: result.publicRef,
-        agencyId,
-        packageName: result.packageName,
-        pilgrimsCount: pilgrimCount,
-        departureDate: booking.departureDate,
-        totalTnd: result.totalTnd,
-        contactEmail: result.contactEmail,
-      }).catch(() => {
-        /* fire-and-forget */
-      })
+      await sendEventReliable(
+        "booking/omra.confirmed",
+        {
+          reservationId: result.reservationId,
+          publicRef: result.publicRef,
+          agencyId,
+          packageName: result.packageName,
+          pilgrimsCount: pilgrimCount,
+          departureDate: booking.departureDate,
+          totalTnd: result.totalTnd,
+          contactEmail: result.contactEmail,
+        },
+        { reservationId: result.reservationId, agencyId },
+      )
     }
 
     if (result.status === "confirmed") {

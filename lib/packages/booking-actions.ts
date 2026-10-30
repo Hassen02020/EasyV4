@@ -73,7 +73,7 @@ import { creditPlatformCommission } from "@/lib/finance/platform-commission"
 import { resolveCheckoutPromoCore } from "@/lib/crm/promo-checkout-core"
 import { applyPromoDiscountCore } from "@/lib/finance/promo-discount-core"
 import { round2 } from "@/lib/shared/money"
-import { sendEvent } from "@/lib/inngest/client"
+import { sendEventReliable } from "@/lib/inngest/send-reliable"
 
 export type CreateGuestPackageBookingResult =
   | {
@@ -548,18 +548,20 @@ async function runCreateGuestPackageBooking(
     )
 
     if (result.status === "confirmed" && booking.traveler.email) {
-      sendEvent("booking/package.confirmed", {
-        reservationId: result.reservationId,
-        publicRef: result.publicRef,
-        agencyId,
-        packageName: result.packageName,
-        departureDate: result.departureDate,
-        paxCount,
-        totalTnd: result.totalTnd,
-        contactEmail: booking.traveler.email,
-      }).catch(() => {
-        /* fire-and-forget */
-      })
+      await sendEventReliable(
+        "booking/package.confirmed",
+        {
+          reservationId: result.reservationId,
+          publicRef: result.publicRef,
+          agencyId,
+          packageName: result.packageName,
+          departureDate: result.departureDate,
+          paxCount,
+          totalTnd: result.totalTnd,
+          contactEmail: booking.traveler.email,
+        },
+        { reservationId: result.reservationId, agencyId },
+      )
     }
 
     // Facture générée via step.run("generate-invoice") dans processPackageConfirmed

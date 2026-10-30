@@ -23,12 +23,15 @@ const ROOT = process.cwd()
 const src = readFileSync(join(ROOT, "lib/packages/booking-actions.ts"), "utf8")
 
 // ─── 1. sendEvent câblé ───────────────────────────────────────────────────
-test("PKG-WIRING-01 : sendEvent importé depuis @/lib/inngest/client", () => {
-  assert.match(src, /import.*sendEvent.*from.*@\/lib\/inngest\/client/)
+test("PKG-WIRING-01 : sendEventReliable importé depuis @/lib/inngest/send-reliable (OMRA-PACKAGE-NOTIFY-RELIABILITY-01)", () => {
+  assert.match(
+    src,
+    /import.*sendEventReliable.*from.*@\/lib\/inngest\/send-reliable/,
+  )
 })
 
-test("PKG-WIRING-02 : sendEvent booking/package.confirmed câblé", () => {
-  assert.match(src, /sendEvent\("booking\/package\.confirmed"/)
+test("PKG-WIRING-02 : sendEventReliable booking/package.confirmed câblé", () => {
+  assert.match(src, /sendEventReliable\(\s*"booking\/package\.confirmed"/)
 })
 
 test("PKG-WIRING-03 : sendEvent déclenché si status confirmed et email", () => {
@@ -40,8 +43,14 @@ test("PKG-WIRING-03 : sendEvent déclenché si status confirmed et email", () =>
 })
 
 // ─── 2. .catch() présent ─────────────────────────────────────────────────
-test("PKG-WIRING-04 : sendEvent protégé par .catch() (réservation non annulée si Inngest indisponible)", () => {
+test("PKG-WIRING-04 : émission fiable, jamais d'exception vers la réservation (réservation non annulée si Inngest indisponible)", () => {
+  // sendEventReliable ne lève jamais (3 tentatives puis trace technique) :
+  // plus de .catch(() => {}) qui perdait l'événement en silence.
   assert.match(
+    src,
+    /await sendEventReliable\(\s*"booking\/package\.confirmed"[\s\S]*?\{\s*reservationId:\s*result\.reservationId,\s*agencyId/,
+  )
+  assert.doesNotMatch(
     src,
     /sendEvent\("booking\/package\.confirmed"[\s\S]*?\)\.catch\(/,
   )

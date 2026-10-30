@@ -13,6 +13,7 @@ import { z } from "zod"
 import { and, asc, eq, isNull } from "drizzle-orm"
 import { withSystemContext } from "@/lib/db/tenant-context"
 import { createServerSupabase } from "@/lib/supabase/server"
+import { getCurrentAdminProfile } from "@/lib/auth/profile"
 import { agencies } from "@/lib/db/schema"
 
 const HEX_COLOR_REGEX = /^#[0-9a-fA-F]{6}$/
@@ -70,6 +71,13 @@ export type BrandInitial = {
   tiktokUrl: string
 }
 
+/**
+ * Rôle lu par getCurrentAdminProfile (resolve_session_context), comme toutes
+ * les autres gardes admin. L'ancienne lecture PostgREST de `user_profiles`
+ * visait une table inexistante en production : profil toujours vide, donc
+ * « Accès réservé aux super administrateurs » pour tout le monde, super
+ * admin compris (constaté le 2026-10-30).
+ */
 async function assertSuperAdmin(): Promise<
   { ok: true; userId: string } | { ok: false; error: string }
 > {
@@ -81,12 +89,8 @@ async function assertSuperAdmin(): Promise<
   } = await supabase.auth.getUser()
   if (!user) return { ok: false, error: "Session expirée — reconnectez-vous." }
 
-  const { data: profile } = await supabase
-    .from("user_profiles")
-    .select("role")
-    .eq("user_id", user.id)
-    .single()
-  if (profile?.role !== "super_admin")
+  const profile = await getCurrentAdminProfile(user.id)
+  if (profile?.role !== "super_admin" || profile.agencyType !== "ota")
     return { ok: false, error: "Accès réservé aux super administrateurs." }
 
   return { ok: true, userId: user.id }

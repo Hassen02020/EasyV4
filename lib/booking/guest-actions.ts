@@ -82,7 +82,7 @@ import {
   resolveMyGoAccessForTenant,
   type ResolvedMyGoAccess,
 } from "@/lib/hotel-suppliers/tenant/live-resolution"
-import { sendEvent } from "@/lib/inngest/client"
+import { sendEventReliable } from "@/lib/inngest/send-reliable"
 import { getPaymentProvider } from "@/lib/payment/provider"
 import { ONLINE_PAYMENT_WINDOW_MS } from "@/lib/payment/reservation-payment-logic"
 import {
@@ -976,29 +976,31 @@ async function runCreateGuestReservation(
     // une résa non payée. Même garde que le chemin B2B
     // (lib/booking/actions.ts), reproduite ici.
     if (result.isImmediatelyPaid && traveler.email) {
-      await sendEvent("booking/confirmed", {
-        reservationId: result.reservationId,
-        publicRef: result.publicRef,
-        agencyId,
-        guestAccessToken: result.guestAccessToken,
-        customerEmail: traveler.email,
-        customerName: `${traveler.firstName} ${traveler.lastName}`.trim(),
-        customerPhone: traveler.phone,
-        hotelName: myGoBooking.hotelName ?? draft.offerLabel,
-        checkIn: draft.startDate,
-        checkOut: draft.endDate ?? draft.startDate,
-        nights: hotelNights,
-        adults: draft.adults,
-        children: draft.children,
-        totalTnd: breakdown.totalTnd,
-      }).catch(() => {
-        /* fire-and-forget */
-      })
+      await sendEventReliable(
+        "booking/confirmed",
+        {
+          reservationId: result.reservationId,
+          publicRef: result.publicRef,
+          agencyId,
+          guestAccessToken: result.guestAccessToken,
+          customerEmail: traveler.email,
+          customerName: `${traveler.firstName} ${traveler.lastName}`.trim(),
+          customerPhone: traveler.phone,
+          hotelName: myGoBooking.hotelName ?? draft.offerLabel,
+          checkIn: draft.startDate,
+          checkOut: draft.endDate ?? draft.startDate,
+          nights: hotelNights,
+          adults: draft.adults,
+          children: draft.children,
+          totalTnd: breakdown.totalTnd,
+        },
+        { reservationId: result.reservationId, agencyId: agencyId },
+      )
     }
 
     // Facture générée via step.run("generate-invoice") dans processConfirmedBooking
     // (CAS-C) — garantie Inngest, uniquement pour les réservations immédiatement
-    // payées (sendEvent("booking/confirmed") conditionné par result.isImmediatelyPaid
+    // payées (sendEventReliable("booking/confirmed") conditionné par result.isImmediatelyPaid
     // juste au-dessus — ligne ~946).
 
     // Réservation réellement créée (et confirmée fournisseur) — le verrou

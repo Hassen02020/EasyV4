@@ -58,7 +58,7 @@ import { applyPromoDiscountCore } from "@/lib/finance/promo-discount-core"
 import type { ApplicableDiscountResult } from "@/lib/crm/promo-core"
 import { buildFiscalSnapshotFromTtc } from "@/lib/booking/pricing"
 import { getActiveFiscalRuleInTx } from "@/lib/finance/fiscal-rules"
-import { sendEvent } from "@/lib/inngest/client"
+import { sendEventReliable } from "@/lib/inngest/send-reliable"
 import { getPaymentProvider } from "@/lib/payment/provider"
 import { withGuestIdempotency } from "@/lib/booking/guest-idempotency"
 import {
@@ -562,24 +562,26 @@ async function runCreateGuestWorldHotelBooking(
     )
 
     if (result.status === "confirmed" && result.contactEmail) {
-      await sendEvent("booking/confirmed", {
-        reservationId: result.reservationId,
-        publicRef: result.publicRef,
-        agencyId,
-        guestAccessToken: result.guestAccessToken,
-        customerEmail: result.contactEmail,
-        customerName: result.contactName,
-        customerPhone: result.contactPhone,
-        hotelName: bookResult.name,
-        checkIn: bookResult.checkIn,
-        checkOut: bookResult.checkOut,
-        nights: bookResult.nights,
-        adults: bookResult.adults,
-        children: 0,
-        totalTnd: finalTotalTnd,
-      }).catch(() => {
-        /* fire-and-forget */
-      })
+      await sendEventReliable(
+        "booking/confirmed",
+        {
+          reservationId: result.reservationId,
+          publicRef: result.publicRef,
+          agencyId,
+          guestAccessToken: result.guestAccessToken,
+          customerEmail: result.contactEmail,
+          customerName: result.contactName,
+          customerPhone: result.contactPhone,
+          hotelName: bookResult.name,
+          checkIn: bookResult.checkIn,
+          checkOut: bookResult.checkOut,
+          nights: bookResult.nights,
+          adults: bookResult.adults,
+          children: 0,
+          totalTnd: finalTotalTnd,
+        },
+        { reservationId: result.reservationId, agencyId: agencyId },
+      )
     }
 
     if (result.status === "confirmed") {

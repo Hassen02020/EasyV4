@@ -29,7 +29,7 @@ import { recordReservationFinancials } from "@/lib/finance/reservation-financial
 import { recordReservationTransition } from "@/lib/admin/reservation-status-history"
 import { creditPlatformCommission } from "@/lib/finance/platform-commission"
 import { acquireLock, releaseLock } from "@/lib/booking/inventory"
-import { sendEvent } from "@/lib/inngest/client"
+import { sendEventReliable } from "@/lib/inngest/send-reliable"
 import { createServerSupabase } from "@/lib/supabase/server"
 import { getCurrentPartnerProfile } from "@/lib/auth/partner-profile"
 import {
@@ -937,24 +937,26 @@ export async function createReservationFromDraft(input: {
     // client, il n'y a personne à qui envoyer le voucher — on ne déclenche
     // pas l'événement plutôt que d'appeler le handler avec un destinataire vide.
     if (draft.module === "hotel" && traveler.email) {
-      await sendEvent("booking/confirmed", {
-        reservationId: result.reservationId,
-        publicRef: result.publicRef,
-        agencyId: result.agencyId,
-        guestAccessToken: result.guestAccessToken,
-        customerEmail: traveler.email,
-        customerName: `${traveler.firstName} ${traveler.lastName}`.trim(),
-        customerPhone: traveler.phone,
-        hotelName: myGoBooking?.hotelName ?? draft.offerLabel,
-        checkIn: draft.startDate,
-        checkOut: draft.endDate ?? draft.startDate,
-        nights: hotelNights,
-        adults: draft.adults,
-        children: draft.children,
-        totalTnd: breakdown.totalTnd,
-      }).catch(() => {
-        /* fire-and-forget — le retry Inngest suffira */
-      })
+      await sendEventReliable(
+        "booking/confirmed",
+        {
+          reservationId: result.reservationId,
+          publicRef: result.publicRef,
+          agencyId: result.agencyId,
+          guestAccessToken: result.guestAccessToken,
+          customerEmail: traveler.email,
+          customerName: `${traveler.firstName} ${traveler.lastName}`.trim(),
+          customerPhone: traveler.phone,
+          hotelName: myGoBooking?.hotelName ?? draft.offerLabel,
+          checkIn: draft.startDate,
+          checkOut: draft.endDate ?? draft.startDate,
+          nights: hotelNights,
+          adults: draft.adults,
+          children: draft.children,
+          totalTnd: breakdown.totalTnd,
+        },
+        { reservationId: result.reservationId, agencyId: result.agencyId },
+      )
     }
 
     // Facture générée via step.run("generate-invoice") dans processConfirmedBooking

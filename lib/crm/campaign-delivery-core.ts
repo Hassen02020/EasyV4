@@ -36,11 +36,12 @@
 
 import { eq, and } from "drizzle-orm"
 import type { DrizzleTransaction } from "@/lib/db/client"
-import { campaignTargets, contacts, campaigns } from "@/lib/db/schema"
+import { agencies, campaignTargets, contacts, campaigns } from "@/lib/db/schema"
 import {
   sendCampaignEmail,
   type SendCampaignEmailInput,
 } from "@/lib/email/send-campaign-email"
+import type { CampaignEmailSignature } from "@/lib/email/templates/campaign-email"
 import {
   hasMarketingConsentCore,
   normalizeContactRef,
@@ -93,6 +94,33 @@ export function campaignUnsubscribeUrls(
     page: `${base}/fr/desabonnement/${targetId}`,
     oneClick: `${base}/api/crm/unsubscribe/${targetId}`,
   }
+}
+
+/**
+ * CRM-CAMPAIGN-EMAIL-SIGNATURE-01 — coordonnées réelles de l'agence pour la
+ * signature (RLS : une agence ne lit que sa propre ligne). Aucun champ n'est
+ * complété par une valeur par défaut : un champ vide n'est pas affiché.
+ */
+export async function loadCampaignSignatureCore(
+  tx: DrizzleTransaction,
+  agencyId: string,
+  siteUrl: string | null,
+): Promise<CampaignEmailSignature> {
+  const [row] = await tx
+    .select({
+      phone: agencies.contactPhone,
+      whatsapp: agencies.whatsappNumber,
+      email: agencies.contactEmail,
+      address: agencies.address,
+      logoUrl: agencies.logoUrl,
+      facebookUrl: agencies.facebookUrl,
+      instagramUrl: agencies.instagramUrl,
+      tiktokUrl: agencies.tiktokUrl,
+    })
+    .from(agencies)
+    .where(eq(agencies.id, agencyId))
+    .limit(1)
+  return { ...(row ?? {}), siteUrl }
 }
 
 async function setTargetStatus(
@@ -222,6 +250,12 @@ export async function deliverCampaignCore(
 
   const outcomes: DeliveryOutcome[] = []
   const message = campaign.message ?? ""
+  const signature =
+    campaign.channel === "email" && pendingTargets.length > 0
+      ? await deps.runTx((tx) =>
+          loadCampaignSignatureCore(tx, agencyId, siteUrl),
+        )
+      : undefined
 
   // 3. Livraison, une cible à la fois
   for (const target of pendingTargets) {
@@ -293,6 +327,7 @@ export async function deliverCampaignCore(
           agencyName: params.agencyName,
           unsubscribeUrl: urls.page,
           oneClickUnsubscribeUrl: urls.oneClick,
+          signature,
           idempotencyKey: campaignEmailIdempotencyKey(campaignId, target.id),
         })
       } catch (err) {

@@ -68,6 +68,7 @@ before(async () => {
       name: "CRM-CAMPAIGN-SAFETY-01 agence test",
       agencyType: "ota",
       slug: `campaign-safety-${agencyId.slice(0, 8)}`,
+      contactPhone: "+216 70 000 000",
     }),
   )
 })
@@ -182,6 +183,12 @@ test("G-01/G-36 : envoi réussi enregistré 'sent' sous app_runtime, avec lien d
       /^https:\/\/example\.test\/api\/crm\/unsubscribe\/[0-9a-f-]{36}$/,
     )
     assert.match(mail.idempotencyKey, new RegExp(`^campaign:${campaignId}:`))
+    // CRM-CAMPAIGN-EMAIL-SIGNATURE-01 : signature = coordonnées réelles de
+    // l'agence lues sous app_runtime (RLS), champs absents laissés vides.
+    assert.equal(mail.signature?.phone, "+216 70 000 000")
+    assert.equal(mail.signature?.email, null)
+    assert.equal(mail.signature?.whatsapp, null)
+    assert.equal(mail.signature?.siteUrl, SITE)
   }
 
   // Second passage (retry) : rien n'est renvoyé.

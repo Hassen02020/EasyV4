@@ -20,7 +20,9 @@ import { join } from "node:path"
 const ROOT = process.cwd()
 const read = (p: string) => readFileSync(join(ROOT, p), "utf8")
 
-const hotelPage = read("app/(public)/[locale]/hotels/[id]/page.tsx")
+const hotelPage = read(
+  "app/(public)/[locale]/hotels/[id]/hotel-detail-client.tsx",
+)
 const serverAction = read("lib/network/nearby-activities-action.ts")
 const crossSell = read("lib/destinations/cross-sell.ts")
 const component = read("components/attractions/nearby-activities.tsx")

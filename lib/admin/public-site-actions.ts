@@ -1,5 +1,6 @@
 "use server"
 
+import { randomUUID } from "crypto"
 import { eq, and } from "drizzle-orm"
 import { revalidatePath } from "next/cache"
 import {
@@ -10,6 +11,14 @@ import {
 } from "@/lib/db/schema"
 import { assertProductManager } from "./product-guard"
 import { withTenantContext } from "@/lib/db/tenant-context"
+import { getMediaStorage } from "@/lib/media/storage"
+import { MediaValidationError } from "@/lib/media/optimize"
+import {
+  SITE_IMAGE_ERROR_MESSAGES,
+  isSiteImageSlot,
+  prepareSiteImage,
+  siteImageKey,
+} from "@/lib/media/site-image"
 
 function clean(value: FormDataEntryValue | null): string {
   return typeof value === "string" ? value.trim() : ""
@@ -56,6 +65,11 @@ export async function savePublicSiteSettings(formData: FormData) {
           contactEmail: optionalText(contactEmail, 320),
           contactPhone: optionalText(contactPhone, 32),
           address: optionalText(address, 2000),
+          // Réseaux aussi sur l'agence : lus par la signature email et le
+          // footer (getSiteContactInfo) — une seule saisie, deux lecteurs.
+          facebookUrl,
+          instagramUrl,
+          tiktokUrl,
           updatedAt: new Date(),
         })
         .where(eq(agencies.id, ctx.agencyId))
@@ -185,4 +199,57 @@ export async function savePublicPromotion(formData: FormData) {
 
   revalidatePath("/[locale]", "layout")
   revalidatePath("/admin/site")
+}
+
+export type UploadSiteImageResult =
+  | { ok: true; url: string }
+  | { ok: false; error: string }
+
+/**
+ * SITE-MEDIA-UPLOAD-01 — envoi d'une image du site public (logo, Hero,
+ * visuel de module, promotion). Retourne l'URL publique ; elle est ensuite
+ * enregistrée par le formulaire existant (bouton « Enregistrer »).
+ * `formData` attend : `slot`, `file`.
+ */
+export async function uploadSiteImage(
+  formData: FormData,
+): Promise<UploadSiteImageResult> {
+  let ctx
+  try {
+    ctx = await assertProductManager()
+  } catch {
+    return { ok: false, error: "Accès refusé." }
+  }
+
+  const slot = String(formData.get("slot") ?? "")
+  const file = formData.get("file")
+  if (!isSiteImageSlot(slot))
+    return { ok: false, error: "Emplacement invalide." }
+  if (!(file instanceof File)) return { ok: false, error: "Fichier manquant." }
+
+  let prepared
+  try {
+    prepared = await prepareSiteImage(
+      Buffer.from(await file.arrayBuffer()),
+      file.type,
+      slot,
+    )
+  } catch (e) {
+    if (e instanceof MediaValidationError) {
+      return {
+        ok: false,
+        error: SITE_IMAGE_ERROR_MESSAGES[e.code] ?? "Image refusée.",
+      }
+    }
+    return { ok: false, error: "Image illisible." }
+  }
+
+  const key = siteImageKey(ctx.agencyId, slot, randomUUID(), prepared.ext)
+  try {
+    const storage = getMediaStorage()
+    await storage.put(key, prepared.buffer, prepared.contentType)
+    return { ok: true, url: storage.getPublicUrl(key) }
+  } catch {
+    return { ok: false, error: "Échec de l'envoi vers le stockage." }
+  }
 }

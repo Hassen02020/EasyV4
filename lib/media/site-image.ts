@@ -12,8 +12,8 @@
  * `node --test`. L'écriture en stockage est faite par l'action serveur.
  */
 
-import sharp from "sharp"
 import {
+  loadSharp,
   MEDIA_VARIANT_SPECS,
   validateImageBuffer,
   type AllowedMediaMimeType,
@@ -58,6 +58,7 @@ export async function prepareSiteImage(
   }
 
   const spec = MEDIA_VARIANT_SPECS.large
+  const sharp = await loadSharp()
   const out = await sharp(buffer)
     .rotate()
     .resize(spec.width, spec.height, {

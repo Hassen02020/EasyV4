@@ -42,7 +42,18 @@
  * compris dans un test Node classique.
  */
 
-import sharp, { type Metadata } from "sharp"
+import type { Metadata } from "sharp"
+
+/**
+ * HOTFIX-ADMIN-SITE-SHARP-01 — `sharp` (module natif, libvips) est chargé
+ * uniquement au moment de traiter une image, jamais à l'import de ce module.
+ * Avant : un import statique faisait échouer le CHARGEMENT de toute page
+ * important ce fichier (ex. /admin/site) dès que le binaire natif manquait
+ * sur Vercel (constaté en production le 2026-10-30 : libvips-cpp introuvable).
+ */
+export async function loadSharp() {
+  return (await import("sharp")).default
+}
 
 export type MediaVariantName = "large" | "medium" | "card" | "thumbnail"
 
@@ -125,6 +136,7 @@ export async function validateImageBuffer(
 
   let metadata: Metadata
   try {
+    const sharp = await loadSharp()
     metadata = await sharp(buffer).metadata()
   } catch {
     throw new MediaValidationError("corrupt_image")
@@ -166,6 +178,7 @@ export interface GeneratedVariant {
 export async function generateMediaVariants(
   buffer: Buffer,
 ): Promise<Record<MediaVariantName, GeneratedVariant>> {
+  const sharp = await loadSharp()
   const entries = await Promise.all(
     (
       Object.entries(MEDIA_VARIANT_SPECS) as [MediaVariantName, VariantSpec][]

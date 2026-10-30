@@ -5,13 +5,19 @@
  * createLeadCore → recordLeadOriginEventCore → resolveOrCreateContactCore,
  * aucune nouvelle méthode de résolution inventée ici.
  *
- * CONSENT : AUCUN événement n'est jamais écrit dans lead_consent_events
- * ici — components/leads/lead-capture-form.tsx n'affiche aucune case de
- * consentement marketing. Fabriquer un consentement implicite serait une
- * donnée inventée (interdit par CONSENT-01). Ce lead reste "signal
- * commercial sans consentement", exclu de toute campagne par
- * filterAudienceByConsentCore (lib/crm/campaign-core.ts) — aucun cas
- * spécial à coder ici, même raisonnement que META-LEADADS-WEBHOOK-01.
+ * CONSENT (CRM-LEAD-FLOW-01) : un consentement marketing n'est enregistré
+ * QUE si le visiteur a coché la case explicite du formulaire
+ * (`marketingConsent: true`, jamais cochée par défaut). Sans cette case, AUCUN
+ * événement n'est écrit — fabriquer un consentement implicite serait une
+ * donnée inventée (interdit par CONSENT-01) — et le lead reste exclu de toute
+ * campagne par filterAudienceByConsentCore (lib/crm/campaign-core.ts).
+ *
+ * Avec la case cochée, le consentement est enregistré pour CHAQUE canal
+ * réellement fourni : `email` pour l'adresse, `whatsapp` et `call` pour le
+ * téléphone. Il est rattaché au `contactRef` NORMALISÉ du contact de ce canal
+ * (resolveOrCreateContactCore), exactement la clé que le filtre de campagne
+ * consulte — sinon le consentement existerait sans jamais rendre le contact
+ * éligible. Preuve : `proofRef = lead:<id>`, source `website_form`.
  */
 
 import type { DrizzleTransaction } from "@/lib/db/client"
@@ -22,6 +28,7 @@ import {
 } from "./leads-core"
 import { recordLeadOriginEventCore } from "./network-demand-capture-core"
 import { resolveOrCreateContactCore } from "./contact-core"
+import { recordConsentEventCore } from "./consent-core"
 
 export interface WebsiteLeadCaptureParams {
   agencyId: string
@@ -38,12 +45,16 @@ export interface WebsiteLeadCaptureParams {
   intention: LeadIntention
   /** UTM-CAPTURE-01 — valeur de ?campaign= ou ?utm_campaign= depuis l'URL d'atterrissage. Donnée analytique non fiable (fournie par le visiteur), jamais utilisée dans un calcul financier. */
   campaignRef?: string | null
+  /** CRM-LEAD-FLOW-01 — case de consentement marketing cochée explicitement. */
+  marketingConsent?: boolean
 }
 
 export interface WebsiteLeadCaptureResult {
   leadId: string
   /** `null` : ni email ni téléphone fournis — aucun contact fabriqué. */
   contactId: string | null
+  /** Événements de consentement écrits (vide sans case cochée). */
+  consentEventIds: string[]
 }
 
 export async function captureWebsiteLeadCore(
@@ -92,5 +103,46 @@ export async function captureWebsiteLeadCore(
     contactId = contact.id
   }
 
-  return { leadId: created.id, contactId }
+  const consentEventIds: string[] = []
+  if (params.marketingConsent === true) {
+    const channels: Array<{
+      channel: "email" | "whatsapp" | "call"
+      raw: string
+    }> = [
+      ...(params.email
+        ? [{ channel: "email" as const, raw: params.email }]
+        : []),
+      ...(params.phone
+        ? [
+            { channel: "whatsapp" as const, raw: params.phone },
+            { channel: "call" as const, raw: params.phone },
+          ]
+        : []),
+    ]
+    for (const { channel, raw } of channels) {
+      const contact = await resolveOrCreateContactCore(tx, {
+        agencyId: params.agencyId,
+        channel,
+        rawRef: raw,
+      })
+      const recorded = await recordConsentEventCore(tx, {
+        agencyId: params.agencyId,
+        channel,
+        contactRef: contact.contactRef,
+        purpose: "marketing",
+        action: "granted",
+        source: "website_form",
+        proofRef: `lead:${created.id}`,
+      })
+      if (!recorded.ok) {
+        // Canal/finalité/action sont des constantes valides : une erreur ici
+        // est un défaut de code — annuler la transaction plutôt que perdre la
+        // preuve du consentement en silence.
+        throw new Error(`CONSENT_RECORD_FAILED:${recorded.code}`)
+      }
+      consentEventIds.push(recorded.eventId)
+    }
+  }
+
+  return { leadId: created.id, contactId, consentEventIds }
 }

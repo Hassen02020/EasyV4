@@ -240,16 +240,20 @@ test("trace persistée = données techniques uniquement (liste exacte des champs
     h.deps(99),
   )
   assert.equal(h.records.length, 1)
-  assert.deepEqual(Object.keys(h.records[0]!).sort(), [
-    "agencyId",
-    "attempts",
-    "error",
-    "eventId",
-    "eventKeyConfigured",
-    "eventName",
-    "failedAt",
-    "reservationId",
-  ])
+  assert.deepEqual(
+    Object.keys(h.records[0]!).sort(),
+    [
+      "agencyId",
+      "attempts",
+      "error",
+      "eventId",
+      "eventKeyConfigured",
+      "eventName",
+      "entityId",
+      "entityType",
+      "failedAt",
+    ].sort(),
+  )
   assert.equal("payload" in h.records[0]!, false)
 })
 
@@ -289,7 +293,8 @@ for (const [name, payload] of Object.entries(PAYLOADS)) {
     // La trace garde bien ce qui sert à l'exploitation.
     assert.equal(h.records[0]?.eventName, name)
     assert.equal(h.records[0]?.eventId, `${name}:${RES}`)
-    assert.equal(h.records[0]?.reservationId, RES)
+    assert.equal(h.records[0]?.entityId, RES)
+    assert.equal(h.records[0]?.entityType, "reservation")
     assert.equal(h.records[0]?.agencyId, AGENCY)
   })
 }
@@ -400,4 +405,36 @@ test("aucun rejeu automatique : l'action de trace n'est lue par aucun code appli
   }
   for (const r of roots) walk(join(process.cwd(), r))
   assert.deepEqual(offenders, [], "un code lit/rejoue les traces d'échec")
+})
+
+test("prospect (CRM) : id d'événement par lead, trace entityType=lead, aucune donnée du prospect persistée", async (t) => {
+  const h = harness()
+  t.after(h.restore)
+  const LEAD = "44444444-4444-4444-8444-444444444444"
+  const r = await sendEventReliable(
+    "crm/lead.created",
+    {
+      leadId: LEAD,
+      agencyId: AGENCY,
+      firstName: NAME,
+      lastName: null,
+      email: EMAIL,
+      phone: PHONE,
+      message: null,
+      productType: "hotel",
+      productLabel: null,
+      sourcePage: "/hotels/1",
+    },
+    { leadId: LEAD, agencyId: AGENCY },
+    h.deps(99, { leakInError: true }),
+  )
+  assert.equal(r.eventId, `crm/lead.created:${LEAD}`)
+  assert.equal(h.sent[0]?.id, `crm/lead.created:${LEAD}`)
+  const rec = h.records[0]!
+  assert.equal(rec.entityType, "lead")
+  assert.equal(rec.entityId, LEAD)
+  const persisted = JSON.stringify(h.records) + h.logs.join("\n")
+  for (const secret of [EMAIL, PHONE, NAME]) {
+    assert.ok(!persisted.includes(secret), `fuite : ${secret}`)
+  }
 })

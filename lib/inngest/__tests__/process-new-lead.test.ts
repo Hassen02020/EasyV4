@@ -7,7 +7,7 @@
  * N04 — submitLead importe sendEvent (câblage notification)
  * N05 — processNewLead utilise agencies.contactEmail (pas une adresse codée en dur)
  * N06 — processNewLead retourne { success: false } si agencies.email absent (pas de throw)
- * N07 — l'email Inngest est non-fatal dans submitLead (catch sur sendEvent)
+ * N07 — l'email Inngest est non-fatal dans submitLead (sendEventReliable)
  * N08 — resolveProductLabel retourne le label produit enrichi si productLabel fourni
  * N09 — resolveProductLabel retourne le type seul si productLabel absent
  * N10 — PRODUCT_TYPE_LABEL couvre tous les types de LeadProductType
@@ -94,11 +94,14 @@ describe("CRM-NOTIFY-01 — processNewLead invariants", () => {
     )
   })
 
-  it("N07 — sendEvent est non-fatal dans submitLead (catch présent)", () => {
+  it("N07 — l'envoi est non-fatal dans submitLead (sendEventReliable ne lève jamais et trace l'échec)", () => {
+    // CRM-LEAD-FLOW-01 : le .catch() qui se contentait de journaliser est
+    // remplacé par sendEventReliable (lib/inngest/send-reliable.ts), qui ne
+    // lève jamais et laisse une trace audit_events sans donnée du prospect.
     const src = readSrc("app/actions/submit-lead.ts")
     assert.ok(
-      src.includes(".catch("),
-      "l'appel sendEvent dans submitLead n'est pas protégé par .catch()",
+      /sendEventReliable\(\s*"crm\/lead\.created"/.test(src),
+      "submitLead n'utilise pas sendEventReliable pour crm/lead.created",
     )
   })
 

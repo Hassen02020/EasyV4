@@ -14,8 +14,15 @@ import {
   withSystemContext,
   type TenantContext,
 } from "@/lib/db/tenant-context"
-import { agencies, contacts, leads, leadOriginEvents } from "@/lib/db/schema"
+import {
+  agencies,
+  contacts,
+  leads,
+  leadConsentEvents,
+  leadOriginEvents,
+} from "@/lib/db/schema"
 import { captureWebsiteLeadCore } from "../website-lead-capture-core"
+import { filterAudienceByConsentCore } from "../campaign-core"
 
 async function isDbAvailable(): Promise<boolean> {
   try {
@@ -50,6 +57,9 @@ before(async () => {
 after(async () => {
   if (!dbAvailable) return
   await cleanupAsSuperuserWithDrizzle(async (tx) => {
+    await tx
+      .delete(leadConsentEvents)
+      .where(eq(leadConsentEvents.agencyId, agencyId))
     await tx.delete(contacts).where(eq(contacts.agencyId, agencyId))
     await tx
       .delete(leadOriginEvents)
@@ -167,4 +177,169 @@ test("captureWebsiteLeadCore : aucun événement de consentement marketing écri
     }),
   )
   assert.ok(result.contactId)
+})
+
+/* ---------------------------------------------------------------------- */
+/* CRM-LEAD-FLOW-01 — consentement marketing explicite                     */
+/* ---------------------------------------------------------------------- */
+
+async function consentRows(leadId: string) {
+  return withSystemContext((tx) =>
+    tx
+      .select({
+        channel: leadConsentEvents.channel,
+        contactRef: leadConsentEvents.contactRef,
+        purpose: leadConsentEvents.purpose,
+        action: leadConsentEvents.action,
+        source: leadConsentEvents.source,
+        proofRef: leadConsentEvents.proofRef,
+      })
+      .from(leadConsentEvents)
+      .where(eq(leadConsentEvents.proofRef, `lead:${leadId}`)),
+  )
+}
+
+async function eligibility(
+  leadId: string,
+  email: string | null,
+  phone: string | null,
+  channel: "email" | "whatsapp" | "call",
+) {
+  const { contacts: rows } = await withTenantContext(ctx(), (tx) =>
+    filterAudienceByConsentCore(tx, {
+      agencyId,
+      channel,
+      audience: [{ id: leadId, email, phone }],
+    }),
+  )
+  return rows.map((r) => r.eligible)
+}
+
+test("CRM-LEAD-FLOW-01 : case cochée (email + téléphone) → consentement email, whatsapp et call, rattaché au contact normalisé, preuve lead:<id> ; le prospect devient éligible aux campagnes", async (t) => {
+  if (!dbAvailable) return void t.skip(skipReason())
+  const email = `Consent.${randomUUID().slice(0, 8)}@Example.test`
+  const phone = `+216 98 ${String(Math.floor(Math.random() * 900) + 100)} 514`
+
+  const result = await withTenantContext(ctx(), (tx) =>
+    captureWebsiteLeadCore(tx, {
+      agencyId,
+      firstName: "Consent",
+      email,
+      phone,
+      productType: "hotel",
+      sourcePage: "/hotels/1",
+      intention: "standard",
+      marketingConsent: true,
+    }),
+  )
+  assert.equal(result.consentEventIds.length, 3)
+
+  const rows = await consentRows(result.leadId)
+  assert.deepEqual(rows.map((r) => r.channel).sort(), [
+    "call",
+    "email",
+    "whatsapp",
+  ])
+  for (const r of rows) {
+    assert.equal(r.purpose, "marketing")
+    assert.equal(r.action, "granted")
+    assert.equal(r.source, "website_form")
+    assert.equal(r.proofRef, `lead:${result.leadId}`)
+  }
+
+  // Le consentement porte sur le contactRef NORMALISÉ du contact de chaque
+  // canal — la clé exacte que consulte le filtre de campagne.
+  const contactRows = await withSystemContext((tx) =>
+    tx
+      .select({ channel: contacts.channel, contactRef: contacts.contactRef })
+      .from(contacts)
+      .where(eq(contacts.agencyId, agencyId)),
+  )
+  for (const r of rows) {
+    assert.ok(
+      contactRows.some(
+        (c) => c.channel === r.channel && c.contactRef === r.contactRef,
+      ),
+      `consentement ${r.channel} sans contact correspondant`,
+    )
+  }
+
+  assert.deepEqual(await eligibility(result.leadId, email, phone, "email"), [
+    true,
+  ])
+  assert.deepEqual(await eligibility(result.leadId, email, phone, "whatsapp"), [
+    true,
+  ])
+  assert.deepEqual(await eligibility(result.leadId, email, phone, "call"), [
+    true,
+  ])
+})
+
+test("CRM-LEAD-FLOW-01 : case cochée avec email seul → un seul consentement (email), aucun canal inventé", async (t) => {
+  if (!dbAvailable) return void t.skip(skipReason())
+  const email = `only.${randomUUID().slice(0, 8)}@example.test`
+  const result = await withTenantContext(ctx(), (tx) =>
+    captureWebsiteLeadCore(tx, {
+      agencyId,
+      firstName: "Email",
+      email,
+      productType: "package",
+      sourcePage: "/packages/x",
+      intention: "standard",
+      marketingConsent: true,
+    }),
+  )
+  const rows = await consentRows(result.leadId)
+  assert.deepEqual(
+    rows.map((r) => r.channel),
+    ["email"],
+  )
+})
+
+test("CRM-LEAD-FLOW-01 : case NON cochée → aucun consentement, prospect exclu des campagnes sur tous les canaux", async (t) => {
+  if (!dbAvailable) return void t.skip(skipReason())
+  const email = `noconsent.${randomUUID().slice(0, 8)}@example.test`
+  const phone = `+216 98 ${String(Math.floor(Math.random() * 900) + 100)} 777`
+  const result = await withTenantContext(ctx(), (tx) =>
+    captureWebsiteLeadCore(tx, {
+      agencyId,
+      firstName: "Sans",
+      email,
+      phone,
+      productType: "hotel",
+      sourcePage: "/hotels/2",
+      intention: "standard",
+      marketingConsent: false,
+    }),
+  )
+  assert.deepEqual(result.consentEventIds, [])
+  assert.equal((await consentRows(result.leadId)).length, 0)
+  assert.deepEqual(await eligibility(result.leadId, email, phone, "email"), [
+    false,
+  ])
+  assert.deepEqual(await eligibility(result.leadId, email, phone, "whatsapp"), [
+    false,
+  ])
+})
+
+test("CRM-LEAD-FLOW-01 : la campagne transmise est conservée sur le lead", async (t) => {
+  if (!dbAvailable) return void t.skip(skipReason())
+  const result = await withTenantContext(ctx(), (tx) =>
+    captureWebsiteLeadCore(tx, {
+      agencyId,
+      firstName: "Campagne",
+      email: `camp.${randomUUID().slice(0, 8)}@example.test`,
+      productType: "hotel",
+      sourcePage: "/hotels/3",
+      intention: "standard",
+      campaignRef: "fb-ramadan-2027",
+    }),
+  )
+  const [row] = await withSystemContext((tx) =>
+    tx
+      .select({ campaignRef: leads.campaignRef })
+      .from(leads)
+      .where(eq(leads.id, result.leadId)),
+  )
+  assert.equal(row?.campaignRef, "fb-ramadan-2027")
 })

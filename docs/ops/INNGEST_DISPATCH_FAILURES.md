@@ -4,11 +4,15 @@ Chantier INNGEST-RELIABILITY-01. Dernière mise à jour : 2026-10-29.
 
 ## Ce qui se passe
 
-Après un paiement manuel intégral, `verifyManualPayment` envoie un événement
-de confirmation (`booking/confirmed`, `booking/omra.confirmed`,
-`booking/package.confirmed`, `booking/transfer.confirmed`,
-`booking/car.confirmed`) via `sendEventReliable`
-(`lib/inngest/send-reliable.ts`).
+`sendEventReliable` (`lib/inngest/send-reliable.ts`) est utilisé :
+
+- après un paiement manuel intégral, par `verifyManualPayment`
+  (`booking/confirmed`, `booking/omra.confirmed`, `booking/package.confirmed`,
+  `booking/transfer.confirmed`, `booking/car.confirmed`) — entité
+  `reservation` ;
+- après un prospect reçu du formulaire du site, par `submitLead`
+  (`crm/lead.created`, notification de l'équipe) — entité `lead`
+  (CRM-LEAD-FLOW-01).
 
 - 3 tentatives au plus, chacune bornée à 3 s, attentes de 100 puis 200 ms.
   Durée maximale ajoutée à la validation d'un paiement : environ 9,3 s.
@@ -25,7 +29,7 @@ de confirmation (`booking/confirmed`, `booking/omra.confirmed`,
 Données techniques uniquement (`diff` JSON) : `eventName`, `eventId`,
 `attempts`, `error` (message assaini : valeurs sensibles, emails, numéros et
 jetons retirés, tronqué à 300 caractères), `eventKeyConfigured`, `failedAt`.
-`entity_id` = id de la réservation, `agency_id` = agence.
+`entity_type` = `reservation` ou `lead`, `entity_id` = son id, `agency_id` = agence.
 
 **La charge utile de l'événement n'est jamais persistée, journalisée ni
 envoyée à Sentry** (elle contient l'email, le téléphone et, selon le module,
@@ -37,7 +41,7 @@ même agence et par un super_admin. `app_runtime` n'a pas le droit UPDATE sur la
 ## Trouver les échecs (lecture seule)
 
 ```sql
-select created_at, entity_id as reservation_id, agency_id,
+select created_at, entity_type, entity_id, agency_id,
        diff->>'eventName' as event, diff->>'attempts' as attempts,
        diff->>'eventKeyConfigured' as event_key, diff->>'error' as error
 from audit_events

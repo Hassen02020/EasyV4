@@ -24,7 +24,7 @@ import { getDefaultAgencyId } from "@/lib/agencies/default-agency"
 import { rateLimit } from "@/lib/rate-limit"
 import { LEAD_PRODUCT_TYPES, LEAD_INTENTIONS } from "@/lib/crm/leads-core"
 import { captureWebsiteLeadCore } from "@/lib/crm/website-lead-capture-core"
-import { sendEvent } from "@/lib/inngest/client"
+import { sendEventReliable } from "@/lib/inngest/send-reliable"
 
 const inputSchema = z
   .object({
@@ -43,6 +43,8 @@ const inputSchema = z
     intention: z.enum(LEAD_INTENTIONS).default("standard"),
     /** UTM-CAPTURE-01 — ?campaign= ou ?utm_campaign= depuis l'URL d'atterrissage. Donnée analytique fournie par le visiteur, jamais utilisée dans un calcul financier. */
     campaignRef: z.string().trim().max(255).optional(),
+    /** CRM-LEAD-FLOW-01 — case de consentement marketing explicite (défaut : non). */
+    marketingConsent: z.boolean().default(false),
     /** Honeypot — doit rester vide. */
     website: z.string().optional(),
   })
@@ -108,24 +110,29 @@ export async function submitLead(
           destination: parsed.data.destination || null,
           intention: parsed.data.intention,
           campaignRef: parsed.data.campaignRef || null,
+          marketingConsent: parsed.data.marketingConsent,
         }),
     )
 
-    // Notification en arrière-plan — erreur Inngest silencieuse (lead déjà persisté)
-    await sendEvent("crm/lead.created", {
-      leadId,
-      agencyId,
-      firstName: parsed.data.firstName,
-      lastName: parsed.data.lastName || null,
-      email: parsed.data.email || null,
-      phone: parsed.data.phone || null,
-      message: parsed.data.message || null,
-      productType: parsed.data.productType,
-      productLabel: parsed.data.productLabel || null,
-      sourcePage: parsed.data.sourcePage,
-    }).catch((err) => {
-      console.error("[submitLead] inngest event failed (non-fatal)", err)
-    })
+    // Notification en arrière-plan (CRM-LEAD-FLOW-01) : le lead est déjà
+    // persisté ; un échec d'envoi est tracé (audit_events, sans donnée du
+    // prospect) au lieu d'être seulement journalisé. Ne lève jamais.
+    await sendEventReliable(
+      "crm/lead.created",
+      {
+        leadId,
+        agencyId,
+        firstName: parsed.data.firstName,
+        lastName: parsed.data.lastName || null,
+        email: parsed.data.email || null,
+        phone: parsed.data.phone || null,
+        message: parsed.data.message || null,
+        productType: parsed.data.productType,
+        productLabel: parsed.data.productLabel || null,
+        sourcePage: parsed.data.sourcePage,
+      },
+      { leadId, agencyId },
+    )
 
     return { ok: true }
   } catch (err) {

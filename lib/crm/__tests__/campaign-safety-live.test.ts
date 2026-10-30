@@ -33,6 +33,7 @@ import {
   createCampaignCore,
   launchCampaignCore,
   cancelCampaignCore,
+  lockAndFindOpenCampaignByNameCore,
 } from "../campaign-persistence-core"
 import {
   deliverCampaignCore,
@@ -411,4 +412,44 @@ test("CRM-CAMPAIGN-PERSONALIZATION-01 : « [Prénom] » remplacé par le prénom
   const byTo = new Map(r.sent.map((m) => [m.to, m.message]))
   assert.equal(byTo.get(withName), "Bonjour Amira,\n\nOffre Omra.")
   assert.equal(byTo.get(withoutName), "Bonjour,\n\nOffre Omra.")
+})
+
+test("CRM-CAMPAIGN-LAUNCH-CONFIRM-01 (G-09) : deux lancements simultanés du même nom ne créent qu'une campagne", async (t) => {
+  if (!dbAvailable) return void t.skip(skipReason())
+  const name = `Doublon ${randomUUID().slice(0, 8)}`
+  const launchOnce = () =>
+    withTenantContext(deliveryCtx(), async (tx) => {
+      const existing = await lockAndFindOpenCampaignByNameCore(tx, {
+        agencyId,
+        name,
+      })
+      if (existing) return "duplicate" as const
+      // Fenêtre de course élargie : sans verrou, les deux passeraient.
+      await tx.execute(sql`select pg_sleep(0.2)`)
+      await createCampaignCore(tx, {
+        agencyId,
+        name,
+        channel: "email",
+        message: "Bonjour",
+      })
+      return "created" as const
+    })
+  const results = await Promise.all([launchOnce(), launchOnce()])
+  assert.deepEqual([...results].sort(), ["created", "duplicate"])
+
+  // Insensible à la casse ; une campagne annulée ne bloque plus le nom.
+  const id = await withTenantContext(deliveryCtx(), (tx) =>
+    lockAndFindOpenCampaignByNameCore(tx, {
+      agencyId,
+      name: name.toUpperCase(),
+    }),
+  )
+  assert.ok(id)
+  await withTenantContext(deliveryCtx(), (tx) =>
+    cancelCampaignCore(tx, { agencyId, campaignId: id! }),
+  )
+  const after = await withTenantContext(deliveryCtx(), (tx) =>
+    lockAndFindOpenCampaignByNameCore(tx, { agencyId, name }),
+  )
+  assert.equal(after, null)
 })

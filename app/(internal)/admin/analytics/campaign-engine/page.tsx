@@ -50,6 +50,8 @@ const CHANNEL_LABEL: Record<string, string> = {
   email: "✉️ Email",
 }
 
+type Draft = { name: string; message: string; confirmed: boolean }
+
 type LaunchState =
   | { status: "idle" }
   | { status: "launching" }
@@ -66,17 +68,43 @@ export default function CampaignEnginePage() {
     {},
   )
 
+  // CRM-CAMPAIGN-LAUNCH-CONFIRM-01 (G-34) : édition + confirmation avant
+  // tout envoi réel ; le lancement direct en un clic n'existe plus.
+  const [drafts, setDrafts] = useState<Record<string, Draft | undefined>>({})
+
+  function openDraft(p: CampaignProposal) {
+    setDrafts((prev) => ({
+      ...prev,
+      [p.proposalId]: {
+        name: p.suggestedName,
+        message: p.suggestedMessage,
+        confirmed: false,
+      },
+    }))
+  }
+
+  function updateDraft(proposalId: string, patch: Partial<Draft>) {
+    setDrafts((prev) => {
+      const current = prev[proposalId]
+      return current
+        ? { ...prev, [proposalId]: { ...current, ...patch } }
+        : prev
+    })
+  }
+
   function setLaunch(proposalId: string, state: LaunchState) {
     setLaunchStates((prev) => ({ ...prev, [proposalId]: state }))
   }
 
   async function handleLaunch(p: CampaignProposal) {
+    const draft = drafts[p.proposalId]
+    if (!draft?.confirmed || !draft.name.trim() || !draft.message.trim()) return
     setLaunch(p.proposalId, { status: "launching" })
     const result = await createAndLaunchCampaign({
-      name: p.suggestedName,
+      name: draft.name.trim(),
       objective: p.suggestedObjective,
       crmChannel: p.crmChannel,
-      message: p.suggestedMessage,
+      message: draft.message,
       leadIds: p.leadIds,
     })
     if (result.ok) {
@@ -292,35 +320,119 @@ export default function CampaignEnginePage() {
                                         </p>
                                       )
                                     }
-                                    if (ls.status === "error") {
+                                    const draft = drafts[p.proposalId]
+                                    if (!draft) {
                                       return (
-                                        <>
+                                        <Button
+                                          size="sm"
+                                          onClick={(e) => {
+                                            e.stopPropagation()
+                                            openDraft(p)
+                                          }}
+                                        >
+                                          Préparer la campagne…
+                                        </Button>
+                                      )
+                                    }
+                                    const sendable =
+                                      draft.confirmed &&
+                                      draft.name.trim().length > 0 &&
+                                      draft.message.trim().length > 0 &&
+                                      ls.status !== "launching"
+                                    return (
+                                      <div
+                                        className="border-border bg-background w-full space-y-3 rounded-md border p-3"
+                                        onClick={(e) => e.stopPropagation()}
+                                      >
+                                        <label className="block space-y-1">
+                                          <span className="text-xs font-medium">
+                                            Nom de la campagne
+                                          </span>
+                                          <input
+                                            value={draft.name}
+                                            maxLength={200}
+                                            onChange={(e) =>
+                                              updateDraft(p.proposalId, {
+                                                name: e.target.value,
+                                                confirmed: false,
+                                              })
+                                            }
+                                            className="border-border bg-background w-full rounded-md border px-3 py-2 text-sm"
+                                          />
+                                        </label>
+                                        <label className="block space-y-1">
+                                          <span className="text-xs font-medium">
+                                            Message envoyé au client
+                                          </span>
+                                          <textarea
+                                            value={draft.message}
+                                            rows={7}
+                                            onChange={(e) =>
+                                              updateDraft(p.proposalId, {
+                                                message: e.target.value,
+                                                confirmed: false,
+                                              })
+                                            }
+                                            className="border-border bg-background w-full rounded-md border px-3 py-2 text-sm"
+                                          />
+                                          <span className="text-muted-foreground block text-xs">
+                                            « [Prénom] » est remplacé par le
+                                            prénom du client, ou retiré
+                                            s&apos;il est inconnu. Seuls les
+                                            contacts ayant consenti reçoivent le
+                                            message.
+                                          </span>
+                                        </label>
+                                        <label className="flex items-start gap-2 text-sm">
+                                          <input
+                                            type="checkbox"
+                                            checked={draft.confirmed}
+                                            onChange={(e) =>
+                                              updateDraft(p.proposalId, {
+                                                confirmed: e.target.checked,
+                                              })
+                                            }
+                                            className="mt-1"
+                                          />
+                                          <span>
+                                            Je confirme l&apos;envoi réel (
+                                            {CHANNEL_LABEL[p.channel] ??
+                                              p.channel}
+                                            ) à {p.leadCount} contact
+                                            {p.leadCount > 1 ? "s" : ""}{" "}
+                                            maximum.
+                                          </span>
+                                        </label>
+                                        {ls.status === "error" && (
                                           <p className="text-destructive text-sm">
                                             {ls.error}
                                           </p>
+                                        )}
+                                        <div className="flex flex-wrap gap-2">
+                                          <Button
+                                            size="sm"
+                                            disabled={!sendable}
+                                            onClick={() => handleLaunch(p)}
+                                          >
+                                            {ls.status === "launching"
+                                              ? "Lancement…"
+                                              : "Lancer la campagne"}
+                                          </Button>
                                           <Button
                                             size="sm"
                                             variant="outline"
-                                            onClick={() => handleLaunch(p)}
+                                            disabled={ls.status === "launching"}
+                                            onClick={() =>
+                                              setDrafts((prev) => ({
+                                                ...prev,
+                                                [p.proposalId]: undefined,
+                                              }))
+                                            }
                                           >
-                                            Réessayer
+                                            Annuler
                                           </Button>
-                                        </>
-                                      )
-                                    }
-                                    return (
-                                      <Button
-                                        size="sm"
-                                        disabled={ls.status === "launching"}
-                                        onClick={(e) => {
-                                          e.stopPropagation()
-                                          handleLaunch(p)
-                                        }}
-                                      >
-                                        {ls.status === "launching"
-                                          ? "Lancement…"
-                                          : "Créer & lancer la campagne"}
-                                      </Button>
+                                        </div>
+                                      </div>
                                     )
                                   })()}
                                 </div>

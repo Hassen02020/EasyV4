@@ -31,8 +31,14 @@ import { NewClientDialog } from "@/components/admin/new-client-dialog"
 import { createServerSupabase } from "@/lib/supabase/server"
 import { getCurrentAdminProfile } from "@/lib/auth/profile"
 import { withTenantContext } from "@/lib/db/tenant-context"
-import { customers, reservations } from "@/lib/db/schema"
-import { desc, eq, count } from "drizzle-orm"
+import Link from "next/link"
+import { Button } from "@/components/ui/button"
+import {
+  B2C_CLIENTS_PAGE_SIZE,
+  b2cClientStatsCore,
+  listB2cClientsCore,
+  normalizeClientQuery,
+} from "@/lib/admin/b2c-clients-core"
 
 export const metadata: Metadata = {
   title: "Clients B2C — Manager",
@@ -41,63 +47,33 @@ export const metadata: Metadata = {
 
 export const dynamic = "force-dynamic"
 
-async function loadClients(agencyId: string) {
+async function loadClients(agencyId: string, q: string) {
   try {
-    const [allCustomers, reservationCounts] = await withTenantContext(
+    return await withTenantContext(
       { agencyId, userId: "", isSuperAdmin: false },
-      (db) =>
-        Promise.all([
-          db
-            .select({
-              id: customers.id,
-              civility: customers.civility,
-              firstName: customers.firstName,
-              lastName: customers.lastName,
-              email: customers.email,
-              phone: customers.phone,
-              civicId: customers.civicId,
-              country: customers.country,
-              city: customers.city,
-              createdAt: customers.createdAt,
-            })
-            .from(customers)
-            // Cette page est "B2C" = clients de l'agence OTA elle-même,
-            // jamais cross-tenant — la requête d'origine n'avait AUCUN
-            // filtre agencyId (bug préexistant de fuite cross-tenant sous
-            // l'ancien rôle bypass-RLS ; RLS le masquait accidentellement
-            // depuis le déploiement de FORCE ROW LEVEL SECURITY en renvoyant
-            // 0 ligne). Corrigé ici en même temps que le contexte tenant.
-            .where(eq(customers.agencyId, agencyId))
-            .orderBy(desc(customers.createdAt))
-            .limit(100),
-
-          // Compter les réservations par client (même agence)
-          db
-            .select({
-              customerId: reservations.customerId,
-              count: count(reservations.id),
-            })
-            .from(reservations)
-            .where(eq(reservations.agencyId, agencyId))
-            .groupBy(reservations.customerId),
-        ]),
+      async (db) => {
+        const [clients, stats] = await Promise.all([
+          listB2cClientsCore(db, { agencyId, q }),
+          b2cClientStatsCore(db, { agencyId }),
+        ])
+        return { clients, stats }
+      },
     )
-
-    const reservationMap = new Map(
-      reservationCounts.map((r) => [r.customerId, r.count]),
-    )
-
-    return allCustomers.map((c) => ({
-      ...c,
-      reservationCount: reservationMap.get(c.id) || 0,
-    }))
   } catch (error) {
     console.error("[loadClients]", error)
-    return []
+    return {
+      clients: [],
+      stats: { total: 0, withReservations: 0, newThisMonth: 0 },
+    }
   }
 }
 
-export default async function B2CClientsPage() {
+export default async function B2CClientsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ q?: string }>
+}) {
+  const q = normalizeClientQuery((await searchParams).q)
   const supabase = await createServerSupabase()
   const {
     data: { user },
@@ -113,20 +89,7 @@ export default async function B2CClientsPage() {
     redirect("/admin")
   }
 
-  const clients = await loadClients(profile.agencyId)
-
-  const stats = {
-    total: clients.length,
-    withReservations: clients.filter((c) => c.reservationCount > 0).length,
-    newThisMonth: clients.filter((c) => {
-      const created = new Date(c.createdAt)
-      const now = new Date()
-      return (
-        created.getMonth() === now.getMonth() &&
-        created.getFullYear() === now.getFullYear()
-      )
-    }).length,
-  }
+  const { clients, stats } = await loadClients(profile.agencyId, q)
 
   return (
     <div className="space-y-6">
@@ -185,16 +148,53 @@ export default async function B2CClientsPage() {
       {/* Search */}
       <Card>
         <CardHeader className="pb-3">
-          <div className="relative max-w-sm">
-            <Search className="text-muted-foreground absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2" />
-            <Input placeholder="Rechercher un client..." className="pl-9" />
-          </div>
+          <form
+            method="get"
+            className="flex max-w-xl flex-wrap items-center gap-2"
+            role="search"
+          >
+            <div className="relative min-w-0 flex-1">
+              <Search className="text-muted-foreground absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2" />
+              <Input
+                name="q"
+                defaultValue={q}
+                maxLength={100}
+                placeholder="Nom, email ou téléphone…"
+                aria-label="Rechercher un client"
+                className="pl-9"
+              />
+            </div>
+            <Button type="submit" size="sm">
+              Rechercher
+            </Button>
+            {q ? (
+              <Button asChild size="sm" variant="ghost">
+                <Link href="/admin/b2c/clients">Effacer</Link>
+              </Button>
+            ) : null}
+          </form>
+          {q ? (
+            <p className="text-muted-foreground text-sm">
+              {clients.length} résultat{clients.length > 1 ? "s" : ""} pour «{" "}
+              {q} »
+              {clients.length >= B2C_CLIENTS_PAGE_SIZE
+                ? ` (${B2C_CLIENTS_PAGE_SIZE} premiers affichés — affinez la recherche)`
+                : ""}
+            </p>
+          ) : stats.total > B2C_CLIENTS_PAGE_SIZE ? (
+            <p className="text-muted-foreground text-sm">
+              {B2C_CLIENTS_PAGE_SIZE} clients les plus récents affichés sur{" "}
+              {stats.total} — utilisez la recherche.
+            </p>
+          ) : null}
         </CardHeader>
         <CardContent>
           {clients.length === 0 ? (
             <div className="py-12 text-center">
               <Users className="text-muted-foreground mx-auto h-12 w-12" />
-              <p className="text-muted-foreground mt-4">Aucun client trouvé</p>
+              <p className="text-muted-foreground mt-4">
+                {q ? `Aucun client ne correspond à « ${q} »` : "Aucun client"}
+              </p>
             </div>
           ) : (
             <div className="overflow-x-auto">

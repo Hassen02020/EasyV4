@@ -20,9 +20,13 @@ import { pgErrorCode } from "@/lib/db/pg-error"
 import type { CanonicalItinerary } from "@/lib/vols/canonical"
 import { generateInvoiceForReservation } from "@/lib/finance/invoice-actions"
 
-const ACTION_FLIGHT_VOUCHER_SENT = "notification.flight_voucher_email.sent"
+// ≤ 32 caractères : audit_events.action est un varchar(32). L'ancien nom
+// (38) faisait toujours échouer l'insertion de ce marqueur, seul verrou
+// anti-doublon du vol → email renvoyé à chaque nouvelle tentative
+// (CAR-EMAIL-IDEMPOTENCY-01).
+export const ACTION_FLIGHT_VOUCHER_SENT = "notification.flight_mail.sent"
 
-async function hasFlightVoucherAlreadySent(
+export async function hasFlightVoucherAlreadySent(
   reservationId: string,
 ): Promise<boolean> {
   const [existing] = await withSystemContext((tx) =>
@@ -41,7 +45,7 @@ async function hasFlightVoucherAlreadySent(
   return Boolean(existing)
 }
 
-async function recordFlightVoucherSent(
+export async function recordFlightVoucherSent(
   agencyId: string,
   reservationId: string,
   publicRef: string,

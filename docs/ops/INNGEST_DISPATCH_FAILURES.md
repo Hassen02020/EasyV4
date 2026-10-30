@@ -59,12 +59,13 @@ Le journal de l'application contient aussi une ligne JSON
 Aucun code ne lit ces traces. Ne **pas** rejouer manuellement un événement
 (Inngest, script, SQL) tant que le handler concerné n'est pas idempotent :
 
-| Handler                             | Garde contre le double envoi                                                                                                                                                                         | Rejeu manuel                   |
-| ----------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------ |
-| hôtel (`process-confirmed-booking`) | oui                                                                                                                                                                                                  | possible avec prudence         |
-| voiture (`process-car-confirmed`)   | **défaut connu** : l'action d'idempotence `notification.car_voucher_email.sent` (35 car.) dépasse `audit_events.action` (32) ; l'enregistrement échoue après l'envoi et chaque retry renvoie l'email | **interdit**                   |
-| Omra, package                       | aucune                                                                                                                                                                                               | **interdit**                   |
-| transfert                           | en cours (TRANSFER-EMAIL-IDEMPOTENCY-01)                                                                                                                                                             | **interdit** jusqu'à sa fusion |
+| Handler                             | Garde contre le double envoi                                                                                                                                                      | Rejeu manuel           |
+| ----------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------- |
+| hôtel (`process-confirmed-booking`) | oui                                                                                                                                                                               | possible avec prudence |
+| voiture (`process-car-confirmed`)   | oui depuis CAR-EMAIL-IDEMPOTENCY-01 : action `notification.car_mail.sent` (≤ 32 car.) ; l'ancien nom (35 car.) faisait échouer l'enregistrement et chaque retry renvoyait l'email | possible avec prudence |
+| vol (`process-flight-confirmed`)    | oui depuis CAR-EMAIL-IDEMPOTENCY-01 : action `notification.flight_mail.sent` ; l'ancien nom (38 car.) avait le même défaut                                                        | possible avec prudence |
+| Omra, package                       | aucune                                                                                                                                                                            | **interdit**           |
+| transfert                           | oui (TRANSFER-EMAIL-IDEMPOTENCY-01, `notification.transfer_mail.sent`)                                                                                                            | possible avec prudence |
 
 Un rejeu futur reconstruira la charge utile à partir de la réservation en
 base, jamais à partir de la trace.

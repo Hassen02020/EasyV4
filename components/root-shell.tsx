@@ -22,8 +22,7 @@ const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
 })
 
-/** Revalidé ici (pas seulement côté écriture, lib/pro/etablissement-actions.ts) : cette valeur atterrit dans un attribut `style`, jamais dans du HTML brut, mais on ne fait jamais confiance à une seule couche de validation pour une valeur d'origine base de données. */
-const HEX_COLOR_REGEX = /^#[0-9a-fA-F]{6}$/
+import { brandColorVars } from "@/lib/theme/brand-color"
 
 /**
  * Coquille racine partagée par les deux root layouts (`app/(public)/[locale]/layout.tsx`
@@ -40,23 +39,20 @@ export function RootShell({
 }: {
   lang: string
   dir: "ltr" | "rtl"
-  /** Couleur d'accent White Label de l'agence tenant (`#RRGGBB`), ou absente = teinte Easy2Book par défaut. Voir lib/tenant/current-tenant.ts. */
+  /** Couleur d'accent de l'agence (`#RRGGBB`) : tenant White Label, sinon agence Easy2Book (/admin/brand) ; absente = teinte par défaut. */
   primaryColor?: string | null
   children: ReactNode
 }) {
-  const validPrimaryColor =
-    primaryColor && HEX_COLOR_REGEX.test(primaryColor) ? primaryColor : null
+  // Revalidée dans brandColorVars (valeur d'origine base de données posée
+  // dans un attribut `style`) ; texte des boutons choisi pour le contraste.
+  const brandVars = brandColorVars(primaryColor)
 
   return (
     <html
       lang={lang}
       dir={dir}
       className={`${geistSans.variable} ${geistMono.variable} bg-background`}
-      style={
-        validPrimaryColor
-          ? ({ "--primary": validPrimaryColor } as CSSProperties)
-          : undefined
-      }
+      style={brandVars ? (brandVars as CSSProperties) : undefined}
       suppressHydrationWarning
     >
       <body className="font-sans antialiased">

@@ -13,6 +13,7 @@ import {
 import { toast } from "sonner"
 import { updateOtaBrand } from "@/lib/admin/brand-actions"
 import { SiteImageField } from "@/components/admin/site-image-field"
+import { WCAG_AA_NORMAL, onBrandColor } from "@/lib/theme/brand-color"
 import type { BrandInitial } from "@/lib/admin/brand-actions"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -129,10 +130,12 @@ export function BrandForm({ initial }: BrandFormProps) {
               <p className="text-destructive mt-1 text-xs">
                 {errors.primaryColor}
               </p>
+            ) : HEX_COLOR_REGEX.test(state.primaryColor) ? (
+              <BrandColorPreview hex={state.primaryColor} />
             ) : (
               <p className="text-muted-foreground mt-1 text-xs">
-                Couleur principale des boutons et liens sur le storefront
-                public.
+                Couleur principale des boutons et liens du site public. Vide =
+                couleur Easy2Book par défaut.
               </p>
             )}
           </div>
@@ -271,6 +274,28 @@ function Field({
       ) : hint ? (
         <p className="text-muted-foreground mt-1 text-xs">{hint}</p>
       ) : null}
+    </div>
+  )
+}
+
+/** SITE-BRAND-THEME-01 — aperçu du bouton et lisibilité réelle du texte. */
+function BrandColorPreview({ hex }: { hex: string }) {
+  const { color, ratio } = onBrandColor(hex)
+  const ok = ratio >= WCAG_AA_NORMAL
+  return (
+    <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
+      <span
+        className="rounded-md px-3 py-1.5 font-semibold"
+        style={{ backgroundColor: hex, color }}
+      >
+        Réserver
+      </span>
+      <span className={ok ? "text-muted-foreground" : "text-destructive"}>
+        Contraste {ratio.toFixed(1)}:1
+        {ok
+          ? " — lisible (texte choisi automatiquement)"
+          : " — peu lisible : choisissez une couleur plus foncée ou plus claire"}
+      </span>
     </div>
   )
 }

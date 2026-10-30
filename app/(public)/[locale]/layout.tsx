@@ -19,6 +19,7 @@ import { routing } from "@/i18n/routing"
 import { LOCALE_META, type Locale } from "@/lib/locale"
 
 import { buildSiteMetadata } from "@/lib/seo/site-metadata"
+import { getPublicSiteConfig } from "@/lib/public/site-content"
 
 export async function generateMetadata(): Promise<Metadata> {
   return buildSiteMetadata()
@@ -54,16 +55,17 @@ export default async function LocaleLayout({
   // White Label (voir lib/tenant/current-tenant.ts) : déjà résolu par
   // proxy.ts pour cette requête, jamais une nouvelle résolution ici.
   const tenant = await getRequestTenantInfo()
+  // SITE-BRAND-THEME-01 : sans tenant White Label, couleur de l'agence
+  // Easy2Book elle-même (/admin/brand) — auparavant jamais appliquée.
+  const primaryColor =
+    tenant?.primaryColor ??
+    (tenant ? null : ((await getPublicSiteConfig())?.primaryColor ?? null))
 
   return (
     <NextIntlClientProvider locale={locale}>
       <RtlDirectionProvider dir={dir}>
         <CurrencyProvider locale={locale}>
-          <RootShell
-            lang={locale}
-            dir={dir}
-            primaryColor={tenant?.primaryColor}
-          >
+          <RootShell lang={locale} dir={dir} primaryColor={primaryColor}>
             <CampaignAttributionCapture />
             {children}
           </RootShell>

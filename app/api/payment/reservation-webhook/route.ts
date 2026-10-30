@@ -41,7 +41,7 @@
 
 import { type NextRequest, NextResponse } from "next/server"
 import { withSystemContext } from "@/lib/db/tenant-context"
-import { sendEvent } from "@/lib/inngest/client"
+import { sendEventReliable } from "@/lib/inngest/send-reliable"
 import { generateInvoiceForReservation } from "@/lib/finance/invoice-actions"
 import {
   verifySpsSignature,
@@ -238,24 +238,26 @@ export async function POST(request: NextRequest) {
         detail.customerEmail &&
         detail.hotelName
       ) {
-        await sendEvent("booking/confirmed", {
-          reservationId: result.reservationId,
-          publicRef: result.publicRef,
-          agencyId: result.agencyId,
-          guestAccessToken: detail.guestAccessToken,
-          customerEmail: detail.customerEmail,
-          customerName: detail.customerName,
-          customerPhone: detail.customerPhone ?? "",
-          hotelName: detail.hotelName,
-          checkIn: detail.checkIn ?? "",
-          checkOut: detail.checkOut ?? "",
-          nights: detail.nights ?? 1,
-          adults: detail.adults ?? 1,
-          children: detail.children,
-          totalTnd: detail.totalTnd,
-        }).catch(() => {
-          /* fire-and-forget — le retry Inngest suffira */
-        })
+        await sendEventReliable(
+          "booking/confirmed",
+          {
+            reservationId: result.reservationId,
+            publicRef: result.publicRef,
+            agencyId: result.agencyId,
+            guestAccessToken: detail.guestAccessToken,
+            customerEmail: detail.customerEmail,
+            customerName: detail.customerName,
+            customerPhone: detail.customerPhone ?? "",
+            hotelName: detail.hotelName,
+            checkIn: detail.checkIn ?? "",
+            checkOut: detail.checkOut ?? "",
+            nights: detail.nights ?? 1,
+            adults: detail.adults ?? 1,
+            children: detail.children,
+            totalTnd: detail.totalTnd,
+          },
+          { reservationId: result.reservationId, agencyId: result.agencyId },
+        )
       }
     } catch (err) {
       console.error(

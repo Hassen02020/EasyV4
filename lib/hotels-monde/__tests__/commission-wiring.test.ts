@@ -136,12 +136,15 @@ test("COMMISSION-MONDE-01 : entitlement easy2book avec qualification commission"
 // ─── Invariant 6 : sendEvent fire-and-forget ─────────────────────────────
 
 test("COMMISSION-MONDE-01 : sendEvent booking/confirmed câblé pour hôtels monde", () => {
-  assert.match(src, /sendEvent\("booking\/confirmed"/)
+  assert.match(src, /sendEventReliable\(\s*"booking\/confirmed"/)
 })
 
-test("COMMISSION-MONDE-01 : sendEvent fire-and-forget (pas d'await bloquant)", () => {
+test("COMMISSION-MONDE-01 : émission fiable via sendEventReliable (ne lève jamais — HOTEL-NOTIFY-RELIABILITY-01)", () => {
   // L'échec email ne doit JAMAIS annuler la réservation déjà enregistrée.
-  assert.match(src, /sendEvent\("booking\/confirmed"[\s\S]*?\)\.catch\(/)
+  assert.match(
+    src,
+    /await sendEventReliable\(\s*"booking\/confirmed"[\s\S]{0,1200}?\{\s*reservationId:\s*result\.reservationId,\s*agencyId/,
+  )
 })
 
 test("COMMISSION-MONDE-01 : creditPlatformCommission et recordReservationFinancials sont importés", () => {

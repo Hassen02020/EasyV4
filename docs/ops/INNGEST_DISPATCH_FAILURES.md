@@ -14,6 +14,11 @@ Chantier INNGEST-RELIABILITY-01. Dernière mise à jour : 2026-10-29.
   invité `lib/omra/guest-booking-actions.ts`) ou d'un voyage organisé
   confirmé (`lib/packages/booking-actions.ts`) — entité `reservation`
   (OMRA-PACKAGE-NOTIFY-RELIABILITY-01) ;
+- à la confirmation d'une réservation hôtel (B2B `lib/booking/actions.ts`,
+  invité `lib/booking/guest-actions.ts`, Hôtels Monde
+  `lib/hotels-monde/guest-booking-actions.ts`) et après un paiement carte
+  (`app/api/payment/reservation-webhook/route.ts`) — `booking/confirmed`,
+  entité `reservation` (HOTEL-NOTIFY-RELIABILITY-01) ;
 - après un prospect reçu du formulaire du site, par `submitLead`
   (`crm/lead.created`, notification de l'équipe) — entité `lead`
   (CRM-LEAD-FLOW-01).

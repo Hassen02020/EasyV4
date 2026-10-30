@@ -49,17 +49,17 @@ test('VOUCHER-WIRING-01/mygo-b2b : garde draft.module === "hotel" && traveler.em
 
 // ─── ACTIONS.TS (B2B) : Invariant 2 : fire-and-forget ────────────────────
 
-test("VOUCHER-WIRING-01/mygo-b2b : sendEvent booking/confirmed est fire-and-forget (.catch)", () => {
+test("VOUCHER-WIRING-01/mygo-b2b : émission fiable booking/confirmed via sendEventReliable (ne lève jamais — HOTEL-NOTIFY-RELIABILITY-01)", () => {
   assert.match(
     actionsSrc,
-    /sendEvent\(["']booking\/confirmed["'][\s\S]{0,800}?\)\.catch\(/,
+    /await sendEventReliable\(\s*"booking\/confirmed"[\s\S]{0,1200}?\{\s*reservationId:\s*result\.reservationId,\s*agencyId/,
   )
 })
 
 // ─── ACTIONS.TS (B2B) : Invariant 3 : totalTnd depuis breakdown ───────────
 
 test("VOUCHER-WIRING-01/mygo-b2b : totalTnd depuis breakdown.totalTnd (pas de conversion string)", () => {
-  const idx = actionsSrc.indexOf('sendEvent("booking/confirmed"')
+  const idx = actionsSrc.search(/sendEventReliable\(\s*"booking\/confirmed"/)
   const block = actionsSrc.slice(idx, idx + 750)
   assert.match(block, /totalTnd:\s*breakdown\.totalTnd/)
 })
@@ -76,7 +76,7 @@ test("VOUCHER-WIRING-01/mygo-b2b : hotelName = myGoBooking?.hotelName ?? draft.o
 // ─── ACTIONS.TS (B2B) : Invariant 5 : customerName assemblé ─────────────
 
 test("VOUCHER-WIRING-01/mygo-b2b : customerName assemblé via traveler.firstName + traveler.lastName", () => {
-  const idx = actionsSrc.indexOf('sendEvent("booking/confirmed"')
+  const idx = actionsSrc.search(/sendEventReliable\(\s*"booking\/confirmed"/)
   const block = actionsSrc.slice(idx, idx + 500)
   assert.match(
     block,
@@ -93,7 +93,9 @@ test("VOUCHER-WIRING-01/mygo-b2c : SÉCURITÉ — guard result.isImmediatelyPaid
 test("VOUCHER-WIRING-01/mygo-b2c : jamais de sendEvent booking/confirmed sans isImmediatelyPaid (pas de voucher pour résa pending)", () => {
   // La garde doit précéder le sendEvent — vérifier que le pattern est bien conditionnel
   const guardIdx = guestSrc.indexOf("result.isImmediatelyPaid")
-  const sendEventIdx = guestSrc.indexOf('sendEvent("booking/confirmed"')
+  const sendEventIdx = guestSrc.search(
+    /sendEventReliable\(\s*"booking\/confirmed"/,
+  )
   assert.ok(
     guardIdx < sendEventIdx,
     "guard isImmediatelyPaid doit précéder sendEvent booking/confirmed",
@@ -102,17 +104,17 @@ test("VOUCHER-WIRING-01/mygo-b2c : jamais de sendEvent booking/confirmed sans is
 
 // ─── GUEST-ACTIONS.TS (B2C) : Invariant 7 : fire-and-forget ─────────────
 
-test("VOUCHER-WIRING-01/mygo-b2c : sendEvent booking/confirmed est fire-and-forget (.catch)", () => {
+test("VOUCHER-WIRING-01/mygo-b2c : émission fiable booking/confirmed via sendEventReliable (ne lève jamais — HOTEL-NOTIFY-RELIABILITY-01)", () => {
   assert.match(
     guestSrc,
-    /sendEvent\(["']booking\/confirmed["'][\s\S]{0,800}?\)\.catch\(/,
+    /await sendEventReliable\(\s*"booking\/confirmed"[\s\S]{0,1200}?\{\s*reservationId:\s*result\.reservationId,\s*agencyId/,
   )
 })
 
 // ─── GUEST-ACTIONS.TS (B2C) : Invariant 8 : totalTnd depuis breakdown ────
 
 test("VOUCHER-WIRING-01/mygo-b2c : totalTnd depuis breakdown.totalTnd (pas de conversion string)", () => {
-  const idx = guestSrc.indexOf('sendEvent("booking/confirmed"')
+  const idx = guestSrc.search(/sendEventReliable\(\s*"booking\/confirmed"/)
   const block = guestSrc.slice(idx, idx + 750)
   assert.match(block, /totalTnd:\s*breakdown\.totalTnd/)
 })

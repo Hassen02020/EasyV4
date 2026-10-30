@@ -40,12 +40,15 @@ const src = readFileSync(
 
 // ─── Invariant 1 : sendEvent câblé ────────────────────────────────────────
 
-test("HOTELS-MONDE-VOUCHER-01 : sendEvent importé depuis @/lib/inngest/client", () => {
-  assert.match(src, /import.*sendEvent.*from.*@\/lib\/inngest\/client/)
+test("HOTELS-MONDE-VOUCHER-01 : sendEventReliable importé depuis @/lib/inngest/send-reliable", () => {
+  assert.match(
+    src,
+    /import.*sendEventReliable.*from.*@\/lib\/inngest\/send-reliable/,
+  )
 })
 
 test("HOTELS-MONDE-VOUCHER-01 : sendEvent booking/confirmed câblé", () => {
-  assert.match(src, /sendEvent\("booking\/confirmed"/)
+  assert.match(src, /sendEventReliable\(\s*"booking\/confirmed"/)
 })
 
 test("HOTELS-MONDE-VOUCHER-01 : sendEvent déclenché conditionnellement (status confirmed + contactEmail)", () => {
@@ -59,8 +62,11 @@ test("HOTELS-MONDE-VOUCHER-01 : sendEvent déclenché conditionnellement (status
 
 // ─── Invariant 2 : protection .catch() ────────────────────────────────────
 
-test("HOTELS-MONDE-VOUCHER-01 : sendEvent protégé par .catch() (booking non annulé si Inngest indisponible)", () => {
-  assert.match(src, /sendEvent\("booking\/confirmed"[\s\S]*?\)\.catch\(/)
+test("HOTELS-MONDE-VOUCHER-01 : émission fiable via sendEventReliable (booking non annulé si Inngest indisponible)", () => {
+  assert.match(
+    src,
+    /await sendEventReliable\(\s*"booking\/confirmed"[\s\S]{0,1200}?\{\s*reservationId:\s*result\.reservationId,\s*agencyId/,
+  )
 })
 
 // ─── Invariant 3 : payload complet ────────────────────────────────────────

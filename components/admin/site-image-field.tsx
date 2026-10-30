@@ -41,14 +41,21 @@ export function SiteImageField({
   defaultValue,
   label,
   required,
+  onUrlChange,
 }: {
   name: string
   slot: SiteImageSlot
   defaultValue?: string | null
   label: string
   required?: boolean
+  /** Formulaire contrôlé (ex. /admin/brand) : reçoit chaque nouvelle URL. */
+  onUrlChange?: (url: string) => void
 }) {
-  const [url, setUrl] = useState(defaultValue ?? "")
+  const [url, setUrlState] = useState(defaultValue ?? "")
+  function setUrl(next: string) {
+    setUrlState(next)
+    onUrlChange?.(next)
+  }
   const [error, setError] = useState<string | null>(null)
   const [done, setDone] = useState(false)
   const [pending, startTransition] = useTransition()

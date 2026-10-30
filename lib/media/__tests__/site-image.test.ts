@@ -89,3 +89,11 @@ test("/admin/site : les 4 emplacements image utilisent l'envoi de fichier", () =
   assert.match(action, /export async function uploadSiteImage/)
   assert.match(action, /assertProductManager\(\)/)
 })
+
+test("/admin/brand : logo envoyé par fichier (même champ que /admin/site), relié à l'état du formulaire", () => {
+  const form = readFileSync("components/admin/brand-form.tsx", "utf8")
+  assert.match(form, /<SiteImageField[\s\S]*?slot="logo"[\s\S]*?onUrlChange=/)
+  assert.doesNotMatch(form, /label="Logo \(URL\)"/)
+  const field = readFileSync("components/admin/site-image-field.tsx", "utf8")
+  assert.match(field, /onUrlChange\?\.\(next\)/)
+})

@@ -6,13 +6,13 @@ import {
   Mail,
   Phone,
   MapPin,
-  Globe2,
   Save,
   Loader2,
   Link2,
 } from "lucide-react"
 import { toast } from "sonner"
 import { updateOtaBrand } from "@/lib/admin/brand-actions"
+import { SiteImageField } from "@/components/admin/site-image-field"
 import type { BrandInitial } from "@/lib/admin/brand-actions"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -96,12 +96,12 @@ export function BrandForm({ initial }: BrandFormProps) {
             error={errors.brandName}
             required
           />
-          <Field
-            icon={Globe2}
-            label="Logo (URL)"
-            value={state.logoUrl}
-            onChange={(v) => update("logoUrl", v)}
-            placeholder="https://…"
+          <SiteImageField
+            name="logoUrl"
+            slot="logo"
+            label="Logo"
+            defaultValue={state.logoUrl}
+            onUrlChange={(v) => update("logoUrl", v)}
           />
           <div>
             <Label className="text-xs">Couleur d&apos;accent</Label>

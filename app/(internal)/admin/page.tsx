@@ -45,6 +45,27 @@ import {
   loadDashboardData,
   type RecentBooking,
 } from "@/lib/admin/dashboard-data"
+import Link from "next/link"
+import { withTenantContext } from "@/lib/db/tenant-context"
+import {
+  crmDashboardCore,
+  type CrmDashboardStats,
+} from "@/lib/crm/crm-dashboard-core"
+
+/** CRM-DASHBOARD-BLOCK-01 — null si la BDD est indisponible (bloc masqué). */
+async function loadCrmStats(
+  agencyId: string,
+): Promise<CrmDashboardStats | null> {
+  try {
+    return await withTenantContext(
+      { agencyId, userId: "", isSuperAdmin: false },
+      (tx) => crmDashboardCore(tx, { agencyId }),
+    )
+  } catch (error) {
+    console.error("[loadCrmStats]", error)
+    return null
+  }
+}
 
 export const dynamic = "force-dynamic"
 
@@ -138,7 +159,10 @@ export default async function AdminDashboard() {
   if (!profile?.agencyId) redirect("/login")
   const agencyId = profile.agencyId
 
-  const dashboard = await loadDashboardData(agencyId)
+  const [dashboard, crm] = await Promise.all([
+    loadDashboardData(agencyId),
+    loadCrmStats(agencyId),
+  ])
   const { stats, recentBookings, byModule, apiErrors, available } = dashboard
 
   const totalByModule = byModule.reduce((acc, row) => acc + row.count, 0) || 1
@@ -239,6 +263,62 @@ export default async function AdminDashboard() {
           </Card>
         ))}
       </div>
+
+      {crm ? (
+        <Card className="shadow-e2b-soft rounded-2xl">
+          <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <CardTitle className="flex items-center gap-2">
+                <Users className="size-4" />
+                CRM
+              </CardTitle>
+              <CardDescription>
+                Demandes clients, campagnes et consentements — chiffres réels
+              </CardDescription>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Button asChild size="sm" variant="outline">
+                <Link href="/admin/support">Demandes</Link>
+              </Button>
+              <Button asChild size="sm" variant="outline">
+                <Link href="/admin/analytics/campaigns">Campagnes</Link>
+              </Button>
+              <Button asChild size="sm">
+                <Link href="/admin/analytics/campaign-engine">
+                  Préparer une campagne
+                </Link>
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <dl className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-6">
+              {[
+                ["Demandes reçues", crm.newLeads7d, "7 derniers jours"],
+                ["À traiter", crm.leadsToHandle, "statut « nouveau »"],
+                ["Converties", crm.convertedLeads30d, "30 derniers jours"],
+                ["Campagnes actives", crm.activeCampaigns, "en cours"],
+                [
+                  "Emails envoyés",
+                  crm.campaignEmailsSent30d,
+                  "campagnes, 30 j",
+                ],
+                ["Désinscriptions", crm.unsubscribes30d, "marketing, 30 j"],
+              ].map(([label, value, hint]) => (
+                <div
+                  key={label as string}
+                  className="bg-muted/40 rounded-xl p-3"
+                >
+                  <dt className="text-muted-foreground text-xs font-medium">
+                    {label}
+                  </dt>
+                  <dd className="mt-1 text-2xl font-bold">{value}</dd>
+                  <dd className="text-muted-foreground text-xs">{hint}</dd>
+                </div>
+              ))}
+            </dl>
+          </CardContent>
+        </Card>
+      ) : null}
 
       <div
         className="e2b-fade-in-up grid gap-6 lg:grid-cols-3"

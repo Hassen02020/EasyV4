@@ -8,6 +8,7 @@ import {
   savePublicPromotion,
   savePublicSiteSettings,
 } from "@/lib/admin/public-site-actions"
+import { SiteImageField } from "@/components/admin/site-image-field"
 
 export const dynamic = "force-dynamic"
 
@@ -49,24 +50,22 @@ export default async function PublicSiteAdminPage() {
           action={savePublicSiteSettings}
           className="grid gap-4 md:grid-cols-2"
         >
-          <label className="space-y-1 text-sm md:col-span-2">
-            <span>Logo public — URL image</span>
-            <input
+          <div className="md:col-span-2">
+            <SiteImageField
               name="logoUrl"
-              defaultValue={site?.logoUrl ?? ""}
-              placeholder="https://..."
-              className="border-border bg-background w-full rounded-md border px-3 py-2"
+              slot="logo"
+              label="Logo public"
+              defaultValue={site?.logoUrl}
             />
-          </label>
-          <label className="space-y-1 text-sm md:col-span-2">
-            <span>Hero principal — URL image</span>
-            <input
+          </div>
+          <div className="md:col-span-2">
+            <SiteImageField
               name="heroImageUrl"
-              defaultValue={site?.heroImageUrl ?? ""}
-              placeholder="https://..."
-              className="border-border bg-background w-full rounded-md border px-3 py-2"
+              slot="hero"
+              label="Hero principal"
+              defaultValue={site?.heroImageUrl}
             />
-          </label>
+          </div>
           <label className="space-y-1 text-sm">
             <span>Email public</span>
             <input
@@ -149,15 +148,12 @@ export default async function PublicSiteAdminPage() {
                     className="bg-muted w-full rounded-md px-3 py-2"
                   />
                 </label>
-                <label className="space-y-1 text-sm">
-                  <span>Image Hero</span>
-                  <input
-                    name="heroImageUrl"
-                    defaultValue={visual?.heroImageUrl ?? ""}
-                    placeholder="https://..."
-                    className="border-border bg-background w-full rounded-md border px-3 py-2"
-                  />
-                </label>
+                <SiteImageField
+                  name="heroImageUrl"
+                  slot="module"
+                  label="Image Hero"
+                  defaultValue={visual?.heroImageUrl}
+                />
                 <label className="flex items-center gap-2 pb-2 text-sm">
                   <input
                     type="checkbox"
@@ -230,14 +226,13 @@ export default async function PublicSiteAdminPage() {
                   className="border-border bg-background w-full rounded-md border px-3 py-2"
                 />
               </label>
-              <label className="space-y-1 text-sm">
-                <span>Image</span>
-                <input
-                  name="imageUrl"
-                  defaultValue={promotion.image}
-                  className="border-border bg-background w-full rounded-md border px-3 py-2"
-                />
-              </label>
+              <SiteImageField
+                name="imageUrl"
+                slot="promo"
+                label="Image"
+                defaultValue={promotion.image}
+                required
+              />
               <label className="space-y-1 text-sm">
                 <span>Drapeau</span>
                 <input

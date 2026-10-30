@@ -69,14 +69,12 @@ async function seed(agencyId: string) {
       .insert(campaigns)
       .values({ agencyId, name: "Active", channel: "email", status: "active" })
       .returning({ id: campaigns.id })
-    await tx
-      .insert(campaigns)
-      .values({
-        agencyId,
-        name: "Annulée",
-        channel: "email",
-        status: "cancelled",
-      })
+    await tx.insert(campaigns).values({
+      agencyId,
+      name: "Annulée",
+      channel: "email",
+      status: "cancelled",
+    })
     await tx.insert(campaignTargets).values({
       campaignId: active.id,
       agencyId,

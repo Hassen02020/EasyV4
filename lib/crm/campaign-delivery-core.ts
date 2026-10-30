@@ -13,16 +13,34 @@
  *   call      → skipped (non automatisable, statut = 'skipped',
  *               code = CALL_NOT_AUTOMATED)
  *
- * Idempotence : seules les lignes delivery_status = 'pending' sont
- * traitées. Un retry Inngest ne renvoie jamais un message déjà 'sent'.
+ * CRM-CAMPAIGN-SAFETY-01 — garanties d'envoi :
+ *  - chaque cible est traitée dans SES PROPRES courtes transactions
+ *    (`deps.runTx`) : un envoi réussi est enregistré aussitôt, jamais annulé
+ *    par l'échec d'une autre cible ;
+ *  - clé d'idempotence Resend `campaign:<campagne>:<cible>` : si l'envoi a
+ *    réussi mais que son enregistrement a échoué, le renvoi au retry ne
+ *    produit pas de second email ;
+ *  - un échec d'envoi laisse la cible 'pending' (reprise au retry Inngest) ;
+ *    elle ne passe 'failed' qu'après la dernière tentative
+ *    (`markRemainingTargetsFailedCore`, appelé par onFailure) ;
+ *  - le statut de la campagne est relu avant CHAQUE envoi : une campagne
+ *    annulée n'envoie plus rien, ses cibles restantes passent 'skipped'
+ *    (CAMPAIGN_NOT_ACTIVE) ;
+ *  - consentement marketing relu avant chaque envoi ; sans référence de
+ *    contact, aucune tentative (NO_CONTACT_REF) ;
+ *  - sans URL publique du site (lien de désinscription obligatoire), aucun
+ *    email n'est envoyé (UNSUBSCRIBE_URL_NOT_CONFIGURED).
  *
  * Pas un fichier "use server" — importé par la fonction Inngest côté serveur.
  */
 
-import { eq, and, inArray } from "drizzle-orm"
+import { eq, and } from "drizzle-orm"
 import type { DrizzleTransaction } from "@/lib/db/client"
 import { campaignTargets, contacts, campaigns } from "@/lib/db/schema"
-import { sendCampaignEmail } from "@/lib/email/send-campaign-email"
+import {
+  sendCampaignEmail,
+  type SendCampaignEmailInput,
+} from "@/lib/email/send-campaign-email"
 import {
   hasMarketingConsentCore,
   normalizeContactRef,
@@ -33,6 +51,7 @@ export type DeliveryStatus = "pending" | "sent" | "failed" | "skipped"
 export interface DeliveryOutcome {
   targetId: string
   contactRef: string
+  /** 'failed' ici = échec de cette tentative ; la cible reste 'pending' en base. */
   status: DeliveryStatus
   /** Code machine si skipped ou failed. */
   code?: string
@@ -47,50 +66,74 @@ export interface CampaignDeliveryResult {
   outcomes: DeliveryOutcome[]
 }
 
-/**
- * Charge la campagne + toutes les cibles 'pending' + contacts associés,
- * envoie via le canal approprié, met à jour delivery_status dans la MÊME
- * transaction (atomique par lot).
- */
-export async function deliverCampaignCore(
-  tx: DrizzleTransaction,
-  params: { agencyId: string; campaignId: string; agencyName?: string },
-): Promise<CampaignDeliveryResult> {
-  // 1. Charger la campagne
-  const [campaign] = await tx
-    .select({
-      id: campaigns.id,
-      name: campaigns.name,
-      channel: campaigns.channel,
-      message: campaigns.message,
-      status: campaigns.status,
-    })
-    .from(campaigns)
-    .where(
-      and(
-        eq(campaigns.id, params.campaignId),
-        eq(campaigns.agencyId, params.agencyId),
-      ),
-    )
-    .limit(1)
+export interface CampaignDeliveryDeps {
+  /** Exécute `fn` dans une courte transaction au contexte de l'agence. */
+  runTx: <T>(fn: (tx: DrizzleTransaction) => Promise<T>) => Promise<T>
+  /** Injectable pour les tests ; Resend par défaut. */
+  sendEmail?: (input: SendCampaignEmailInput) => Promise<void>
+  /** URL publique du site (NEXT_PUBLIC_APP_URL par défaut). */
+  siteUrl?: string | null
+}
 
-  if (!campaign) {
-    return {
-      campaignId: params.campaignId,
-      sent: 0,
-      skipped: 0,
-      failed: 0,
-      outcomes: [],
-    }
+/** Clé d'idempotence d'envoi, stable par cible. */
+export function campaignEmailIdempotencyKey(
+  campaignId: string,
+  targetId: string,
+): string {
+  return `campaign:${campaignId}:${targetId}`
+}
+
+/** Liens de désinscription d'une cible (page de confirmation + POST un clic). */
+export function campaignUnsubscribeUrls(
+  siteUrl: string,
+  targetId: string,
+): { page: string; oneClick: string } {
+  const base = siteUrl.replace(/\/+$/, "")
+  return {
+    page: `${base}/fr/desabonnement/${targetId}`,
+    oneClick: `${base}/api/crm/unsubscribe/${targetId}`,
   }
+}
 
-  // 2. Charger les cibles pending
-  const pendingTargets = await tx
-    .select({
-      id: campaignTargets.id,
-      contactId: campaignTargets.contactId,
+async function setTargetStatus(
+  tx: DrizzleTransaction,
+  targetId: string,
+  status: Exclude<DeliveryStatus, "pending">,
+): Promise<void> {
+  await tx
+    .update(campaignTargets)
+    .set({
+      deliveryStatus: status,
+      deliveredAt: status === "sent" ? new Date() : null,
     })
-    .from(campaignTargets)
+    .where(eq(campaignTargets.id, targetId))
+}
+
+async function campaignIsActive(
+  tx: DrizzleTransaction,
+  agencyId: string,
+  campaignId: string,
+): Promise<boolean> {
+  const [row] = await tx
+    .select({ status: campaigns.status })
+    .from(campaigns)
+    .where(and(eq(campaigns.id, campaignId), eq(campaigns.agencyId, agencyId)))
+    .limit(1)
+  return row?.status === "active"
+}
+
+/** Passe toutes les cibles encore 'pending' d'une campagne à `status`. */
+export async function settlePendingTargetsCore(
+  tx: DrizzleTransaction,
+  params: {
+    agencyId: string
+    campaignId: string
+    status: "skipped" | "failed"
+  },
+): Promise<number> {
+  const rows = await tx
+    .update(campaignTargets)
+    .set({ deliveryStatus: params.status, deliveredAt: null })
     .where(
       and(
         eq(campaignTargets.campaignId, params.campaignId),
@@ -98,99 +141,194 @@ export async function deliverCampaignCore(
         eq(campaignTargets.deliveryStatus, "pending"),
       ),
     )
+    .returning({ id: campaignTargets.id })
+  return rows.length
+}
 
-  if (pendingTargets.length === 0) {
-    return {
-      campaignId: params.campaignId,
-      sent: 0,
-      skipped: 0,
-      failed: 0,
-      outcomes: [],
-    }
+/**
+ * Après épuisement des retries : les cibles encore 'pending' n'ont pas pu
+ * être livrées — elles passent 'failed' (visibles comme telles en back-office).
+ */
+export function markRemainingTargetsFailedCore(
+  tx: DrizzleTransaction,
+  params: { agencyId: string; campaignId: string },
+): Promise<number> {
+  return settlePendingTargetsCore(tx, { ...params, status: "failed" })
+}
+
+const emptyResult = (campaignId: string): CampaignDeliveryResult => ({
+  campaignId,
+  sent: 0,
+  skipped: 0,
+  failed: 0,
+  outcomes: [],
+})
+
+export async function deliverCampaignCore(
+  params: { agencyId: string; campaignId: string; agencyName?: string },
+  deps: CampaignDeliveryDeps,
+): Promise<CampaignDeliveryResult> {
+  const { agencyId, campaignId } = params
+  const sendEmail = deps.sendEmail ?? sendCampaignEmail
+  const siteUrl =
+    deps.siteUrl === undefined
+      ? (process.env.NEXT_PUBLIC_APP_URL ?? null)
+      : deps.siteUrl
+
+  // 1. Campagne
+  const campaign = await deps.runTx(async (tx) => {
+    const [row] = await tx
+      .select({
+        id: campaigns.id,
+        name: campaigns.name,
+        channel: campaigns.channel,
+        message: campaigns.message,
+        status: campaigns.status,
+      })
+      .from(campaigns)
+      .where(
+        and(eq(campaigns.id, campaignId), eq(campaigns.agencyId, agencyId)),
+      )
+      .limit(1)
+    return row ?? null
+  })
+  if (!campaign) return emptyResult(campaignId)
+
+  // Campagne plus active (annulée, terminée) : rien n'est envoyé.
+  if (campaign.status !== "active") {
+    const skipped = await deps.runTx((tx) =>
+      settlePendingTargetsCore(tx, { agencyId, campaignId, status: "skipped" }),
+    )
+    return { ...emptyResult(campaignId), skipped }
   }
 
-  // 3. Charger les contacts (contactRef = l'adresse email/téléphone)
-  const contactIds = pendingTargets.map((t) => t.contactId)
-  const contactRows = await tx
-    .select({ id: contacts.id, contactRef: contacts.contactRef })
-    .from(contacts)
-    .where(inArray(contacts.id, contactIds))
+  // 2. Cibles pending + référence de contact
+  const pendingTargets = await deps.runTx((tx) =>
+    tx
+      .select({
+        id: campaignTargets.id,
+        contactRef: contacts.contactRef,
+      })
+      .from(campaignTargets)
+      .leftJoin(contacts, eq(contacts.id, campaignTargets.contactId))
+      .where(
+        and(
+          eq(campaignTargets.campaignId, campaignId),
+          eq(campaignTargets.agencyId, agencyId),
+          eq(campaignTargets.deliveryStatus, "pending"),
+        ),
+      ),
+  )
 
-  const contactMap = new Map(contactRows.map((c) => [c.id, c.contactRef]))
-
-  // 4. Livraison par canal
   const outcomes: DeliveryOutcome[] = []
   const message = campaign.message ?? ""
 
+  // 3. Livraison, une cible à la fois
   for (const target of pendingTargets) {
-    const contactRef = contactMap.get(target.contactId) ?? ""
-    let status: DeliveryStatus = "skipped"
-    let code: string | undefined
-    let error: string | undefined
+    const contactRef = target.contactRef ?? ""
 
-    // Vérification du consentement live (CONSENT-01) — RGPD art.7.
-    // Le snapshot `consentStatusAtSnapshot` était vrai au lancement, mais
-    // le contact peut avoir révoqué son consentement entre le lancement et
-    // l'exécution Inngest. On relit la source de vérité avant tout envoi.
-    if (contactRef) {
+    // Garde avant envoi : campagne toujours active, référence et consentement.
+    const guard = await deps.runTx(async (tx) => {
+      if (!(await campaignIsActive(tx, agencyId, campaignId))) {
+        await settlePendingTargetsCore(tx, {
+          agencyId,
+          campaignId,
+          status: "skipped",
+        })
+        return "CAMPAIGN_NOT_ACTIVE" as const
+      }
+      if (!contactRef) {
+        await setTargetStatus(tx, target.id, "skipped")
+        return "NO_CONTACT_REF" as const
+      }
       const hasConsent = await hasMarketingConsentCore(tx, {
-        agencyId: params.agencyId,
+        agencyId,
         channel: campaign.channel,
         contactRef: normalizeContactRef(contactRef),
       })
       if (!hasConsent) {
-        status = "skipped"
-        code = "CONSENT_REVOKED"
-        await tx
-          .update(campaignTargets)
-          .set({ deliveryStatus: status, deliveredAt: null })
-          .where(eq(campaignTargets.id, target.id))
-        outcomes.push({ targetId: target.id, contactRef, status, code })
-        continue
+        await setTargetStatus(tx, target.id, "skipped")
+        return "CONSENT_REVOKED" as const
       }
+      return null
+    })
+
+    if (guard === "CAMPAIGN_NOT_ACTIVE") {
+      outcomes.push({
+        targetId: target.id,
+        contactRef,
+        status: "skipped",
+        code: guard,
+      })
+      break
+    }
+    if (guard) {
+      outcomes.push({
+        targetId: target.id,
+        contactRef,
+        status: "skipped",
+        code: guard,
+      })
+      continue
     }
 
     if (campaign.channel === "email") {
+      if (!siteUrl) {
+        // Pas de lien de désinscription possible : on n'envoie pas.
+        outcomes.push({
+          targetId: target.id,
+          contactRef,
+          status: "failed",
+          code: "UNSUBSCRIBE_URL_NOT_CONFIGURED",
+          error: "NEXT_PUBLIC_APP_URL not configured",
+        })
+        continue
+      }
+      const urls = campaignUnsubscribeUrls(siteUrl, target.id)
       try {
-        await sendCampaignEmail({
+        await sendEmail({
           to: contactRef,
           campaignName: campaign.name,
           message,
           agencyName: params.agencyName,
+          unsubscribeUrl: urls.page,
+          oneClickUnsubscribeUrl: urls.oneClick,
+          idempotencyKey: campaignEmailIdempotencyKey(campaignId, target.id),
         })
-        status = "sent"
       } catch (err) {
-        status = "failed"
-        error = err instanceof Error ? err.message : String(err)
+        // La cible reste 'pending' : elle sera reprise au retry.
+        outcomes.push({
+          targetId: target.id,
+          contactRef,
+          status: "failed",
+          error: err instanceof Error ? err.message : String(err),
+        })
+        continue
       }
-    } else if (campaign.channel === "whatsapp") {
-      // Les messages sortants initiés par l'entreprise sur WhatsApp
-      // EXIGENT un template pré-approuvé dans Meta Business Manager.
-      // Tant qu'aucun template de campagne n'est configuré, on skip
-      // plutôt que d'envoyer un message qui serait rejeté par l'API.
-      status = "skipped"
-      code = "TEMPLATE_NOT_CONFIGURED"
+      // Envoi réussi : enregistré aussitôt, dans sa propre transaction.
+      await deps.runTx((tx) => setTargetStatus(tx, target.id, "sent"))
+      outcomes.push({ targetId: target.id, contactRef, status: "sent" })
     } else {
-      // 'call' et tout autre canal non automatisable.
-      status = "skipped"
-      code = "CALL_NOT_AUTOMATED"
-    }
-
-    // Mettre à jour la ligne campaign_targets
-    await tx
-      .update(campaignTargets)
-      .set({
-        deliveryStatus: status,
-        deliveredAt: status === "sent" ? new Date() : null,
+      // whatsapp : modèle Meta non configuré ; call : non automatisable.
+      const code =
+        campaign.channel === "whatsapp"
+          ? "TEMPLATE_NOT_CONFIGURED"
+          : "CALL_NOT_AUTOMATED"
+      await deps.runTx((tx) => setTargetStatus(tx, target.id, "skipped"))
+      outcomes.push({
+        targetId: target.id,
+        contactRef,
+        status: "skipped",
+        code,
       })
-      .where(eq(campaignTargets.id, target.id))
-
-    outcomes.push({ targetId: target.id, contactRef, status, code, error })
+    }
   }
 
-  const sent = outcomes.filter((o) => o.status === "sent").length
-  const skipped = outcomes.filter((o) => o.status === "skipped").length
-  const failed = outcomes.filter((o) => o.status === "failed").length
-
-  return { campaignId: params.campaignId, sent, skipped, failed, outcomes }
+  return {
+    campaignId,
+    sent: outcomes.filter((o) => o.status === "sent").length,
+    skipped: outcomes.filter((o) => o.status === "skipped").length,
+    failed: outcomes.filter((o) => o.status === "failed").length,
+    outcomes,
+  }
 }

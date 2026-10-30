@@ -1406,5 +1406,14 @@
     "benefit3": "Vos coordonnées servent à traiter votre demande ; les offres marketing seulement si vous l'acceptez.",
     "formTitle": "Être recontacté par un conseiller",
     "browseOffers": "Voir les offres en ligne"
+  },
+  "Unsubscribe": {
+    "title": "Se désinscrire",
+    "description": "Vous ne recevrez plus les offres et actualités d'Easy2Book par email. Les emails liés à vos réservations (confirmations, vouchers) continueront de vous être envoyés.",
+    "confirmButton": "Confirmer ma désinscription",
+    "done": "C'est fait : vous ne recevrez plus nos offres par email.",
+    "already": "Vous êtes déjà désinscrit(e) : vous ne recevez plus nos offres par email.",
+    "notFound": "Ce lien de désinscription n'est pas valide.",
+    "error": "Une erreur technique est survenue. Veuillez réessayer."
   }
 }

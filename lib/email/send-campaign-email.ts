@@ -7,6 +7,12 @@
  * accepte du HTML libre en texte marketing.
  *
  * Honnêteté si RESEND_API_KEY absent : erreur explicite, jamais faux succès.
+ *
+ * CRM-CAMPAIGN-SAFETY-01 :
+ *  - lien de désinscription obligatoire dans le corps ET en-têtes
+ *    List-Unsubscribe / List-Unsubscribe-Post (désinscription en un clic) ;
+ *  - clé d'idempotence Resend : un renvoi (retry Inngest après un envoi
+ *    réussi mais non enregistré) ne produit jamais un second email.
  */
 
 import { Resend } from "resend"
@@ -24,6 +30,12 @@ export interface SendCampaignEmailInput {
   campaignName: string
   message: string
   agencyName?: string
+  /** URL publique de désinscription de ce destinataire (obligatoire). */
+  unsubscribeUrl: string
+  /** URL appelée en POST par le client mail (désinscription en un clic). */
+  oneClickUnsubscribeUrl: string
+  /** Clé stable par destinataire et par campagne. */
+  idempotencyKey: string
 }
 
 export async function sendCampaignEmail(
@@ -33,15 +45,23 @@ export async function sendCampaignEmail(
     campaignName: input.campaignName,
     message: input.message,
     agencyName: input.agencyName,
+    unsubscribeUrl: input.unsubscribeUrl,
   })
 
   const resend = getResend()
-  const { error } = await resend.emails.send({
-    from: "Easy2Book <noreply@easy2book.tn>",
-    to: input.to,
-    subject: input.campaignName,
-    html,
-  })
+  const { error } = await resend.emails.send(
+    {
+      from: "Easy2Book <noreply@easy2book.tn>",
+      to: input.to,
+      subject: input.campaignName,
+      html,
+      headers: {
+        "List-Unsubscribe": `<${input.oneClickUnsubscribeUrl}>`,
+        "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
+      },
+    },
+    { idempotencyKey: input.idempotencyKey },
+  )
 
   if (error) {
     throw new Error(`Resend error: ${error.message}`)

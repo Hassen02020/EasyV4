@@ -1406,5 +1406,14 @@
     "benefit3": "Your details are used to handle your request; marketing offers only if you agree.",
     "formTitle": "Get a call back from an advisor",
     "browseOffers": "See offers online"
+  },
+  "Unsubscribe": {
+    "title": "Unsubscribe",
+    "description": "You will no longer receive Easy2Book offers and news by email. Emails about your bookings (confirmations, vouchers) will still be sent to you.",
+    "confirmButton": "Confirm unsubscribe",
+    "done": "Done: you will no longer receive our offers by email.",
+    "already": "You are already unsubscribed: you no longer receive our offers by email.",
+    "notFound": "This unsubscribe link is not valid.",
+    "error": "A technical error occurred. Please try again."
   }
 }

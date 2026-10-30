@@ -2,8 +2,8 @@
 
 /**
  * CRM / Inbox omnicanal — panneau conversations + thread pour
- * `/admin/support`. Seul WhatsApp est réellement branché (voir
- * app/api/webhooks/whatsapp/route.ts) : les autres canaux du modèle
+ * `/admin/support`. Webhooks WhatsApp, Instagram et Messenger présents
+ * (app/api/webhooks/*), actifs seulement une fois les comptes Meta connectés ; les autres canaux du modèle
  * (Instagram/Messenger/Call) apparaîtraient ici s'ils avaient des
  * conversations, mais aucun n'a de provider entrant/sortant configuré —
  * jamais simulé, voir "canal non connecté" dans sendReply.
@@ -117,9 +117,9 @@ export function InboxPanel() {
           Inbox omnicanal
         </CardTitle>
         <p className="text-muted-foreground text-xs">
-          WhatsApp est le seul canal réellement connecté aujourd&apos;hui —
-          Instagram, Messenger et Appel apparaîtront ici une fois leurs
-          credentials configurés (App Review Meta / téléphonie).
+          Canaux pris en charge : WhatsApp, Instagram et Messenger. Chacun ne
+          reçoit des messages qu&apos;une fois le compte Meta correspondant
+          connecté côté serveur ; les appels ne sont pas encore intégrés.
         </p>
       </CardHeader>
       <CardContent>

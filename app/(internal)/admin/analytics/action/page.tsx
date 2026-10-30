@@ -1,7 +1,7 @@
 /**
  * ACTION-ENGINE-01 — "Quoi faire ?"
  *
- * Recommandations structurées, explicables et exécutables dérivées des signaux
+ * Recommandations structurées et explicables dérivées des signaux
  * Signal Engine. Chaque ActionRow expose : priorité, canal, fenêtre d'urgence,
  * rationale (POURQUOI), script (QUOI DIRE) et campaignHints (pour Campaign Engine).
  *
@@ -11,6 +11,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import Link from "next/link"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import {
   Table,
@@ -100,9 +101,21 @@ export default function ActionEnginePage() {
           <div>
             <h1 className="text-2xl font-semibold">Action Engine</h1>
             <p className="text-muted-foreground text-sm">
-              Recommandations structurées, explicables et exécutables dérivées
-              des signaux convergents. Top {actions.length} actions.
+              Recommandations explicables dérivées des signaux convergents. Top{" "}
+              {actions.length} actions — aucune n&apos;est exécutée
+              automatiquement : traitez-les depuis les leads ou en préparant une
+              campagne.
             </p>
+            <div className="mt-2 flex flex-wrap gap-2">
+              <Button asChild size="sm">
+                <Link href="/admin/analytics/campaign-engine">
+                  Préparer une campagne
+                </Link>
+              </Button>
+              <Button asChild size="sm" variant="outline">
+                <Link href="/admin/support">Traiter les leads (Support)</Link>
+              </Button>
+            </div>
           </div>
           <div className="flex gap-2">
             {WINDOW_OPTIONS.map((opt) => (

@@ -9,15 +9,20 @@
 
 import { useState } from "react"
 import { useSearchParams } from "next/navigation"
-import { usePathname } from "@/i18n/navigation"
+import { Link, usePathname } from "@/i18n/navigation"
 import { useTranslations } from "next-intl"
 import { CheckCircle2, Loader2, Mail } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
+import { Checkbox } from "@/components/ui/checkbox"
 import { submitLead, type SubmitLeadInput } from "@/app/actions/submit-lead"
 import type { LeadProductType } from "@/lib/crm/leads-core"
+import {
+  resolveCampaignRef,
+  safeSessionStorage,
+} from "@/lib/crm/campaign-attribution-client"
 
 interface LeadCaptureFormProps {
   productType: LeadProductType
@@ -34,17 +39,18 @@ export function LeadCaptureForm({
 }: LeadCaptureFormProps) {
   const t = useTranslations("Common")
   const pathname = usePathname()
-  // UTM-CAPTURE-01 — lit ?campaign= (Easy2Book natif) ou ?utm_campaign= (convention UTM standard).
+  // UTM-CAPTURE-01 / CRM-LEAD-FLOW-01 — ?campaign= ou ?utm_campaign= de la
+  // page courante, sinon la campagne d'arrivée mémorisée pour la session
+  // (lue à l'envoi : sessionStorage n'existe pas au rendu serveur).
   const searchParams = useSearchParams()
-  const campaignRef =
-    searchParams.get("campaign") ??
-    searchParams.get("utm_campaign") ??
-    undefined
   const [firstName, setFirstName] = useState("")
   const [email, setEmail] = useState("")
   const [phone, setPhone] = useState("")
   const [message, setMessage] = useState("")
   const [website, setWebsite] = useState("")
+  // CRM-LEAD-FLOW-01 — consentement marketing EXPLICITE, jamais coché par
+  // défaut ; décocher n'empêche pas d'être recontacté pour cette demande.
+  const [marketingConsent, setMarketingConsent] = useState(false)
   const [pending, setPending] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [sent, setSent] = useState(false)
@@ -66,7 +72,8 @@ export function LeadCaptureForm({
       sourcePage: pathname,
       intention: "standard",
       website,
-      campaignRef,
+      campaignRef: resolveCampaignRef(searchParams, safeSessionStorage()),
+      marketingConsent,
     }
 
     submitLead(input)
@@ -165,6 +172,27 @@ export function LeadCaptureForm({
           aria-hidden="true"
           className="absolute h-0 w-0 opacity-0"
         />
+
+        <div className="flex items-start gap-2">
+          <Checkbox
+            id="lead-marketing-consent"
+            checked={marketingConsent}
+            onCheckedChange={(v) => setMarketingConsent(v === true)}
+            className="mt-0.5"
+          />
+          <Label
+            htmlFor="lead-marketing-consent"
+            className="text-muted-foreground text-xs leading-snug font-normal"
+          >
+            {t("leadFormConsentLabel")}{" "}
+            <Link
+              href="/politique-confidentialite"
+              className="text-foreground underline underline-offset-2"
+            >
+              {t("leadFormConsentPrivacyLink")}
+            </Link>
+          </Label>
+        </div>
 
         {error && <p className="text-destructive text-xs">{error}</p>}
 

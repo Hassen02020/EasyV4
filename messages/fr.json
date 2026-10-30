@@ -188,6 +188,8 @@
     "leadFormEmailLabel": "Email",
     "leadFormPhoneLabel": "Téléphone",
     "leadFormMessageLabel": "Message (facultatif)",
+    "leadFormConsentLabel": "J'accepte de recevoir les offres et actualités d'Easy2Book par email, WhatsApp ou téléphone. Je peux me désinscrire à tout moment. Facultatif : décocher n'empêche pas d'être recontacté pour cette demande.",
+    "leadFormConsentPrivacyLink": "Politique de confidentialité",
     "leadFormSubmitButton": "Envoyer ma demande",
     "leadFormSuccessMessage": "Votre demande a bien été envoyée — un conseiller vous recontactera rapidement.",
     "leadFormErrorFallback": "Erreur technique. Veuillez réessayer.",

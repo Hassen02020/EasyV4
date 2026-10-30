@@ -74,16 +74,28 @@ test("UTM-CAPTURE-01 (lead-capture-form) : importe useSearchParams depuis next/n
   assert.match(formSrc, /import.*useSearchParams.*from.*next\/navigation/)
 })
 
+// CRM-LEAD-FLOW-01 — la lecture de ?campaign= / ?utm_campaign= est
+// centralisée dans lib/crm/campaign-attribution-client.ts (campagne de la page
+// courante, sinon premier contact de la session) ; comportement couvert par
+// lib/crm/__tests__/campaign-attribution-client.test.ts.
+const attributionSrc = readFileSync(
+  join(ROOT, "lib/crm/campaign-attribution-client.ts"),
+  "utf8",
+)
+
 test("UTM-CAPTURE-01 (lead-capture-form) : lit ?campaign= param", () => {
-  assert.match(formSrc, /searchParams\.get\("campaign"\)/)
+  assert.match(attributionSrc, /params\.get\("campaign"\)/)
 })
 
 test("UTM-CAPTURE-01 (lead-capture-form) : lit ?utm_campaign= comme fallback", () => {
-  assert.match(formSrc, /searchParams\.get\("utm_campaign"\)/)
+  assert.match(attributionSrc, /params\.get\("utm_campaign"\)/)
 })
 
 test("UTM-CAPTURE-01 (lead-capture-form) : campaignRef inclus dans SubmitLeadInput", () => {
-  assert.match(formSrc, /campaignRef,/)
+  assert.match(
+    formSrc,
+    /campaignRef:\s*resolveCampaignRef\(searchParams, safeSessionStorage\(\)\)/,
+  )
 })
 
 // ─── Garde sécurité : campaignRef jamais utilisé dans un calcul financier ────

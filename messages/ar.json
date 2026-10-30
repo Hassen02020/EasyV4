@@ -188,6 +188,8 @@
     "leadFormEmailLabel": "البريد الإلكتروني",
     "leadFormPhoneLabel": "الهاتف",
     "leadFormMessageLabel": "رسالة (اختياري)",
+    "leadFormConsentLabel": "أوافق على تلقي عروض وأخبار Easy2Book عبر البريد الإلكتروني أو واتساب أو الهاتف. يمكنني إلغاء الاشتراك في أي وقت. اختياري: عدم التحديد لا يمنع التواصل معك بخصوص هذا الطلب.",
+    "leadFormConsentPrivacyLink": "سياسة الخصوصية",
     "leadFormSubmitButton": "إرسال طلبي",
     "leadFormSuccessMessage": "تم إرسال طلبك بنجاح — سيتصل بك أحد مستشارينا قريبًا.",
     "leadFormErrorFallback": "خطأ تقني. يرجى المحاولة مرة أخرى.",

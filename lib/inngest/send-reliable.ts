@@ -8,8 +8,9 @@
  *
  * Ce module reprend le modèle déjà éprouvé pour le vol
  * (lib/vols/fulfillment-action.ts, G13) et le complète :
- *  - `id` d'événement stable `nom:reservationId` → déduplication côté Inngest
- *    (fenêtre de 24 h, portée : un même événement pour une même réservation) ;
+ *  - `id` d'événement stable `nom:<id de l'entité>` (réservation ou prospect)
+ *    → déduplication côté Inngest (fenêtre de 24 h, portée : un même
+ *    événement pour une même entité) ;
  *  - 3 tentatives au plus, chacune bornée par un délai (`timeoutMs`), avec
  *    backoff exponentiel : durée maximale ≈ 3 × timeout + 300 ms ;
  *  - en échec définitif : trace DURABLE dans `audit_events`
@@ -50,7 +51,9 @@ export type ReliableSendResult =
 /** Données techniques UNIQUEMENT — aucune charge utile d'événement. */
 export interface FailedDispatchRecord {
   agencyId: string
-  reservationId: string
+  /** Entité concernée : réservation (paiement manuel) ou prospect (CRM). */
+  entityType: DispatchEntityType
+  entityId: string
   eventName: string
   eventId: string
   error: string
@@ -71,7 +74,10 @@ export interface ReliableSendDeps {
   timeoutMs?: number
 }
 
-const SENSITIVE_KEY = /email|token|phone|customer/i
+/** Clés dont la valeur est personnelle : email, téléphone, token, identité,
+ * message libre (prospect CRM : firstName/lastName/message). */
+const SENSITIVE_KEY =
+  /email|token|phone|customer|first_?name|last_?name|full_?name|message/i
 const EMAIL_PATTERN = /[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/g
 /** Numéro de téléphone (7 chiffres ou plus, séparateurs tolérés). */
 const PHONE_PATTERN = /\+?\d[\d\s.-]{5,}\d/g
@@ -135,8 +141,8 @@ async function recordFailureInAudit(
   await withSystemContext((db) =>
     db.insert(auditEvents).values({
       agencyId: record.agencyId,
-      entityType: "reservation",
-      entityId: record.reservationId,
+      entityType: record.entityType,
+      entityId: record.entityId,
       action: INNGEST_DISPATCH_FAILED_ACTION,
       diff: {
         eventName: record.eventName,
@@ -150,18 +156,36 @@ async function recordFailureInAudit(
   )
 }
 
-export function reliableEventId(name: string, reservationId: string): string {
-  return `${name}:${reservationId}`
+export function reliableEventId(name: string, entityId: string): string {
+  return `${name}:${entityId}`
+}
+
+export type DispatchEntityType = "reservation" | "lead"
+
+/** Contexte d'envoi : exactement une entité, réservation OU prospect. */
+export type ReliableSendContext = { agencyId: string } & (
+  | { reservationId: string; leadId?: never }
+  | { leadId: string; reservationId?: never }
+)
+
+function entityOf(ctx: ReliableSendContext): {
+  entityType: DispatchEntityType
+  entityId: string
+} {
+  return ctx.reservationId !== undefined
+    ? { entityType: "reservation", entityId: ctx.reservationId }
+    : { entityType: "lead", entityId: ctx.leadId as string }
 }
 
 /**
- * Envoie `name` avec `data`. `reservationId` et `agencyId` servent à la
- * déduplication (id d'événement) et à la trace d'un échec.
+ * Envoie `name` avec `data`. L'entité (`reservationId` ou `leadId`) et
+ * `agencyId` servent à la déduplication (id d'événement) et à la trace d'un
+ * échec.
  */
 export async function sendEventReliable<K extends keyof Events>(
   name: K,
   data: Events[K]["data"],
-  ctx: { reservationId: string; agencyId: string },
+  ctx: ReliableSendContext,
   deps: ReliableSendDeps = {},
 ): Promise<ReliableSendResult> {
   const send =
@@ -174,7 +198,8 @@ export async function sendEventReliable<K extends keyof Events>(
   const timeoutMs = deps.timeoutMs ?? INNGEST_DISPATCH_ATTEMPT_TIMEOUT_MS
 
   const eventName = name as string
-  const eventId = reliableEventId(eventName, ctx.reservationId)
+  const { entityType, entityId } = entityOf(ctx)
+  const eventId = reliableEventId(eventName, entityId)
   let lastError = "unknown"
 
   for (let attempt = 1; attempt <= INNGEST_DISPATCH_MAX_ATTEMPTS; attempt++) {
@@ -203,7 +228,8 @@ export async function sendEventReliable<K extends keyof Events>(
       tag: "INNGEST_DISPATCH_FAILURE",
       event: eventName,
       eventId,
-      reservationId: ctx.reservationId,
+      entityType,
+      entityId,
       attempts: INNGEST_DISPATCH_MAX_ATTEMPTS,
       eventKeyConfigured,
       error: lastError,
@@ -212,7 +238,9 @@ export async function sendEventReliable<K extends keyof Events>(
   )
   captureError(new Error(`inngest dispatch failed: ${eventName}`), {
     operation: "inngest:dispatch",
-    reservationId: ctx.reservationId,
+    ...(entityType === "reservation"
+      ? { reservationId: entityId }
+      : { leadId: entityId }),
     agencyId: ctx.agencyId,
     eventName,
     error: lastError,
@@ -222,7 +250,8 @@ export async function sendEventReliable<K extends keyof Events>(
   try {
     await record({
       agencyId: ctx.agencyId,
-      reservationId: ctx.reservationId,
+      entityType,
+      entityId,
       eventName,
       eventId,
       error: lastError,
@@ -239,7 +268,8 @@ export async function sendEventReliable<K extends keyof Events>(
         tag: "INNGEST_DISPATCH_TRACE_FAILURE",
         event: eventName,
         eventId,
-        reservationId: ctx.reservationId,
+        entityType,
+        entityId,
         error: sanitizeErrorMessage(
           recordErr instanceof Error ? recordErr.message : String(recordErr),
           data,

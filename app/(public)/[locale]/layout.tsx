@@ -12,6 +12,7 @@ import { getRequestTenantInfo } from "@/lib/tenant/current-tenant"
 import { CurrencyProvider } from "@/components/currency-context"
 
 import { RtlDirectionProvider } from "@/components/rtl-direction-provider"
+import { CampaignAttributionCapture } from "@/components/crm/campaign-attribution-capture"
 
 import { routing } from "@/i18n/routing"
 
@@ -63,6 +64,7 @@ export default async function LocaleLayout({
             dir={dir}
             primaryColor={tenant?.primaryColor}
           >
+            <CampaignAttributionCapture />
             {children}
           </RootShell>
         </CurrencyProvider>

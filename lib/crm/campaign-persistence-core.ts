@@ -38,7 +38,7 @@
  * contact-core.ts/campaign-core.ts).
  */
 
-import { and, eq } from "drizzle-orm"
+import { and, eq, inArray, sql } from "drizzle-orm"
 import type { DrizzleTransaction } from "@/lib/db/client"
 import {
   campaigns,
@@ -325,4 +325,33 @@ export async function cancelCampaignCore(
     )
 
   return { ok: true }
+}
+
+/**
+ * CRM-CAMPAIGN-LAUNCH-CONFIRM-01 (écarts G-09) — anti-doublon de lancement.
+ * Verrou transactionnel par (agence, nom) puis recherche d'une campagne
+ * brouillon ou active du même nom : un double clic, un rechargement ou deux
+ * onglets ne peuvent plus créer deux campagnes (donc deux envois) identiques.
+ * Le verrou est libéré à la fin de la transaction appelante.
+ */
+export async function lockAndFindOpenCampaignByNameCore(
+  tx: DrizzleTransaction,
+  params: { agencyId: string; name: string },
+): Promise<string | null> {
+  const name = params.name.trim()
+  await tx.execute(
+    sql`select pg_advisory_xact_lock(hashtext(${`campaign:${params.agencyId}:${name.toLowerCase()}`}))`,
+  )
+  const [row] = await tx
+    .select({ id: campaigns.id })
+    .from(campaigns)
+    .where(
+      and(
+        eq(campaigns.agencyId, params.agencyId),
+        sql`lower(${campaigns.name}) = ${name.toLowerCase()}`,
+        inArray(campaigns.status, ["draft", "active"]),
+      ),
+    )
+    .limit(1)
+  return row?.id ?? null
 }

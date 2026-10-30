@@ -24,8 +24,11 @@
 import { createServerSupabase } from "@/lib/supabase/server"
 import { getCurrentAdminProfile } from "@/lib/auth/profile"
 import { withTenantContext } from "@/lib/db/tenant-context"
-import { createCampaignCore } from "@/lib/crm/campaign-persistence-core"
-import { launchCampaignCore } from "@/lib/crm/campaign-persistence-core"
+import {
+  createCampaignCore,
+  launchCampaignCore,
+  lockAndFindOpenCampaignByNameCore,
+} from "@/lib/crm/campaign-persistence-core"
 import { fetchLeadsByIdsCore } from "@/lib/crm/leads-core"
 import { sendEventReliable } from "@/lib/inngest/send-reliable"
 import type { CrmChannel } from "@/lib/db/schema"
@@ -85,6 +88,8 @@ export type CreateAndLaunchResult =
 /* Server action                                                               */
 /* -------------------------------------------------------------------------- */
 
+const CAMPAIGN_ALREADY_EXISTS = "CAMPAIGN_ALREADY_EXISTS"
+
 export async function createAndLaunchCampaign(
   params: CreateAndLaunchParams,
 ): Promise<CreateAndLaunchResult> {
@@ -106,6 +111,13 @@ export async function createAndLaunchCampaign(
     const result = await withTenantContext(
       { agencyId: ctx.agencyId, userId: ctx.userId, isSuperAdmin: false },
       async (tx) => {
+        // Anti-doublon (G-09) : double clic / rechargement / 2 onglets.
+        const existing = await lockAndFindOpenCampaignByNameCore(tx, {
+          agencyId: ctx.agencyId,
+          name: params.name,
+        })
+        if (existing) throw new Error(CAMPAIGN_ALREADY_EXISTS)
+
         const campaign = await createCampaignCore(tx, {
           agencyId: ctx.agencyId,
           name: params.name.trim(),
@@ -150,8 +162,15 @@ export async function createAndLaunchCampaign(
 
     return { ok: true, ...result }
   } catch (err) {
-    console.error("[createAndLaunchCampaign]", err)
     const msg = err instanceof Error ? err.message : "Erreur technique"
+    if (msg === CAMPAIGN_ALREADY_EXISTS) {
+      return {
+        ok: false,
+        error:
+          "Une campagne en cours porte déjà ce nom — rien n'a été envoyé une seconde fois. Consultez « Campagnes » ou changez le nom.",
+      }
+    }
+    console.error("[createAndLaunchCampaign]", err)
     return { ok: false, error: msg }
   }
 }

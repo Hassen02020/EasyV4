@@ -15,6 +15,7 @@ import { inngest, type Events } from "../client"
 import { makeOnFailure } from "@/lib/inngest/on-failure"
 import { withSystemContext } from "@/lib/db/tenant-context"
 import { agencies } from "@/lib/db/schema"
+import { escapeHtml } from "@/lib/email/escape-html"
 
 function getResend() {
   if (!process.env.RESEND_API_KEY) {
@@ -37,6 +38,75 @@ function resolveProductLabel(
 ): string {
   const typeLabel = PRODUCT_TYPE_LABEL[productType] ?? productType
   return productLabel ? `${typeLabel} — ${productLabel}` : typeLabel
+}
+
+/**
+ * CRM-EMAIL-ESCAPE-01 (écart G-20) — email interne « nouveau lead ». Toutes
+ * les valeurs saisies par le visiteur sont échappées (texte et attributs) :
+ * un nom ou un message contenant du HTML n'est jamais interprété.
+ */
+export function buildNewLeadEmailHtml(p: {
+  agencyName: string
+  visitorName: string
+  email?: string | null
+  phone?: string | null
+  product: string
+  sourcePage: string
+  message?: string | null
+  adminUrl: string
+}): string {
+  const contactLine = [
+    p.email
+      ? `Email : <a href="mailto:${escapeHtml(p.email)}">${escapeHtml(p.email)}</a>`
+      : null,
+    p.phone ? `Tél : ${escapeHtml(p.phone)}` : null,
+  ]
+    .filter(Boolean)
+    .join(" &nbsp;·&nbsp; ")
+
+  return `
+      <div style="font-family: system-ui, sans-serif; max-width: 560px; margin: 0 auto; padding: 24px;">
+        <h2 style="color: #7c3aed; margin-bottom: 4px;">📥 Nouveau lead CRM</h2>
+        <p style="color: #6b7280; margin-top: 0;">Bonjour <strong>${escapeHtml(p.agencyName)}</strong>,</p>
+        <p>Un visiteur vient de remplir le formulaire de contact sur votre site.</p>
+
+        <table style="width: 100%; border-collapse: collapse; margin: 16px 0;">
+          <tr>
+            <td style="padding: 8px; border-bottom: 1px solid #e5e7eb; color: #6b7280; white-space: nowrap;">Visiteur</td>
+            <td style="padding: 8px; border-bottom: 1px solid #e5e7eb; font-weight: 600;">${escapeHtml(p.visitorName)}</td>
+          </tr>
+          <tr>
+            <td style="padding: 8px; border-bottom: 1px solid #e5e7eb; color: #6b7280;">Contact</td>
+            <td style="padding: 8px; border-bottom: 1px solid #e5e7eb;">${contactLine || "—"}</td>
+          </tr>
+          <tr>
+            <td style="padding: 8px; border-bottom: 1px solid #e5e7eb; color: #6b7280;">Intérêt</td>
+            <td style="padding: 8px; border-bottom: 1px solid #e5e7eb;">${escapeHtml(p.product)}</td>
+          </tr>
+          <tr>
+            <td style="padding: 8px; border-bottom: 1px solid #e5e7eb; color: #6b7280;">Page source</td>
+            <td style="padding: 8px; border-bottom: 1px solid #e5e7eb; font-family: monospace; font-size: 13px;">${escapeHtml(p.sourcePage)}</td>
+          </tr>
+          ${
+            p.message
+              ? `<tr>
+            <td style="padding: 8px; color: #6b7280; vertical-align: top;">Message</td>
+            <td style="padding: 8px; font-style: italic;">${escapeHtml(p.message)}</td>
+          </tr>`
+              : ""
+          }
+        </table>
+
+        <a href="${escapeHtml(p.adminUrl)}"
+           style="display: inline-block; background: #7c3aed; color: white; padding: 10px 20px;
+                  text-decoration: none; border-radius: 6px; font-weight: 600; margin-top: 8px;">
+          Voir les leads → Admin
+        </a>
+
+        <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 24px 0;" />
+        <p style="color: #9ca3af; font-size: 12px;">Easy2Book — CRM &amp; Leads</p>
+      </div>
+    `
 }
 
 export const processNewLead = inngest.createFunction(
@@ -78,60 +148,16 @@ export const processNewLead = inngest.createFunction(
 
     const visitorName = [firstName, lastName].filter(Boolean).join(" ")
     const subject = `📥 Nouveau lead — ${visitorName}`
-    const product = resolveProductLabel(productType, productLabel)
-
-    const contactLine = [
-      email ? `Email : <a href="mailto:${email}">${email}</a>` : null,
-      phone ? `Tél : ${phone}` : null,
-    ]
-      .filter(Boolean)
-      .join(" &nbsp;·&nbsp; ")
-
-    const adminUrl = `${process.env.NEXT_PUBLIC_SITE_URL ?? "https://easy2book.tn"}/admin/support`
-
-    const html = `
-      <div style="font-family: system-ui, sans-serif; max-width: 560px; margin: 0 auto; padding: 24px;">
-        <h2 style="color: #7c3aed; margin-bottom: 4px;">📥 Nouveau lead CRM</h2>
-        <p style="color: #6b7280; margin-top: 0;">Bonjour <strong>${agency.name}</strong>,</p>
-        <p>Un visiteur vient de remplir le formulaire de contact sur votre site.</p>
-
-        <table style="width: 100%; border-collapse: collapse; margin: 16px 0;">
-          <tr>
-            <td style="padding: 8px; border-bottom: 1px solid #e5e7eb; color: #6b7280; white-space: nowrap;">Visiteur</td>
-            <td style="padding: 8px; border-bottom: 1px solid #e5e7eb; font-weight: 600;">${visitorName}</td>
-          </tr>
-          <tr>
-            <td style="padding: 8px; border-bottom: 1px solid #e5e7eb; color: #6b7280;">Contact</td>
-            <td style="padding: 8px; border-bottom: 1px solid #e5e7eb;">${contactLine || "—"}</td>
-          </tr>
-          <tr>
-            <td style="padding: 8px; border-bottom: 1px solid #e5e7eb; color: #6b7280;">Intérêt</td>
-            <td style="padding: 8px; border-bottom: 1px solid #e5e7eb;">${product}</td>
-          </tr>
-          <tr>
-            <td style="padding: 8px; border-bottom: 1px solid #e5e7eb; color: #6b7280;">Page source</td>
-            <td style="padding: 8px; border-bottom: 1px solid #e5e7eb; font-family: monospace; font-size: 13px;">${sourcePage}</td>
-          </tr>
-          ${
-            message
-              ? `<tr>
-            <td style="padding: 8px; color: #6b7280; vertical-align: top;">Message</td>
-            <td style="padding: 8px; font-style: italic;">${message.replace(/</g, "&lt;").replace(/>/g, "&gt;")}</td>
-          </tr>`
-              : ""
-          }
-        </table>
-
-        <a href="${adminUrl}"
-           style="display: inline-block; background: #7c3aed; color: white; padding: 10px 20px;
-                  text-decoration: none; border-radius: 6px; font-weight: 600; margin-top: 8px;">
-          Voir les leads → Admin
-        </a>
-
-        <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 24px 0;" />
-        <p style="color: #9ca3af; font-size: 12px;">Easy2Book — CRM &amp; Leads</p>
-      </div>
-    `
+    const html = buildNewLeadEmailHtml({
+      agencyName: agency.name,
+      visitorName,
+      email,
+      phone,
+      product: resolveProductLabel(productType, productLabel),
+      sourcePage,
+      message,
+      adminUrl: `${process.env.NEXT_PUBLIC_SITE_URL ?? "https://easy2book.tn"}/admin/support`,
+    })
 
     const resend = getResend()
     const { error } = await resend.emails.send({

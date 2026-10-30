@@ -13,6 +13,7 @@
  * produit).
  */
 
+import { escapeHtml } from "@/lib/email/escape-html"
 import { Resend } from "resend"
 import { and, eq } from "drizzle-orm"
 import { inngest } from "@/lib/inngest/client"
@@ -34,7 +35,7 @@ function getResend() {
 const SITE_URL = () =>
   process.env.NEXT_PUBLIC_SITE_URL ?? "https://easy2book.tn"
 
-function buildStaleLeadsHtml(params: {
+export function buildStaleLeadsHtml(params: {
   agencyName: string
   count: number
   thresholdDays: number
@@ -54,8 +55,8 @@ function buildStaleLeadsHtml(params: {
         (now.getTime() - new Date(l.updatedAt).getTime()) / 86_400_000,
       )
       return `<tr>
-        <td style="padding:8px;border-bottom:1px solid #e5e7eb;">${name}</td>
-        <td style="padding:8px;border-bottom:1px solid #e5e7eb;color:#6b7280;">${contact}</td>
+        <td style="padding:8px;border-bottom:1px solid #e5e7eb;">${escapeHtml(name)}</td>
+        <td style="padding:8px;border-bottom:1px solid #e5e7eb;color:#6b7280;">${escapeHtml(contact)}</td>
         <td style="padding:8px;border-bottom:1px solid #e5e7eb;">${plural(daysOld, "jour")}</td>
       </tr>`
     })
@@ -69,7 +70,7 @@ function buildStaleLeadsHtml(params: {
   return `
 <div style="font-family:system-ui,sans-serif;max-width:560px;margin:0 auto;padding:24px;">
   <h2 style="color:#d97706;margin-bottom:4px;">⏰ Relance leads CRM</h2>
-  <p style="color:#6b7280;margin-top:0;">Bonjour <strong>${agencyName}</strong>,</p>
+  <p style="color:#6b7280;margin-top:0;">Bonjour <strong>${escapeHtml(agencyName)}</strong>,</p>
   <p>
     <strong>${count}</strong> lead${count > 1 ? "s sont" : " est"} sans suivi depuis plus de
     <strong>${plural(thresholdDays, "jour")}</strong>.

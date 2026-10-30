@@ -7,24 +7,33 @@ export interface CampaignEmailTemplateInput {
   campaignName: string
   message: string
   agencyName?: string
+  /** Lien de désinscription (CRM-CAMPAIGN-SAFETY-01, obligatoire). */
+  unsubscribeUrl: string
+}
+
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
 }
 
 export function renderCampaignEmailHtml(
   input: CampaignEmailTemplateInput,
 ): string {
-  const { campaignName, message, agencyName = "Easy2Book" } = input
-  const escapedMessage = message
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/\n/g, "<br>")
+  const { campaignName, message, unsubscribeUrl } = input
+  const agencyName = escapeHtml(input.agencyName ?? "Easy2Book")
+  const escapedMessage = escapeHtml(message).replace(/\n/g, "<br>")
+  const escapedTitle = escapeHtml(campaignName)
+  const escapedUnsubscribe = escapeHtml(unsubscribeUrl)
 
   return `<!DOCTYPE html>
 <html lang="fr">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>${campaignName}</title>
+  <title>${escapedTitle}</title>
   <style>
     body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f5f5; margin: 0; padding: 24px; }
     .card { background: #fff; border-radius: 8px; max-width: 600px; margin: 0 auto; padding: 32px; }
@@ -40,7 +49,10 @@ export function renderCampaignEmailHtml(
       <div class="agency">${agencyName}</div>
     </div>
     <div class="message">${escapedMessage}</div>
-    <div class="footer">Vous recevez ce message car vous êtes enregistré(e) sur ${agencyName}.</div>
+    <div class="footer">
+      Vous recevez ce message car vous avez accepté de recevoir les offres de ${agencyName}.<br>
+      <a href="${escapedUnsubscribe}" style="color:#6b7280">Se désinscrire</a> — vous ne recevrez plus nos offres par email.
+    </div>
   </div>
 </body>
 </html>`

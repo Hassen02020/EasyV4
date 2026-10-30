@@ -310,5 +310,19 @@ export async function cancelCampaignCore(
       ),
     )
 
+  // CRM-CAMPAIGN-SAFETY-01 : les cibles pas encore livrées ne le seront
+  // jamais — elles passent 'skipped' (la livraison relit aussi le statut de
+  // la campagne avant chaque envoi, pour une annulation pendant l'envoi).
+  await tx
+    .update(campaignTargets)
+    .set({ deliveryStatus: "skipped", deliveredAt: null })
+    .where(
+      and(
+        eq(campaignTargets.campaignId, params.campaignId),
+        eq(campaignTargets.agencyId, params.agencyId),
+        eq(campaignTargets.deliveryStatus, "pending"),
+      ),
+    )
+
   return { ok: true }
 }

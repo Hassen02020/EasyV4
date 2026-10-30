@@ -27,7 +27,7 @@ import { withTenantContext } from "@/lib/db/tenant-context"
 import { createCampaignCore } from "@/lib/crm/campaign-persistence-core"
 import { launchCampaignCore } from "@/lib/crm/campaign-persistence-core"
 import { fetchLeadsByIdsCore } from "@/lib/crm/leads-core"
-import { sendEvent } from "@/lib/inngest/client"
+import { sendEventReliable } from "@/lib/inngest/send-reliable"
 import type { CrmChannel } from "@/lib/db/schema"
 
 /* -------------------------------------------------------------------------- */
@@ -134,16 +134,19 @@ export async function createAndLaunchCampaign(
       },
     )
 
-    // CAMPAIGN-DELIVERY-01 — déclencher la livraison en arrière-plan
-    // (fire-and-forget : un échec Inngest ne doit jamais faire échouer le
-    // retour du lancement — la campagne est déjà 'active' en DB).
-    await sendEvent("crm/campaign.launched", {
-      campaignId: result.campaignId,
-      agencyId: ctx.agencyId,
-      targetCount: result.targetCount,
-    }).catch((err) => {
-      console.error("[createAndLaunchCampaign] sendEvent failed", err)
-    })
+    // CAMPAIGN-DELIVERY-01 — déclencher la livraison en arrière-plan.
+    // CRM-CAMPAIGN-SAFETY-01 : émission fiable (id stable, 3 tentatives,
+    // trace technique en échec définitif) ; ne lève jamais — la campagne
+    // est déjà 'active' en DB et le lancement ne doit pas échouer pour autant.
+    await sendEventReliable(
+      "crm/campaign.launched",
+      {
+        campaignId: result.campaignId,
+        agencyId: ctx.agencyId,
+        targetCount: result.targetCount,
+      },
+      { campaignId: result.campaignId, agencyId: ctx.agencyId },
+    )
 
     return { ok: true, ...result }
   } catch (err) {

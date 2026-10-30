@@ -160,21 +160,26 @@ export function reliableEventId(name: string, entityId: string): string {
   return `${name}:${entityId}`
 }
 
-export type DispatchEntityType = "reservation" | "lead"
+export type DispatchEntityType = "reservation" | "lead" | "campaign"
 
-/** Contexte d'envoi : exactement une entité, réservation OU prospect. */
+/** Contexte d'envoi : exactement une entité (réservation, prospect ou campagne). */
 export type ReliableSendContext = { agencyId: string } & (
-  | { reservationId: string; leadId?: never }
-  | { leadId: string; reservationId?: never }
+  | { reservationId: string; leadId?: never; campaignId?: never }
+  | { leadId: string; reservationId?: never; campaignId?: never }
+  | { campaignId: string; reservationId?: never; leadId?: never }
 )
 
 function entityOf(ctx: ReliableSendContext): {
   entityType: DispatchEntityType
   entityId: string
 } {
-  return ctx.reservationId !== undefined
-    ? { entityType: "reservation", entityId: ctx.reservationId }
-    : { entityType: "lead", entityId: ctx.leadId as string }
+  if (ctx.reservationId !== undefined) {
+    return { entityType: "reservation", entityId: ctx.reservationId }
+  }
+  if (ctx.leadId !== undefined) {
+    return { entityType: "lead", entityId: ctx.leadId }
+  }
+  return { entityType: "campaign", entityId: ctx.campaignId as string }
 }
 
 /**
@@ -240,7 +245,9 @@ export async function sendEventReliable<K extends keyof Events>(
     operation: "inngest:dispatch",
     ...(entityType === "reservation"
       ? { reservationId: entityId }
-      : { leadId: entityId }),
+      : entityType === "lead"
+        ? { leadId: entityId }
+        : { campaignId: entityId }),
     agencyId: ctx.agencyId,
     eventName,
     error: lastError,

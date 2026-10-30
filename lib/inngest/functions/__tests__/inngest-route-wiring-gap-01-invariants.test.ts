@@ -158,7 +158,11 @@ test('INNGEST-ROUTE-WIRING-GAP-01 : deliverCampaign écoute "crm/campaign.launch
 })
 
 test('INNGEST-ROUTE-WIRING-GAP-01 : deliverCampaign — onFailure câblé avec makeOnFailure("deliver-campaign")', () => {
-  assert.match(campaignSrc, /onFailure:\s*makeOnFailure\("deliver-campaign"\)/)
+  // CRM-CAMPAIGN-SAFETY-01 : onFailure observe (makeOnFailure) PUIS passe
+  // les cibles encore 'pending' à 'failed' après la dernière tentative.
+  assert.match(campaignSrc, /makeOnFailure\("deliver-campaign"\)/)
+  assert.match(campaignSrc, /onFailure:\s*async/)
+  assert.match(campaignSrc, /markRemainingTargetsFailedCore/)
 })
 
 test("INNGEST-ROUTE-WIRING-GAP-01 : deliverCampaign — step deliver-messages délègue à deliverCampaignCore", () => {

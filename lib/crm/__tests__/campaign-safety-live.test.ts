@@ -22,6 +22,7 @@ import {
   campaignTargets,
   contacts,
   leadConsentEvents,
+  leads,
 } from "@/lib/db/schema"
 import type { SendCampaignEmailInput } from "@/lib/email/send-campaign-email"
 import {
@@ -84,6 +85,7 @@ after(async () => {
       .delete(leadConsentEvents)
       .where(eq(leadConsentEvents.agencyId, agencyId))
     await tx.delete(contacts).where(eq(contacts.agencyId, agencyId))
+    await tx.delete(leads).where(eq(leads.agencyId, agencyId))
     await tx.delete(agencies).where(eq(agencies.id, agencyId))
   })
 })
@@ -98,7 +100,10 @@ const runTx = <T>(fn: Parameters<typeof withTenantContext<T>>[1]) =>
   withTenantContext(deliveryCtx(), fn)
 
 /** Campagne email lancée vers des adresses ayant toutes consenti. */
-async function launchedCampaign(emails: string[]): Promise<string> {
+async function launchedCampaign(
+  emails: string[],
+  opts: { message?: string; leadIds?: string[] } = {},
+): Promise<string> {
   const ctx: TenantContext = { agencyId, userId: "", isSuperAdmin: false }
   for (const email of emails) {
     await withTenantContext(ctx, (tx) =>
@@ -117,7 +122,7 @@ async function launchedCampaign(emails: string[]): Promise<string> {
       agencyId,
       name: "Campagne test",
       channel: "email",
-      message: "Bonjour",
+      message: opts.message ?? "Bonjour",
     }),
   )
   const launch = await withTenantContext(ctx, (tx) =>
@@ -125,7 +130,7 @@ async function launchedCampaign(emails: string[]): Promise<string> {
       agencyId,
       campaignId: campaign.id,
       audience: emails.map((email, i) => ({
-        id: `lead-${i}`,
+        id: opts.leadIds?.[i] ?? `lead-${i}`,
         email,
         phone: null,
       })),
@@ -378,4 +383,32 @@ test("sans URL publique du site : aucun email envoyé (lien de désinscription i
 
 test("clé d'idempotence stable par cible", () => {
   assert.equal(campaignEmailIdempotencyKey("c1", "t1"), "campaign:c1:t1")
+})
+
+test("CRM-CAMPAIGN-PERSONALIZATION-01 : « [Prénom] » remplacé par le prénom du lead, retiré proprement sans prénom", async (t) => {
+  if (!dbAvailable) return void t.skip(skipReason())
+  const withName = uniq("prenom")
+  const withoutName = uniq("sans-prenom")
+  const leadId = randomUUID()
+  await withTenantContext(deliveryCtx(), (tx) =>
+    tx.insert(leads).values({
+      id: leadId,
+      agencyId,
+      firstName: "Amira",
+      sourcePage: "/landing/omra",
+      email: withName,
+    }),
+  )
+  const campaignId = await launchedCampaign([withName, withoutName], {
+    message: "Bonjour [Prénom],\n\nOffre Omra.",
+    leadIds: [leadId, randomUUID()],
+  })
+  const r = recorder()
+  await deliverCampaignCore(
+    { agencyId, campaignId },
+    { runTx, sendEmail: r.sendEmail, siteUrl: SITE },
+  )
+  const byTo = new Map(r.sent.map((m) => [m.to, m.message]))
+  assert.equal(byTo.get(withName), "Bonjour Amira,\n\nOffre Omra.")
+  assert.equal(byTo.get(withoutName), "Bonjour,\n\nOffre Omra.")
 })

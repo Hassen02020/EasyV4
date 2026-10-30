@@ -12,6 +12,7 @@ import assert from "node:assert/strict"
 import {
   campaignEmailIdempotencyKey,
   campaignUnsubscribeUrls,
+  personalizeCampaignMessage,
 } from "../campaign-delivery-core"
 import { renderCampaignEmailHtml } from "@/lib/email/templates/campaign-email"
 
@@ -95,4 +96,42 @@ test("signature : liens non http(s) ignorés et valeurs échappées", () => {
   assert.doesNotMatch(html, /javascript:|Facebook|data:image/)
   // Sans siteUrl ni logo http(s) : pas d'image.
   assert.doesNotMatch(html, /<img/)
+})
+
+test("personnalisation : prénom inséré, marqueur jamais envoyé tel quel", () => {
+  const tpl = "Bonjour [Prénom],\n\nOffre."
+  assert.equal(
+    personalizeCampaignMessage(tpl, "Amira"),
+    "Bonjour Amira,\n\nOffre.",
+  )
+  assert.equal(personalizeCampaignMessage(tpl, null), "Bonjour,\n\nOffre.")
+  assert.equal(personalizeCampaignMessage(tpl, "   "), "Bonjour,\n\nOffre.")
+  assert.equal(
+    personalizeCampaignMessage("Bonjour [Prénom] 👋", undefined),
+    "Bonjour 👋",
+  )
+  assert.equal(
+    personalizeCampaignMessage("Sans marqueur", "Amira"),
+    "Sans marqueur",
+  )
+})
+
+test("messages proposés : aucun jargon de marché ni promesse impossible côté client", async () => {
+  const { buildSuggestedMessage } = await import("../campaign-engine-core")
+  for (const channel of ["email", "whatsapp", "phone"] as const) {
+    const msg = buildSuggestedMessage("Omra", channel)
+    assert.match(msg, /\[Prénom\]/)
+    assert.match(msg, /Omra/)
+    assert.doesNotMatch(
+      msg,
+      /mouvement|segment|hausse|baisse|stable|en en|une en|Répondez/,
+    )
+  }
+  assert.equal(
+    personalizeCampaignMessage(
+      buildSuggestedMessage("Omra", "email"),
+      null,
+    ).split("\n")[0],
+    "Bonjour,",
+  )
 })

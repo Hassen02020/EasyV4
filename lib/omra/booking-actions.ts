@@ -33,7 +33,7 @@ import {
   resolveSessionContext,
   withTenantContext,
 } from "@/lib/db/tenant-context"
-import { sendEvent } from "@/lib/inngest/client"
+import { sendEventReliable } from "@/lib/inngest/send-reliable"
 import { recordReservationTransition } from "@/lib/admin/reservation-status-history"
 import { recordReservationFinancials } from "@/lib/finance/reservation-financials"
 import { creditPlatformCommission } from "@/lib/finance/platform-commission"
@@ -520,18 +520,20 @@ export async function createOmraBooking(
     // Sans email de contact, il n'y a personne à qui envoyer la confirmation
     // — voir la même règle appliquée à booking/confirmed dans lib/booking/actions.ts.
     if (result.contactEmail) {
-      await sendEvent("booking/omra.confirmed", {
-        reservationId: result.reservationId,
-        publicRef: result.publicRef,
-        agencyId: result.agencyId,
-        packageName: result.packageName,
-        pilgrimsCount: result.pilgrimsCount,
-        departureDate: input.departureDate,
-        totalTnd: result.totalTnd,
-        contactEmail: result.contactEmail,
-      }).catch(() => {
-        /* fire-and-forget — le retry Inngest suffira */
-      })
+      await sendEventReliable(
+        "booking/omra.confirmed",
+        {
+          reservationId: result.reservationId,
+          publicRef: result.publicRef,
+          agencyId: result.agencyId,
+          packageName: result.packageName,
+          pilgrimsCount: result.pilgrimsCount,
+          departureDate: input.departureDate,
+          totalTnd: result.totalTnd,
+          contactEmail: result.contactEmail,
+        },
+        { reservationId: result.reservationId, agencyId: result.agencyId },
+      )
     }
 
     // Facture générée via step.run("generate-invoice") dans processOmraConfirmed

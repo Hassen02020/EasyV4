@@ -62,7 +62,10 @@ test('INNGEST-ROUTE-WIRING-GAP-01 : processPackageConfirmed — onFailure câbl�
 
 test("INNGEST-ROUTE-WIRING-GAP-01 : processPackageConfirmed — step send-package-email + RESEND guard", () => {
   assert.match(packageSrc, /["']send-package-email["']/)
-  assert.match(packageSrc, /process\.env\.RESEND_API_KEY/)
+  // OMRA-PACKAGE-NOTIFY-RELIABILITY-01 : la garde RESEND_API_KEY est dans
+  // sendEmailOnce (lib/inngest/send-email-once.ts), derrière l'envoi unique.
+  assert.match(packageSrc, /sendEmailOnce\(\{/)
+  assert.match(packageSrc, /action:\s*PACKAGE_EMAIL_SENT_ACTION/)
 })
 
 test("INNGEST-ROUTE-WIRING-GAP-01 : processPackageConfirmed — step generate-invoice + generateInvoiceForReservation", () => {

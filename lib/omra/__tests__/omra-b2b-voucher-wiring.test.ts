@@ -29,12 +29,15 @@ const src = readFileSync(join(ROOT, "lib/omra/booking-actions.ts"), "utf8")
 
 // ─── Invariant 1 : sendEvent câblé ────────────────────────────────────────
 
-test("OMRA-B2B-VOUCHER-01 : sendEvent importé depuis @/lib/inngest/client", () => {
-  assert.match(src, /import.*sendEvent.*from.*@\/lib\/inngest\/client/)
+test("OMRA-B2B-VOUCHER-01 : sendEventReliable importé depuis @/lib/inngest/send-reliable (OMRA-PACKAGE-NOTIFY-RELIABILITY-01)", () => {
+  assert.match(
+    src,
+    /import.*sendEventReliable.*from.*@\/lib\/inngest\/send-reliable/,
+  )
 })
 
-test("OMRA-B2B-VOUCHER-01 : sendEvent booking/omra.confirmed câblé", () => {
-  assert.match(src, /sendEvent\("booking\/omra\.confirmed"/)
+test("OMRA-B2B-VOUCHER-01 : sendEventReliable booking/omra.confirmed câblé", () => {
+  assert.match(src, /sendEventReliable\(\s*"booking\/omra\.confirmed"/)
 })
 
 test("OMRA-B2B-VOUCHER-01 : sendEvent déclenché conditionnellement (contactEmail)", () => {
@@ -43,8 +46,17 @@ test("OMRA-B2B-VOUCHER-01 : sendEvent déclenché conditionnellement (contactEma
 
 // ─── Invariant 2 : protection .catch() ────────────────────────────────────
 
-test("OMRA-B2B-VOUCHER-01 : sendEvent protégé par .catch() (booking non annulé si Inngest indisponible)", () => {
-  assert.match(src, /sendEvent\("booking\/omra\.confirmed"[\s\S]*?\)\.catch\(/)
+test("OMRA-B2B-VOUCHER-01 : émission fiable, jamais d'exception vers la réservation (booking non annulé si Inngest indisponible)", () => {
+  // sendEventReliable ne lève jamais (3 tentatives puis trace technique) :
+  // plus de .catch(() => {}) qui perdait l'événement en silence.
+  assert.match(
+    src,
+    /await sendEventReliable\(\s*"booking\/omra\.confirmed"[\s\S]*?\{\s*reservationId:\s*result\.reservationId,\s*agencyId/,
+  )
+  assert.doesNotMatch(
+    src,
+    /sendEvent\("booking\/omra\.confirmed"[\s\S]*?\)\.catch\(/,
+  )
 })
 
 // ─── Invariant 3 : payload complet depuis result ──────────────────────────

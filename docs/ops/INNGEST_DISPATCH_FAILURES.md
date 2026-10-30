@@ -10,6 +10,10 @@ Chantier INNGEST-RELIABILITY-01. Dernière mise à jour : 2026-10-29.
   (`booking/confirmed`, `booking/omra.confirmed`, `booking/package.confirmed`,
   `booking/transfer.confirmed`, `booking/car.confirmed`) — entité
   `reservation` ;
+- à la création d'une réservation Omra (B2B `lib/omra/booking-actions.ts`,
+  invité `lib/omra/guest-booking-actions.ts`) ou d'un voyage organisé
+  confirmé (`lib/packages/booking-actions.ts`) — entité `reservation`
+  (OMRA-PACKAGE-NOTIFY-RELIABILITY-01) ;
 - après un prospect reçu du formulaire du site, par `submitLead`
   (`crm/lead.created`, notification de l'équipe) — entité `lead`
   (CRM-LEAD-FLOW-01).
@@ -59,13 +63,13 @@ Le journal de l'application contient aussi une ligne JSON
 Aucun code ne lit ces traces. Ne **pas** rejouer manuellement un événement
 (Inngest, script, SQL) tant que le handler concerné n'est pas idempotent :
 
-| Handler                             | Garde contre le double envoi                                                                                                                                                      | Rejeu manuel           |
-| ----------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------- |
-| hôtel (`process-confirmed-booking`) | oui                                                                                                                                                                               | possible avec prudence |
-| voiture (`process-car-confirmed`)   | oui depuis CAR-EMAIL-IDEMPOTENCY-01 : action `notification.car_mail.sent` (≤ 32 car.) ; l'ancien nom (35 car.) faisait échouer l'enregistrement et chaque retry renvoyait l'email | possible avec prudence |
-| vol (`process-flight-confirmed`)    | oui depuis CAR-EMAIL-IDEMPOTENCY-01 : action `notification.flight_mail.sent` ; l'ancien nom (38 car.) avait le même défaut                                                        | possible avec prudence |
-| Omra, package                       | aucune                                                                                                                                                                            | **interdit**           |
-| transfert                           | oui (TRANSFER-EMAIL-IDEMPOTENCY-01, `notification.transfer_mail.sent`)                                                                                                            | possible avec prudence |
+| Handler                                                                | Garde contre le double envoi                                                                                                                                                              | Rejeu manuel           |
+| ---------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------- |
+| hôtel (`process-confirmed-booking`)                                    | oui                                                                                                                                                                                       | possible avec prudence |
+| voiture (`process-car-confirmed`)                                      | oui depuis CAR-EMAIL-IDEMPOTENCY-01 : action `notification.car_mail.sent` (≤ 32 car.) ; l'ancien nom (35 car.) faisait échouer l'enregistrement et chaque retry renvoyait l'email         | possible avec prudence |
+| vol (`process-flight-confirmed`)                                       | oui depuis CAR-EMAIL-IDEMPOTENCY-01 : action `notification.flight_mail.sent` ; l'ancien nom (38 car.) avait le même défaut                                                                | possible avec prudence |
+| Omra (`process-omra-confirmed`), package (`process-package-confirmed`) | oui depuis OMRA-PACKAGE-NOTIFY-RELIABILITY-01 : `notification.omra_mail.sent` / `notification.package_mail.sent` via `lib/inngest/send-email-once.ts` ; facture d'abord, email en dernier | possible avec prudence |
+| transfert                                                              | oui (TRANSFER-EMAIL-IDEMPOTENCY-01, `notification.transfer_mail.sent`)                                                                                                                    | possible avec prudence |
 
 Un rejeu futur reconstruira la charge utile à partir de la réservation en
 base, jamais à partir de la trace.

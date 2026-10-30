@@ -13,7 +13,7 @@
  * PAS un fichier "use server" (même convention que les autres -core.ts).
  */
 
-import { and, eq, gte, lt, sql } from "drizzle-orm"
+import { and, eq, gte, lt, sql, type AnyColumn } from "drizzle-orm"
 import type { DrizzleTransaction } from "@/lib/db/client"
 import { reservationFinancials, reservations, leads } from "@/lib/db/schema"
 
@@ -75,13 +75,25 @@ export async function getTimeSeriesCore(
   const currentStart = new Date(now.getTime() - windowMs)
   const prevStart = new Date(now.getTime() - windowMs * 2)
 
+  // ANALYTICS-TIMESERIES-FIX-01 : la période est calculée par une expression
+  // `case when … >= $date`. Répétée dans GROUP BY, la date devenait un SECOND
+  // paramètre ($1 ≠ $5) : PostgreSQL ne reconnaissait plus l'expression et
+  // refusait toute requête (42803 « must appear in the GROUP BY clause »).
+  // On groupe donc par la POSITION de la colonne période (GROUP BY 2 : la
+  // dimension est toujours la 1re colonne, la période la 2e), et la date est
+  // passée en ISO avec un cast explicite.
+  const currentStartIso = currentStart.toISOString()
+  const periodOf = (createdAt: AnyColumn) =>
+    sql<string>`case when ${createdAt} >= ${currentStartIso}::timestamptz then 'current' else 'prev' end`
+  const PERIOD_COLUMN = sql`2`
+
   // -------------------------------------------------------------------------
   // 1. CA / Marge par module de réservation
   // -------------------------------------------------------------------------
   const finStream = await tx
     .select({
       module: reservations.module,
-      period: sql<string>`case when ${reservations.createdAt} >= ${currentStart} then 'current' else 'prev' end`,
+      period: periodOf(reservations.createdAt),
       totalCa: sql<string>`coalesce(sum(${reservationFinancials.salePriceTnd}::numeric), 0)::text`,
       totalMargin: sql<string>`coalesce(sum(${reservationFinancials.marginAmount}::numeric), 0)::text`,
     })
@@ -97,10 +109,7 @@ export async function getTimeSeriesCore(
         lt(reservations.createdAt, now),
       ),
     )
-    .groupBy(
-      reservations.module,
-      sql`case when ${reservations.createdAt} >= ${currentStart} then 'current' else 'prev' end`,
-    )
+    .groupBy(reservations.module, PERIOD_COLUMN)
 
   // -------------------------------------------------------------------------
   // 2. Volume leads par channel
@@ -108,7 +117,7 @@ export async function getTimeSeriesCore(
   const leadsChannelStream = await tx
     .select({
       channel: leads.channel,
-      period: sql<string>`case when ${leads.createdAt} >= ${currentStart} then 'current' else 'prev' end`,
+      period: periodOf(leads.createdAt),
       count: sql<number>`count(*)::int`,
     })
     .from(leads)
@@ -119,10 +128,7 @@ export async function getTimeSeriesCore(
         lt(leads.createdAt, now),
       ),
     )
-    .groupBy(
-      leads.channel,
-      sql`case when ${leads.createdAt} >= ${currentStart} then 'current' else 'prev' end`,
-    )
+    .groupBy(leads.channel, PERIOD_COLUMN)
 
   // -------------------------------------------------------------------------
   // 3. Volume leads par productType
@@ -130,7 +136,7 @@ export async function getTimeSeriesCore(
   const leadsProductStream = await tx
     .select({
       productType: leads.productType,
-      period: sql<string>`case when ${leads.createdAt} >= ${currentStart} then 'current' else 'prev' end`,
+      period: periodOf(leads.createdAt),
       count: sql<number>`count(*)::int`,
     })
     .from(leads)
@@ -141,10 +147,7 @@ export async function getTimeSeriesCore(
         lt(leads.createdAt, now),
       ),
     )
-    .groupBy(
-      leads.productType,
-      sql`case when ${leads.createdAt} >= ${currentStart} then 'current' else 'prev' end`,
-    )
+    .groupBy(leads.productType, PERIOD_COLUMN)
 
   // -------------------------------------------------------------------------
   // 4. Volume leads par destination (non-null uniquement)
@@ -152,7 +155,7 @@ export async function getTimeSeriesCore(
   const leadsDestinationStream = await tx
     .select({
       destination: leads.destination,
-      period: sql<string>`case when ${leads.createdAt} >= ${currentStart} then 'current' else 'prev' end`,
+      period: periodOf(leads.createdAt),
       count: sql<number>`count(*)::int`,
     })
     .from(leads)
@@ -164,10 +167,7 @@ export async function getTimeSeriesCore(
         sql`${leads.destination} is not null`,
       ),
     )
-    .groupBy(
-      leads.destination,
-      sql`case when ${leads.createdAt} >= ${currentStart} then 'current' else 'prev' end`,
-    )
+    .groupBy(leads.destination, PERIOD_COLUMN)
 
   // -------------------------------------------------------------------------
   // 5. Assembly

@@ -285,6 +285,19 @@ Priorités : **P0** = bloquant ou dangereux dès l'utilisation · **P1** = fiabi
 | G-53     | Clés étrangères bloquant la suppression ; conflit prospect converti / réservation supprimée                                                                                                                                         | `0116:22-24` ; `0043`                                                                                           | P5    | P3                    |
 | G-54     | Recherche de la liste clients B2C sans effet ; statistiques sur 100 lignes                                                                                                                                                          | `b2c/clients/page.tsx:72,118-129,190`                                                                           | P7    | P3                    |
 
+### 9.1 Statut des écarts au 2026-10-30 (soir)
+
+| Écart                                | Statut                                        | Preuve                                                                            |
+| ------------------------------------ | --------------------------------------------- | --------------------------------------------------------------------------------- |
+| G-01, G-06, G-07, G-08, G-10         | Corrigés (#301, migration 0144 en production) | Campagne réelle envoyée et désinscription enregistrée en production le 2026-10-30 |
+| G-09                                 | Corrigé (#307)                                | Test de concurrence live (échoue sans le verrou)                                  |
+| G-23                                 | Corrigé (#311)                                | Test statique ; navigateur NOT VERIFIED                                           |
+| G-31                                 | Corrigé (#310)                                | `crm-copy-truth.test.ts`                                                          |
+| G-34                                 | Corrigé (#307)                                | Édition + case de confirmation obligatoire                                        |
+| G-54                                 | Corrigé (#308)                                | Test live 106 clients + autre agence                                              |
+| Nouveau — `[Prénom]` envoyé tel quel | Corrigé (#306)                                | Test live « Amira » / sans prénom                                                 |
+| Nouveau — accueil admin sans CRM     | Corrigé (#312)                                | Test live 6 compteurs, 2 agences                                                  |
+
 ## 10. Conclusion
 
 - **Prouvé en réel aujourd'hui** : la capture de prospects par le formulaire et les landing pages (prospect, contact, consentement, origine, attribution de campagne par URL) et le déclenchement d'Inngest. **Tout le reste du parcours CRM reste à prouver.**

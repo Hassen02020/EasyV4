@@ -162,6 +162,8 @@ export async function upsertConversationForInboundCore(
   conversationId: string
   messageInserted: boolean
   contactId: string
+  /** Renseigné UNIQUEMENT si ce message a créé un nouveau lead (G-03 : notification). */
+  createdLeadId: string | null
 }> {
   const contact = await resolveOrCreateContactCore(tx, {
     agencyId: params.agencyId,
@@ -183,6 +185,7 @@ export async function upsertConversationForInboundCore(
 
   let conversationId: string
   let leadId: string | null
+  let createdLeadId: string | null = null
 
   if (existing) {
     conversationId = existing.id
@@ -224,6 +227,7 @@ export async function upsertConversationForInboundCore(
         sourcePage: params.channel,
       })
       leadId = created.id
+      createdLeadId = created.id
 
       // CRM-E — tous les canaux avec un webhook entrant HMAC-vérifié
       // (whatsapp, messenger, instagram) enregistrent leur origine ; les
@@ -286,6 +290,7 @@ export async function upsertConversationForInboundCore(
     conversationId,
     messageInserted: insertedMessage.length > 0,
     contactId: contact.id,
+    createdLeadId,
   }
 }
 

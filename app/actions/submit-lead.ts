@@ -130,6 +130,7 @@ export async function submitLead(
         productType: parsed.data.productType,
         productLabel: parsed.data.productLabel || null,
         sourcePage: parsed.data.sourcePage,
+        channel: "website_form",
       },
       { leadId, agencyId },
     )

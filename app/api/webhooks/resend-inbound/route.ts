@@ -28,6 +28,7 @@ import { timingSafeEqual } from "crypto"
 import { withTenantContext } from "@/lib/db/tenant-context"
 import { getDefaultAgencyId } from "@/lib/agencies/default-agency"
 import { captureWebsiteLeadCore } from "@/lib/crm/website-lead-capture-core"
+import { notifyLeadCreated } from "@/lib/crm/lead-created-notify"
 
 interface ResendInboundPayload {
   email_id?: string
@@ -102,7 +103,7 @@ export async function POST(request: NextRequest) {
   const emailId = payload.email_id ?? null
 
   try {
-    await withTenantContext(
+    const captured = await withTenantContext(
       { agencyId, userId: "", isSuperAdmin: true },
       (tx) =>
         captureWebsiteLeadCore(tx, {
@@ -115,6 +116,12 @@ export async function POST(request: NextRequest) {
           intention: "standard",
         }),
     )
+    // G-03 — chaque email entrant crée un lead : email « nouveau lead ».
+    await notifyLeadCreated({
+      agencyId,
+      leadId: captured.leadId,
+      channel: "email",
+    })
     return NextResponse.json({ ok: true })
   } catch (err) {
     console.error("[Webhook/ResendInbound] Échec traitement email entrant", err)

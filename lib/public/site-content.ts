@@ -1,5 +1,7 @@
 import "server-only"
 
+import { cache } from "react"
+
 import { and, asc, eq, lte, or, isNull, gte } from "drizzle-orm"
 import {
   agencies,
@@ -20,9 +22,18 @@ export interface PublicSiteConfig {
   facebookUrl: string | null
   instagramUrl: string | null
   tiktokUrl: string | null
+  /** SITE-BRAND-THEME-01 — couleur d'accent saisie dans /admin/brand. */
+  primaryColor: string | null
 }
 
-export async function getPublicSiteConfig(): Promise<PublicSiteConfig | null> {
+/**
+ * Mis en cache pour la durée de la requête (React `cache`) : le layout
+ * (couleur de marque), l'en-tête et le pied de page lisent la même
+ * configuration sans requête supplémentaire.
+ */
+export const getPublicSiteConfig = cache(loadPublicSiteConfig)
+
+async function loadPublicSiteConfig(): Promise<PublicSiteConfig | null> {
   const agencyId = await getDefaultAgencyId()
   if (!agencyId) return null
 
@@ -36,6 +47,7 @@ export async function getPublicSiteConfig(): Promise<PublicSiteConfig | null> {
           contactEmail: agencies.contactEmail,
           contactPhone: agencies.contactPhone,
           address: agencies.address,
+          primaryColor: agencies.primaryColor,
           heroImageUrl: publicSiteSettings.heroImageUrl,
           facebookUrl: publicSiteSettings.facebookUrl,
           instagramUrl: publicSiteSettings.instagramUrl,
@@ -61,6 +73,7 @@ export async function getPublicSiteConfig(): Promise<PublicSiteConfig | null> {
         facebookUrl: row.facebookUrl,
         instagramUrl: row.instagramUrl,
         tiktokUrl: row.tiktokUrl,
+        primaryColor: row.primaryColor,
       }
     })
   } catch {

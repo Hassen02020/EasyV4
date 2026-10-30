@@ -66,6 +66,7 @@ export default async function Home() {
         <BookingEngine
           modules={modules}
           heroImageUrl={site?.heroImageUrl}
+          heroVideoUrl={site?.heroVideoUrl}
           transferZones={transferZones}
           carLocations={carCatalog.locations}
         />

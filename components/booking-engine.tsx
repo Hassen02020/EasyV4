@@ -172,11 +172,14 @@ function TabPills({
 
 export function BookingEngine({
   heroImageUrl,
+  heroVideoUrl,
   modules = [],
   transferZones = [],
   carLocations = [],
 }: {
   heroImageUrl?: string | null
+  /** SITE-VIDEO-01 — vidéo d'arrière-plan (accueil), image en affiche. */
+  heroVideoUrl?: string | null
   modules?: PublicModuleVisual[]
   transferZones?: CatalogTransferZoneLite[]
   carLocations?: CarLocationLite[]
@@ -212,6 +215,22 @@ export function BookingEngine({
             : undefined
         }
       >
+        {heroVideoUrl ? (
+          // Masquée sur mobile (données) et si l'utilisateur a demandé à
+          // réduire les animations : l'image Hero (affiche) reste visible.
+          <video
+            key={heroVideoUrl}
+            src={heroVideoUrl}
+            poster={activeHeroImageUrl ?? undefined}
+            autoPlay
+            muted
+            loop
+            playsInline
+            preload="metadata"
+            aria-hidden="true"
+            className="absolute inset-0 hidden h-full w-full object-cover motion-reduce:hidden sm:block"
+          />
+        ) : null}
         <div className="from-sidebar/85 via-sidebar/35 to-background absolute inset-0 bg-gradient-to-b" />
         <div className="absolute inset-0 bg-gradient-to-t from-black/35 via-transparent to-black/10" />
       </div>

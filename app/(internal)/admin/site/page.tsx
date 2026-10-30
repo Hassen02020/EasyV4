@@ -8,6 +8,7 @@ import {
   savePublicSiteSettings,
 } from "@/lib/admin/public-site-actions"
 import { SiteImageField } from "@/components/admin/site-image-field"
+import { SiteVideoField } from "@/components/admin/site-video-field"
 import { listAdminPromotions } from "@/lib/admin/public-site-queries"
 import {
   PROMOTION_MODULES,
@@ -70,6 +71,13 @@ export default async function PublicSiteAdminPage() {
               slot="hero"
               label="Hero principal"
               defaultValue={site?.heroImageUrl}
+            />
+          </div>
+          <div className="md:col-span-2">
+            <SiteVideoField
+              name="heroVideoUrl"
+              label="Vidéo Hero (accueil)"
+              defaultValue={site?.heroVideoUrl}
             />
           </div>
           <label className="space-y-1 text-sm">

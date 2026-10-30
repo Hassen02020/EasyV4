@@ -23,6 +23,8 @@ export const publicSiteSettings = pgTable(
     id: uuid("id").primaryKey().defaultRandom(),
     agencyId: uuid("agency_id").notNull(),
     heroImageUrl: text("hero_image_url"),
+    /** SITE-VIDEO-01 — vidéo d'arrière-plan du Hero d'accueil (migration 0146). */
+    heroVideoUrl: text("hero_video_url"),
     facebookUrl: text("facebook_url"),
     instagramUrl: text("instagram_url"),
     tiktokUrl: text("tiktok_url"),

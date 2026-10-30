@@ -134,3 +134,64 @@ export function getMediaStorage(): MediaStorageAdapter {
 }
 
 export { LOCAL_MEDIA_ROOT, MEDIA_BUCKET }
+
+/* -------------------------------------------------------------------------- */
+/* Envoi direct navigateur → Storage (SITE-VIDEO-01)                          */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * URL d'envoi signée à usage unique pour `key` (Supabase uniquement) : le
+ * navigateur y envoie le fichier lui-même (PUT), sans passer par une
+ * fonction Vercel (limite ~4,5 Mo par requête). Backend local : refus
+ * explicite, jamais de faux succès.
+ */
+export async function createSignedUpload(
+  key: string,
+): Promise<{ uploadUrl: string }> {
+  if (process.env.MEDIA_STORAGE_BACKEND === "local") {
+    throw new Error("SIGNED_UPLOAD_UNSUPPORTED_LOCAL")
+  }
+  assertDeploymentIsolation()
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+  if (!url || !serviceKey) throw new Error("STORAGE_NOT_CONFIGURED")
+  const supabase = createClient(url, serviceKey, {
+    auth: { autoRefreshToken: false, persistSession: false },
+  })
+  const { data, error } = await supabase.storage
+    .from(MEDIA_BUCKET)
+    .createSignedUploadUrl(key)
+  if (error || !data) {
+    throw new Error(
+      `[media-storage] URL d'envoi signée impossible (${key}): ${error?.message ?? "inconnu"}`,
+    )
+  }
+  return { uploadUrl: data.signedUrl }
+}
+
+/** Premiers `bytes` octets d'un objet (lecture partielle, jamais le fichier entier). */
+export async function readObjectHead(
+  key: string,
+  bytes: number,
+): Promise<Uint8Array | null> {
+  if (process.env.MEDIA_STORAGE_BACKEND === "local") {
+    try {
+      const handle = await fs.open(path.join(LOCAL_MEDIA_ROOT, key), "r")
+      try {
+        const buffer = Buffer.alloc(bytes)
+        const { bytesRead } = await handle.read(buffer, 0, bytes, 0)
+        return new Uint8Array(buffer.subarray(0, bytesRead))
+      } finally {
+        await handle.close()
+      }
+    } catch {
+      return null
+    }
+  }
+  const res = await fetch(getMediaStorage().getPublicUrl(key), {
+    headers: { Range: `bytes=0-${bytes - 1}` },
+    cache: "no-store",
+  })
+  if (!res.ok) return null
+  return new Uint8Array((await res.arrayBuffer()).slice(0, bytes))
+}

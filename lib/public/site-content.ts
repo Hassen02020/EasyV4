@@ -19,6 +19,8 @@ export interface PublicSiteConfig {
   contactPhone: string | null
   address: string | null
   heroImageUrl: string | null
+  /** SITE-VIDEO-01 — vidéo d'arrière-plan du Hero d'accueil. */
+  heroVideoUrl: string | null
   facebookUrl: string | null
   instagramUrl: string | null
   tiktokUrl: string | null
@@ -49,6 +51,7 @@ async function loadPublicSiteConfig(): Promise<PublicSiteConfig | null> {
           address: agencies.address,
           primaryColor: agencies.primaryColor,
           heroImageUrl: publicSiteSettings.heroImageUrl,
+          heroVideoUrl: publicSiteSettings.heroVideoUrl,
           facebookUrl: publicSiteSettings.facebookUrl,
           instagramUrl: publicSiteSettings.instagramUrl,
           tiktokUrl: publicSiteSettings.tiktokUrl,
@@ -70,6 +73,7 @@ async function loadPublicSiteConfig(): Promise<PublicSiteConfig | null> {
         contactPhone: row.contactPhone,
         address: row.address,
         heroImageUrl: row.heroImageUrl,
+        heroVideoUrl: row.heroVideoUrl,
         facebookUrl: row.facebookUrl,
         instagramUrl: row.instagramUrl,
         tiktokUrl: row.tiktokUrl,

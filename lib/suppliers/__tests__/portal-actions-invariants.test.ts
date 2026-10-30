@@ -93,3 +93,25 @@ test("updateSupplierNodeStatusAction : gated super_admin (requireSuperAdmin) ava
     "l'auth doit précéder l'update",
   )
 })
+
+test("SUPPLIER-NODE-CREATE-01 : nouveau fournisseur créé dans la même transaction, après la vérification du slug, avant le nœud", () => {
+  const fnIdx = src.indexOf("export async function createSupplierNodeAction")
+  const slugIdx = src.indexOf("eq(supplierNodes.slug, input.slug)", fnIdx)
+  const newIdx = src.indexOf("input.supplierId === NEW_SUPPLIER", fnIdx)
+  const supplierInsertIdx = src.indexOf(".insert(suppliers)", fnIdx)
+  const nodeInsertIdx = src.indexOf(".insert(supplierNodes)", fnIdx)
+  assert.ok(slugIdx > fnIdx, "slug vérifié")
+  assert.ok(newIdx > slugIdx, "slug vérifié AVANT toute écriture")
+  assert.ok(supplierInsertIdx > newIdx && nodeInsertIdx > supplierInsertIdx)
+  assert.match(src.slice(supplierInsertIdx, nodeInsertIdx), /type: "custom"/)
+})
+
+test("SUPPLIER-NODE-CREATE-01 : le bouton n'est plus désactivé quand tous les fournisseurs ont un nœud", () => {
+  const dialog = readFileSync(
+    join(process.cwd(), "components/admin/create-supplier-node-dialog.tsx"),
+    "utf8",
+  )
+  assert.doesNotMatch(dialog, /disabled=\{availableSuppliers\.length === 0\}/)
+  assert.match(dialog, /<SelectItem value=\{NEW_SUPPLIER\}>/)
+  assert.match(dialog, /useState<string>\(NEW_SUPPLIER\)/)
+})

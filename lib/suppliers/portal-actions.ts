@@ -35,6 +35,7 @@
  * l'invitation, `acceptedAt` reste `null` jusqu'à la première connexion.
  */
 
+import { NEW_SUPPLIER } from "./node-constants"
 import { revalidatePath } from "next/cache"
 import { withSystemContext, withTenantContext } from "@/lib/db/tenant-context"
 import {
@@ -166,7 +167,7 @@ async function requireSuperAdmin() {
 }
 
 const createNodeInputSchema = z.object({
-  supplierId: z.string().uuid(),
+  supplierId: z.union([z.string().uuid(), z.literal(NEW_SUPPLIER)]),
   slug: z
     .string()
     .trim()
@@ -189,11 +190,13 @@ export type CreateSupplierNodeResult =
   | { ok: false; error: string }
 
 /**
- * Crée un nœud fournisseur à partir d'une ligne `suppliers` EXISTANTE
- * (aucune action de création de fournisseur technique n'existe dans ce
- * codebase — hors périmètre NETWORK-01, gap pré-existant documenté tel
- * quel). `suppliers.id` doit être unique par nœud (contrainte DB
- * `supplier_nodes_supplier_uniq`).
+ * Crée un nœud fournisseur à partir d'une ligne `suppliers` existante, ou —
+ * SUPPLIER-NODE-CREATE-01 — crée le fournisseur technique dans la MÊME
+ * transaction (`supplierId = NEW_SUPPLIER` : type `custom`, statut
+ * `inactive` par défaut, nom = nom commercial). Avant, aucune création de
+ * fournisseur n'existait : le bouton « Créer un nœud » restait désactivé
+ * dès que chaque fournisseur avait déjà son nœud (cas de la production).
+ * `suppliers.id` reste unique par nœud (`supplier_nodes_supplier_uniq`).
  */
 export async function createSupplierNodeAction(
   raw: z.infer<typeof createNodeInputSchema>,
@@ -216,29 +219,61 @@ export async function createSupplierNodeAction(
   const outcome = await withTenantContext(
     { agencyId: null, userId: user.id, isSuperAdmin: true },
     async (tx) => {
-      const [supplier] = await tx
-        .select({ id: suppliers.id })
-        .from(suppliers)
-        .where(eq(suppliers.id, input.supplierId))
-        .limit(1)
-      if (!supplier)
-        return { ok: false as const, error: "Fournisseur introuvable." }
-
-      const [existing] = await tx
+      // Vérifications AVANT toute écriture : un retour d'erreur ne
+      // l'annulerait pas (fournisseur orphelin).
+      const [slugTaken] = await tx
         .select({ id: supplierNodes.id })
         .from(supplierNodes)
-        .where(eq(supplierNodes.supplierId, input.supplierId))
+        .where(eq(supplierNodes.slug, input.slug))
         .limit(1)
-      if (existing)
+      if (slugTaken)
         return {
           ok: false as const,
-          error: "Ce fournisseur a déjà un nœud réseau.",
+          error: "Ce slug est déjà utilisé par un autre nœud.",
         }
+
+      let supplierId: string
+      if (input.supplierId === NEW_SUPPLIER) {
+        const [created] = await tx
+          .insert(suppliers)
+          .values({
+            name: input.displayName,
+            type: "custom",
+            supportEmail: input.contactEmail,
+          })
+          .returning({ id: suppliers.id })
+        if (!created)
+          return {
+            ok: false as const,
+            error: "Échec de la création du fournisseur.",
+          }
+        supplierId = created.id
+      } else {
+        const [supplier] = await tx
+          .select({ id: suppliers.id })
+          .from(suppliers)
+          .where(eq(suppliers.id, input.supplierId))
+          .limit(1)
+        if (!supplier)
+          return { ok: false as const, error: "Fournisseur introuvable." }
+        supplierId = supplier.id
+
+        const [existing] = await tx
+          .select({ id: supplierNodes.id })
+          .from(supplierNodes)
+          .where(eq(supplierNodes.supplierId, supplierId))
+          .limit(1)
+        if (existing)
+          return {
+            ok: false as const,
+            error: "Ce fournisseur a déjà un nœud réseau.",
+          }
+      }
 
       const [node] = await tx
         .insert(supplierNodes)
         .values({
-          supplierId: input.supplierId,
+          supplierId,
           slug: input.slug,
           displayName: input.displayName,
           shortDescription: input.shortDescription,
@@ -253,7 +288,7 @@ export async function createSupplierNodeAction(
         return { ok: false as const, error: "Échec de la création du nœud." }
 
       await tx.insert(supplierLogs).values({
-        supplierId: input.supplierId,
+        supplierId,
         type: "portal",
         level: "info",
         message: `Nœud réseau créé (${input.displayName}) par ${user.id}`,

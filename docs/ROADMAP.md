@@ -206,7 +206,7 @@ Error("FISCAL_RULE_NOT_FOUND")` si aucune règle active
 >
 > **NOT VERIFIED / reste ouvert** : (1) envois réels de logo/Hero, modification d'une promo et enregistrement `/admin/brand` par l'utilisateur en production ; (2) G-23 dans un navigateur ; (3) les variables `FEATURE_*` de Vercel (ex. `FEATURE_HOTELS_MONDE=false`) ne sont lues nulle part dans le code — la promo « Istanbul » pointe vers `/hotels-monde` ; (4) `lib/public/__tests__/site-content-robustness.test.ts` (timeout 1 500 ms) échoue en local sur `main` aussi — hors CI live, à diagnostiquer ; (5) couleur d'accent de `/admin/brand` non appliquée au site public OTA (SITE-BRAND-THEME-01) ; (6) vidéos (SITE-VIDEO-01) ; (7) canaux Meta (WhatsApp/Instagram/Messenger) non connectés.
 >
-> **Réconciliation 2026-10-31 — PR #313 à #322** (vérifié : historique de `main`, CI verte sur chaque PR avant fusion ; déploiement production `dpl_91e3fjAT5q9cvAzjEVRg6nWas6xc` (SHA `b5af8091` = merge de #322) **en construction au moment de la rédaction — statut à confirmer** ; #321 et #320 : déployés `READY` (`70ff6757`, `3196e294`)) :
+> **Réconciliation 2026-10-31 — PR #313 à #322** (vérifié : historique de `main`, CI verte sur chaque PR avant fusion ; déploiement production `dpl_91e3fjAT5q9cvAzjEVRg6nWas6xc` (SHA `b5af8091` = merge de #322) `state=READY`, `target=production` (vérifié le 2026-10-31 16:25 UTC ; `/api/health` 200 ; webhooks Instagram/Messenger toujours `503 Misconfigured`, non connectés — attendu) ; #321 et #320 : déployés `READY` (`70ff6757`, `3196e294`)) :
 >
 > - **Docs** (#313) : réconciliation #297–#312.
 > - **SITE-BRAND-THEME-01** (#314) : couleur de marque appliquée au site public, contraste WCAG garanti.

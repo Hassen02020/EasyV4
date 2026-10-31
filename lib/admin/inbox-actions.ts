@@ -9,8 +9,9 @@
  * Meta Graph API POST /me/messages. Requiert META_PAGE_ACCESS_TOKEN (Page
  * Access Token longue durée). Guard explicite : si absent → canReply=false
  * dans getConversationThread et erreur explicite dans sendReply.
- * Le contactPhone stocké pour ces canaux est le PSID Meta — c'est le bon
- * recipient.id pour l'API Send.
+ * CRM-SOCIAL-CODE-FIX-01 : pour ces canaux, le PSID / IGSID est stocké dans
+ * `contactExternalId` (jamais dans contactPhone) — c'est le recipient.id de
+ * l'API Send.
  */
 
 import { revalidatePath } from "next/cache"
@@ -22,6 +23,7 @@ import {
   getConversationWithMessagesCore,
   appendOutboundMessageCore,
   canSendSessionMessage,
+  isExternalIdChannel,
   type ConversationRow,
   type MessageRow,
 } from "@/lib/crm/inbox-core"
@@ -154,7 +156,7 @@ export type SendReplyResult = { ok: true } | { ok: false; error: string }
  * fenêtre de service 24h Meta (voir canSendSessionMessage).
  *
  * Messenger / Instagram : POST /me/messages via Meta Graph API v21.0,
- * messaging_type:"RESPONSE", recipient.id = PSID stocké en contactPhone.
+ * messaging_type:"RESPONSE", recipient.id = PSID / IGSID (contactExternalId).
  * Requiert META_PAGE_ACCESS_TOKEN ; guard explicite → erreur si absent.
  *
  * Le message n'est journalisé QU'APRÈS confirmation réelle du provider —
@@ -209,13 +211,16 @@ export async function sendReply(input: {
       }
     }
 
-    if (!conversation.contactPhone)
+    const recipientId = isExternalIdChannel(conversation.channel)
+      ? conversation.contactExternalId
+      : conversation.contactPhone
+    if (!recipientId)
       return { ok: false, error: "Identifiant de contact manquant." }
 
     if (conversation.channel === "whatsapp") {
       const provider = getWhatsAppProvider()
       const sendResult = await provider.sendSessionMessage({
-        to: conversation.contactPhone,
+        to: recipientId,
         body,
       })
       if (!sendResult.ok) {
@@ -255,7 +260,7 @@ export async function sendReply(input: {
             Authorization: `Bearer ${pageAccessToken}`,
           },
           body: JSON.stringify({
-            recipient: { id: conversation.contactPhone },
+            recipient: { id: recipientId },
             messaging_type: "RESPONSE",
             message: { text: body },
           }),

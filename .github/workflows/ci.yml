@@ -324,6 +324,7 @@ jobs:
             lib/crm/__tests__/auto-convert-lead-core-live.test.ts \
             lib/crm/__tests__/lead-notify-channels.test.ts \
             lib/crm/__tests__/inbox-core.test.ts \
+            lib/crm/__tests__/inbound-email-capture-core-live.test.ts \
             lib/admin/__tests__/b2c-clients-core-live.test.ts \
             lib/public/__tests__/site-admin-core-live.test.ts \
             lib/crm/__tests__/time-series-core-live.test.ts \

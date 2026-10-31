@@ -229,12 +229,12 @@ test("[Resend] 401 si autorisation invalide", () => {
   assert.match(resendRoute, /status:\s*401/, "401 requis si Bearer invalide")
 })
 
-test("[Resend] appelle captureWebsiteLeadCore avec channel implicite email", () => {
-  assert.match(
-    resendRoute,
-    /captureWebsiteLeadCore/,
-    "captureWebsiteLeadCore doit être appelée",
-  )
+test("[Resend] passe par captureInboundEmailLeadCore (provenance email, dédup email_id) — CRM-SOCIAL-CODE-FIX-01", () => {
+  // Avant : captureWebsiteLeadCore appelée directement → provenance
+  // enregistrée comme formulaire du site. Désormais via le cœur dédié, qui
+  // réutilise captureWebsiteLeadCore avec la provenance email.
+  assert.match(resendRoute, /captureInboundEmailLeadCore\(tx, \{/)
+  assert.doesNotMatch(resendRoute, /captureWebsiteLeadCore/)
 })
 
 test("[Resend] email extrait depuis payload.from (jamais inventé)", () => {

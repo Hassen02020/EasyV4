@@ -132,10 +132,13 @@ export async function getCustomer360Core(
   )
   // Repli par téléphone : une conversation peut exister avant qu'un lead
   // n'ait été créé/lié (voir upsertConversationForInboundCore), donc pas
-  // encore marquée leadId — mais reste utile à afficher ici.
+  // encore marquée leadId — mais reste utile à afficher ici. WhatsApp
+  // seulement : Messenger / Instagram n'ont pas de téléphone
+  // (CRM-SOCIAL-CODE-FIX-01).
   if (conversations.length === 0 && lead.phone) {
     for (const c of allConversations) {
-      if (c.contactPhone === lead.phone) conversations.push(c)
+      if (c.channel === "whatsapp" && c.contactPhone === lead.phone)
+        conversations.push(c)
     }
   }
 

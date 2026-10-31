@@ -17,6 +17,7 @@ import {
   contacts,
   crmConversations,
   crmMessages,
+  leadOriginEvents,
   leads,
 } from "@/lib/db/schema"
 import {
@@ -116,12 +117,18 @@ after(async () => {
     await tx
       .delete(crmConversations)
       .where(eq(crmConversations.agencyId, agencyA))
+    await tx
+      .delete(leadOriginEvents)
+      .where(eq(leadOriginEvents.agencyId, agencyA))
     await tx.delete(leads).where(eq(leads.agencyId, agencyA))
     await tx.delete(contacts).where(eq(contacts.agencyId, agencyA))
     await tx.delete(crmMessages).where(eq(crmMessages.agencyId, agencyB))
     await tx
       .delete(crmConversations)
       .where(eq(crmConversations.agencyId, agencyB))
+    await tx
+      .delete(leadOriginEvents)
+      .where(eq(leadOriginEvents.agencyId, agencyB))
     await tx.delete(leads).where(eq(leads.agencyId, agencyB))
     await tx.delete(contacts).where(eq(contacts.agencyId, agencyB))
     await tx.delete(agencies).where(eq(agencies.id, agencyA))
@@ -436,4 +443,141 @@ test("listConversationsCore : isolation stricte par agence", async (t) => {
   assert.ok(listA.some((c) => c.contactPhone === "21620000010"))
   assert.ok(!listA.some((c) => c.contactPhone === "21620000011"))
   assert.ok(listB.some((c) => c.contactPhone === "21620000011"))
+})
+
+// ── CRM-SOCIAL-CODE-FIX-01 — Messenger / Instagram : identifiant externe ──
+
+async function originSources(leadId: string) {
+  const rows = await withSystemContext((tx) =>
+    tx
+      .select({ source: leadOriginEvents.source })
+      .from(leadOriginEvents)
+      .where(eq(leadOriginEvents.leadId, leadId)),
+  )
+  return rows.map((r) => r.source)
+}
+
+test("Instagram : IGSID dans contact_external_id, jamais dans un téléphone ; lead « Contact Instagram »", async (t) => {
+  if (!dbAvailable) return void t.skip(skipReason())
+  const igsid = `17841${Date.now()}`
+
+  const first = await withTenantContext(ctxFor(agencyA), (tx) =>
+    upsertConversationForInboundCore(tx, {
+      agencyId: agencyA,
+      channel: "instagram",
+      contactExternalId: igsid,
+      body: "Bonjour, un devis Omra ?",
+      externalMessageId: `ig.${randomUUID()}`,
+      sentAt: new Date(),
+    }),
+  )
+  assert.ok(first.createdLeadId)
+
+  const [conv] = await withSystemContext((tx) =>
+    tx
+      .select()
+      .from(crmConversations)
+      .where(eq(crmConversations.id, first.conversationId)),
+  )
+  assert.equal(conv!.contactExternalId, igsid)
+  assert.equal(conv!.contactPhone, null)
+  assert.equal(conv!.leadId, first.createdLeadId)
+
+  const [lead] = await withSystemContext((tx) =>
+    tx.select().from(leads).where(eq(leads.id, first.createdLeadId!)),
+  )
+  assert.equal(lead!.firstName, "Contact Instagram")
+  assert.equal(lead!.phone, null)
+  assert.equal(lead!.sourcePage, "instagram")
+  assert.deepEqual(await originSources(lead!.id), ["instagram_webhook"])
+
+  // Deuxième message du même IGSID : même conversation, aucun nouveau lead.
+  const second = await withTenantContext(ctxFor(agencyA), (tx) =>
+    upsertConversationForInboundCore(tx, {
+      agencyId: agencyA,
+      channel: "instagram",
+      contactExternalId: igsid,
+      body: "Pour 2 personnes",
+      externalMessageId: `ig.${randomUUID()}`,
+      sentAt: new Date(),
+    }),
+  )
+  assert.equal(second.conversationId, first.conversationId)
+  assert.equal(second.createdLeadId, null)
+})
+
+test("Messenger : PSID externe, « Contact Messenger » ; même identifiant sur Instagram = autre conversation", async (t) => {
+  if (!dbAvailable) return void t.skip(skipReason())
+  const id = `2468${Date.now()}`
+
+  const messenger = await withTenantContext(ctxFor(agencyA), (tx) =>
+    upsertConversationForInboundCore(tx, {
+      agencyId: agencyA,
+      channel: "messenger",
+      contactExternalId: id,
+      body: "Salut",
+      externalMessageId: `m.${randomUUID()}`,
+      sentAt: new Date(),
+    }),
+  )
+  const instagram = await withTenantContext(ctxFor(agencyA), (tx) =>
+    upsertConversationForInboundCore(tx, {
+      agencyId: agencyA,
+      channel: "instagram",
+      contactExternalId: id,
+      body: "Salut",
+      externalMessageId: `ig.${randomUUID()}`,
+      sentAt: new Date(),
+    }),
+  )
+  assert.notEqual(messenger.conversationId, instagram.conversationId)
+  const [lead] = await withSystemContext((tx) =>
+    tx.select().from(leads).where(eq(leads.id, messenger.createdLeadId!)),
+  )
+  assert.equal(lead!.firstName, "Contact Messenger")
+  assert.equal(lead!.phone, null)
+})
+
+test("Instagram : un lead dont le téléphone vaut l'IGSID n'est jamais rattaché (pas de comparaison téléphone)", async (t) => {
+  if (!dbAvailable) return void t.skip(skipReason())
+  const igsid = `99${Date.now()}`
+  await withSystemContext((tx) =>
+    tx.insert(leads).values({
+      agencyId: agencyA,
+      firstName: "Homonyme",
+      phone: igsid,
+      sourcePage: "/contact",
+    }),
+  )
+  const r = await withTenantContext(ctxFor(agencyA), (tx) =>
+    upsertConversationForInboundCore(tx, {
+      agencyId: agencyA,
+      channel: "instagram",
+      contactExternalId: igsid,
+      body: "Bonjour",
+      externalMessageId: `ig.${randomUUID()}`,
+      sentAt: new Date(),
+    }),
+  )
+  assert.ok(
+    r.createdLeadId,
+    "nouveau lead créé, pas de rattachement par téléphone",
+  )
+})
+
+test("identifiant de contact absent → refus explicite (CONTACT_REF_REQUIRED)", async (t) => {
+  if (!dbAvailable) return void t.skip(skipReason())
+  await assert.rejects(
+    withTenantContext(ctxFor(agencyA), (tx) =>
+      upsertConversationForInboundCore(tx, {
+        agencyId: agencyA,
+        channel: "instagram",
+        contactPhone: "21620000099",
+        body: "x",
+        externalMessageId: `ig.${randomUUID()}`,
+        sentAt: new Date(),
+      }),
+    ),
+    /CONTACT_REF_REQUIRED/,
+  )
 })

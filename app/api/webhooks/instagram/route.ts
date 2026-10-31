@@ -15,19 +15,10 @@ import { getDefaultAgencyId } from "@/lib/agencies/default-agency"
 import { verifyWhatsAppSignature } from "@/lib/whatsapp/signing"
 import { upsertConversationForInboundCore } from "@/lib/crm/inbox-core"
 import { notifyLeadCreated } from "@/lib/crm/lead-created-notify"
-
-interface InstagramWebhookPayload {
-  object?: string
-  entry?: Array<{
-    id?: string
-    messaging?: Array<{
-      sender?: { id?: string }
-      recipient?: { id?: string }
-      timestamp?: number
-      message?: { mid?: string; text?: string }
-    }>
-  }>
-}
+import {
+  extractMetaInboundMessages,
+  type MetaMessagingPayload,
+} from "@/lib/crm/meta-messaging"
 
 export async function GET(request: NextRequest) {
   const verifyToken = process.env.META_INSTAGRAM_VERIFY_TOKEN
@@ -64,7 +55,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Invalid signature" }, { status: 400 })
   }
 
-  let payload: InstagramWebhookPayload
+  let payload: MetaMessagingPayload
   try {
     payload = JSON.parse(rawBody.toString("utf8"))
   } catch {
@@ -81,20 +72,12 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "No agency configured" }, { status: 503 })
   }
 
-  const messagingEvents = payload.entry?.flatMap((e) => e.messaging ?? []) ?? []
-
   let processed = 0
-  for (const event of messagingEvents) {
-    const senderId = event.sender?.id
-    const mid = event.message?.mid
-    const text = event.message?.text
-
-    if (!senderId || !mid || !text) continue
-
-    const sentAt = event.timestamp
-      ? new Date(event.timestamp * 1000)
-      : new Date()
-
+  // CRM-SOCIAL-CODE-FIX-01 — échos de la Page ignorés, horodatage Meta en
+  // millisecondes (lib/crm/meta-messaging.ts).
+  for (const { senderId, mid, text, sentAt } of extractMetaInboundMessages(
+    payload,
+  )) {
     try {
       const inbound = await withTenantContext(
         { agencyId, userId: "", isSuperAdmin: true },
@@ -102,7 +85,7 @@ export async function POST(request: NextRequest) {
           upsertConversationForInboundCore(tx, {
             agencyId,
             channel: "instagram",
-            contactPhone: senderId,
+            contactExternalId: senderId,
             body: text,
             externalMessageId: mid,
             sentAt,

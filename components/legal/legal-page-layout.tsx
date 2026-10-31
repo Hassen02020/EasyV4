@@ -20,6 +20,7 @@ export function LegalPageLayout({
   intro,
   sections,
   noticeOverride,
+  lastUpdated,
 }: {
   title: string
   intro: string
@@ -31,6 +32,11 @@ export function LegalPageLayout({
    * pour une locale donnée. Voir LEGAL-CONTENT-REAL-01.
    */
   noticeOverride?: React.ReactNode
+  /**
+   * Date de mise à jour affichée à la place de `t("lastUpdated")` (« à
+   * définir ») quand le texte d'une page a été validé — LEGAL-DATA-DELETION-01.
+   */
+  lastUpdated?: string
 }) {
   const t = useTranslations("Legal")
   return (
@@ -42,7 +48,7 @@ export function LegalPageLayout({
             {title}
           </h1>
           <p className="text-muted-foreground mt-3 text-sm">
-            {t("lastUpdated")}
+            {lastUpdated ?? t("lastUpdated")}
           </p>
 
           <div className="border-warning/40 bg-warning/10 mt-6 flex items-start gap-3 rounded-2xl border p-4">

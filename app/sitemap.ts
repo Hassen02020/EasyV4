@@ -41,6 +41,7 @@ const STATIC_PATHS = [
   "/compte",
   "/mentions-legales",
   "/politique-confidentialite",
+  "/suppression-donnees",
   "/cgv",
   "/destinations",
 ]

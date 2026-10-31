@@ -309,6 +309,12 @@ export function FooterClient({
               >
                 {t("politique")}
               </Link>
+              <Link
+                href="/suppression-donnees"
+                className="transition-colors hover:text-white"
+              >
+                {t("suppressionDonnees")}
+              </Link>
             </div>
 
             {/* Payment Methods */}

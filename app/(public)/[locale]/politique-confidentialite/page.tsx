@@ -65,7 +65,7 @@ const FR_SECTIONS: LegalSection[] = [
   {
     heading: "7. Droits des personnes",
     paragraphs: [
-      "Selon la législation applicable, les personnes peuvent disposer de droits d'accès, de rectification, d'effacement, de limitation, d'opposition et, lorsque le traitement repose sur le consentement, de retrait de celui-ci. Les modalités d'exercice, les délais de réponse et l'autorité compétente doivent être confirmés selon le droit tunisien applicable. Les demandes peuvent être adressées à info@easy2book.tn.",
+      "Selon la législation applicable, les personnes peuvent disposer de droits d'accès, de rectification, d'effacement, de limitation, d'opposition et, lorsque le traitement repose sur le consentement, de retrait de celui-ci. Les modalités d'exercice, les délais de réponse et l'autorité compétente doivent être confirmés selon le droit tunisien applicable. Les demandes peuvent être adressées à Direction@easy2book.tn. La procédure de suppression des données (délai, données conservées, confirmation) est décrite sur la page « Suppression des données ».",
     ],
   },
   {

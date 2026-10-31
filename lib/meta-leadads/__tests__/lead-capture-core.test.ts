@@ -165,3 +165,27 @@ test("captureMetaLeadCore : redélivrance du même leadgenId → idempotent, jam
     "jamais un lead dupliqué pour le même leadgenId",
   )
 })
+
+test("CRM-LEADADS-UNIQUE-01 (G-17) : livraisons SIMULTANÉES du même leadgenId → un seul lead (verrou)", async (t) => {
+  if (!dbAvailable) return void t.skip(skipReason())
+  const leadgenId = `lg_${randomUUID()}`
+  const data = fieldData(leadgenId, { email: "concurrent@example.test" })
+
+  const results = await Promise.all(
+    [1, 2, 3].map(() =>
+      withTenantContext(ctx(), (tx) =>
+        captureMetaLeadCore(tx, { agencyId, data }),
+      ),
+    ),
+  )
+  assert.equal(results.filter((r) => !r.alreadyProcessed).length, 1)
+  assert.equal(new Set(results.map((r) => r.leadId)).size, 1)
+
+  const matching = await withSystemContext((tx) =>
+    tx
+      .select({ id: leads.id })
+      .from(leads)
+      .where(eq(leads.sourcePage, `meta_leadads:${leadgenId}`)),
+  )
+  assert.equal(matching.length, 1)
+})

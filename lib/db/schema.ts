@@ -2145,6 +2145,14 @@ export const leads = pgTable(
     index("leads_agency_status_idx").on(t.agencyId, t.status, t.createdAt),
     index("leads_agency_idx").on(t.agencyId),
     uniqueIndex("leads_reservation_id_uniq").on(t.reservationId),
+    /**
+     * CRM-LEADADS-UNIQUE-01 (G-17, migration 0147) — un seul lead par
+     * (agence, leadgen_id Meta). Partiel : le site produit légitimement des
+     * `source_page` identiques (plusieurs demandes depuis la même page).
+     */
+    uniqueIndex("leads_agency_meta_leadgen_uniq")
+      .on(t.agencyId, t.sourcePage)
+      .where(sql`${t.sourcePage} LIKE 'meta_leadads:%'`),
     /** CRM-NICHE-01 — colonnes de group-by de getNicheSegmentsCore(). */
     index("leads_agency_market_product_intention_idx").on(
       t.agencyId,

@@ -14,6 +14,7 @@ import {
 } from "@/lib/db/tenant-context"
 import { agencies, contacts, leads } from "@/lib/db/schema"
 import { captureMetaLeadCore } from "../lead-capture-core"
+import { processLeadgenBatchCore, type LeadgenFailure } from "../webhook-batch"
 import type { MetaLeadFieldData } from "../provider"
 
 async function isDbAvailable(): Promise<boolean> {
@@ -188,4 +189,91 @@ test("CRM-LEADADS-UNIQUE-01 (G-17) : livraisons SIMULTANÉES du même leadgenId 
       .where(eq(leads.sourcePage, `meta_leadads:${leadgenId}`)),
   )
   assert.equal(matching.length, 1)
+})
+
+test("CRM-LEADADS-UNIQUE-01 (G-17, 0147) : la base refuse un 2e lead pour le même leadgen_id, même sans verrou ; le site garde ses doublons légitimes", async (t) => {
+  if (!dbAvailable) return void t.skip(skipReason())
+  const sourcePage = `meta_leadads:lg_${randomUUID()}`
+  const insert = (page: string) =>
+    withSystemContext((tx) =>
+      tx
+        .insert(leads)
+        .values({ agencyId, firstName: "Direct", sourcePage: page }),
+    )
+
+  await insert(sourcePage)
+  await assert.rejects(insert(sourcePage), (err: unknown) => {
+    const code =
+      (err as { code?: string }).code ??
+      (err as { cause?: { code?: string } }).cause?.code
+    return code === "23505"
+  })
+
+  // Index PARTIEL : deux demandes du site sur la même page restent permises.
+  await insert("/hotels/519")
+  await insert("/hotels/519")
+})
+
+test("G-17 : conflit RÉEL sur l'index Meta (23505) → échec tracé, réponse 500 ; relivraison Meta → lead existant, ni doublon ni second email", async (t) => {
+  if (!dbAvailable) return void t.skip(skipReason())
+  const leadgenId = `lg_${randomUUID()}`
+  const sourcePage = `meta_leadads:${leadgenId}`
+  const data = fieldData(leadgenId, { email: "race@example.test" })
+
+  // Un concurrent a déjà enregistré ce leadgen_id (cas d'un chemin sans
+  // verrou) : la 2e insertion se heurte à l'index 0147.
+  await withSystemContext((tx) =>
+    tx.insert(leads).values({ agencyId, firstName: "Gagnant", sourcePage }),
+  )
+
+  const recorded: LeadgenFailure[] = []
+  const notified: string[] = []
+  let dbCode: string | undefined
+  const first = await processLeadgenBatchCore([leadgenId], {
+    fetchLead: async () => ({ ok: true, lead: data }),
+    // Perdant de la course : insertion directe, sans lecture préalable.
+    capture: async () => {
+      try {
+        await withSystemContext((tx) =>
+          tx
+            .insert(leads)
+            .values({ agencyId, firstName: "Perdant", sourcePage }),
+        )
+      } catch (err) {
+        dbCode =
+          (err as { code?: string }).code ??
+          (err as { cause?: { code?: string } }).cause?.code
+        throw err
+      }
+      throw new Error("insertion inattendue : l'index aurait dû refuser")
+    },
+    notifyCreated: async (id) => void notified.push(id),
+    recordFailure: async (f) => void recorded.push(f),
+  })
+  assert.equal(dbCode, "23505", "erreur d'unicité levée par Postgres")
+  assert.deepEqual(first.failures, [
+    { leadgenId, code: "META_LEADADS_CAPTURE_FAILED" },
+  ])
+  assert.deepEqual(recorded, first.failures) // → la route répond 500
+
+  // Relivraison Meta, code réel : lead existant reconnu, aucune notification.
+  const second = await processLeadgenBatchCore([leadgenId], {
+    fetchLead: async () => ({ ok: true, lead: data }),
+    capture: (lead) =>
+      withTenantContext(ctx(), (tx) =>
+        captureMetaLeadCore(tx, { agencyId, data: lead }),
+      ),
+    notifyCreated: async (id) => void notified.push(id),
+    recordFailure: async (f) => void recorded.push(f),
+  })
+  assert.deepEqual(second, { processed: 1, failures: [] })
+  assert.deepEqual(notified, [])
+
+  const rows = await withSystemContext((tx) =>
+    tx
+      .select({ id: leads.id })
+      .from(leads)
+      .where(eq(leads.sourcePage, sourcePage)),
+  )
+  assert.equal(rows.length, 1)
 })

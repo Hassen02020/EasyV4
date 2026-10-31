@@ -21,7 +21,7 @@
  *    déjà correctement de toute campagne — aucun cas spécial à coder).
  */
 
-import { and, eq } from "drizzle-orm"
+import { and, eq, sql } from "drizzle-orm"
 import type { DrizzleTransaction } from "@/lib/db/client"
 import { leads } from "@/lib/db/schema"
 import { createLeadCore } from "@/lib/crm/leads-core"
@@ -58,6 +58,15 @@ export async function captureMetaLeadCore(
   params: { agencyId: string; data: MetaLeadFieldData },
 ): Promise<MetaLeadCaptureResult> {
   const sourcePage = `meta_leadads:${params.data.leadgenId}`
+
+  // CRM-LEADADS-UNIQUE-01 (G-17) — verrou transactionnel sur (agence,
+  // leadgen_id) AVANT la recherche : deux livraisons simultanées du même
+  // leadgen_id (renvoi Meta après un 500, G-05) sont sérialisées, la seconde
+  // trouve le lead de la première. Pas d'index unique ici (migration
+  // séparée, GO propriétaire).
+  await tx.execute(
+    sql`select pg_advisory_xact_lock(hashtext(${`meta_leadads:${params.agencyId}:${params.data.leadgenId}`}))`,
+  )
 
   const [existing] = await tx
     .select({ id: leads.id })

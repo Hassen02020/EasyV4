@@ -297,6 +297,14 @@ Priorités : **P0** = bloquant ou dangereux dès l'utilisation · **P1** = fiabi
 | G-54                                 | Corrigé (#308)                                | Test live 106 clients + autre agence                                              |
 | Nouveau — `[Prénom]` envoyé tel quel | Corrigé (#306)                                | Test live « Amira » / sans prénom                                                 |
 | Nouveau — accueil admin sans CRM     | Corrigé (#312)                                | Test live 6 compteurs, 2 agences                                                  |
+| G-20                                 | Corrigé (#318)                                | Test d'injection dans chaque champ                                                |
+| G-42                                 | Corrigé (#319)                                | Tests live, mutation (règle d'ambiguïté)                                          |
+| G-03                                 | Corrigé (#320)                                | Câblage des 5 canaux ; saisie équipe volontairement sans email                    |
+| G-05                                 | Corrigé (#321)                                | Échec tracé + 500 ; mutations                                                     |
+| G-16 (partiel)                       | Dédup `email_id` + provenance (#322)          | Test concurrent ; signature Resend non traitée                                    |
+| G-27 (partiel)                       | Identifiant externe, échos, horodatage (#322) | Tests live + mutations ; messages non texte toujours ignorés                      |
+| G-04                                 | **Ouvert** — aucun canal configuré            | Audit CRM-SOCIAL-CONNECT-01 : 4 webhooks en 503 en production (2026-10-31)        |
+| G-17                                 | **Ouvert** — fiche CRM-LEADADS-UNIQUE-01      | Aucun lead Meta en production ; index partiel proposé                             |
 
 ## 10. Conclusion
 

@@ -109,14 +109,23 @@ test("trace d'échec impossible : le lot continue et l'échec reste signalé", a
 })
 
 test("route : 500 dès qu'un lead a échoué (Meta relivre), trace audit_events sans donnée personnelle", () => {
-  const route = readFileSync("app/api/webhooks/meta-leadads/route.ts", "utf8")
+  // Les deux routes qui reçoivent `leadgen` (historique et Page unifiée,
+  // CRM-META-CONNECT-01) répondent 500 au moindre échec.
+  for (const f of [
+    "app/api/webhooks/meta-leadads/route.ts",
+    "app/api/webhooks/meta-page/route.ts",
+  ]) {
+    const route = readFileSync(f, "utf8")
+    assert.match(
+      route,
+      /if \(failures\.length > 0\) \{\s*return NextResponse\.json\([\s\S]*?\{ status: 500 \}/,
+      f,
+    )
+    assert.match(route, /processLeadgenIds\(/, f)
+    assert.doesNotMatch(route, /continue\n/, f)
+  }
   assert.match(
-    route,
-    /if \(failures\.length > 0\) \{\s*return NextResponse\.json\([\s\S]*?\{ status: 500 \}/,
-  )
-  assert.match(
-    route,
+    readFileSync("lib/meta/page-webhook-core.ts", "utf8"),
     /action: LEADADS_FAILURE_ACTION,\s*diff: \{ code: failure\.code \}/,
   )
-  assert.doesNotMatch(route, /continue\n/)
 })

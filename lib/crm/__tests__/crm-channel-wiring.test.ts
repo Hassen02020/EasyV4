@@ -16,6 +16,10 @@ const messengerRoute = readFileSync(
   join(process.cwd(), "app/api/webhooks/messenger/route.ts"),
   "utf8",
 )
+const pageWebhookCore = readFileSync(
+  join(process.cwd(), "lib/meta/page-webhook-core.ts"),
+  "utf8",
+)
 const instagramRoute = readFileSync(
   join(process.cwd(), "app/api/webhooks/instagram/route.ts"),
   "utf8",
@@ -87,21 +91,22 @@ test("[Messenger] rejette les payloads dont object !== 'page'", () => {
 })
 
 test("[Messenger] channel='messenger' passé à upsertConversationForInboundCore", () => {
+  // CRM-META-CONNECT-01 : traitement partagé (lib/meta/page-webhook-core.ts).
   assert.match(
     messengerRoute,
-    /channel:\s*["']messenger["']/,
-    "channel 'messenger' doit être passé",
+    /processMessagingEvents\(agencyId, "messenger", payload\)/,
+    "le canal 'messenger' doit être passé au traitement partagé",
   )
   assert.match(
-    messengerRoute,
-    /upsertConversationForInboundCore/,
-    "upsertConversationForInboundCore doit être appelée",
+    pageWebhookCore,
+    /upsertConversationForInboundCore\(tx, \{[\s\S]*?channel,/,
+    "upsertConversationForInboundCore doit recevoir le canal",
   )
 })
 
 test("[Messenger] externalMessageId = message.mid (idempotence)", () => {
   assert.match(
-    messengerRoute,
+    pageWebhookCore,
     /externalMessageId:\s*mid/,
     "externalMessageId doit être le mid Meta",
   )
@@ -170,21 +175,22 @@ test("[Instagram] rejette les payloads dont object !== 'instagram'", () => {
 })
 
 test("[Instagram] channel='instagram' passé à upsertConversationForInboundCore", () => {
+  // CRM-META-CONNECT-01 : traitement partagé (lib/meta/page-webhook-core.ts).
   assert.match(
     instagramRoute,
-    /channel:\s*["']instagram["']/,
-    "channel 'instagram' doit être passé",
+    /processMessagingEvents\(agencyId, "instagram", payload\)/,
+    "le canal 'instagram' doit être passé au traitement partagé",
   )
   assert.match(
-    instagramRoute,
-    /upsertConversationForInboundCore/,
-    "upsertConversationForInboundCore doit être appelée",
+    pageWebhookCore,
+    /upsertConversationForInboundCore\(tx, \{[\s\S]*?channel,/,
+    "upsertConversationForInboundCore doit recevoir le canal",
   )
 })
 
 test("[Instagram] externalMessageId = message.mid (idempotence)", () => {
   assert.match(
-    instagramRoute,
+    pageWebhookCore,
     /externalMessageId:\s*mid/,
     "externalMessageId doit être le mid Meta",
   )
@@ -313,9 +319,7 @@ test("[inbox-core] WEBHOOK_CHANNELS inclut messenger et instagram", () => {
 
 test("[inbox-actions] META_PAGE_ACCESS_TOKEN vérifié avant tout appel Meta Send", () => {
   const tokenPos = inboxActions.indexOf("META_PAGE_ACCESS_TOKEN")
-  const fetchPos = inboxActions.indexOf(
-    "https://graph.facebook.com/v21.0/me/messages",
-  )
+  const fetchPos = inboxActions.indexOf('metaGraphUrl("me/messages")')
   assert.ok(tokenPos > -1, "META_PAGE_ACCESS_TOKEN doit être référencé")
   assert.ok(
     fetchPos > -1,
@@ -363,9 +367,7 @@ test("[inbox-actions] canSendOutbound garde séparé de isChannelConnected (inbo
 
 test("[inbox-actions] canSendSessionMessage vérifié avant envoi Meta (fenêtre 24h)", () => {
   const sessionPos = inboxActions.indexOf("canSendSessionMessage(conversation)")
-  const metaFetchPos = inboxActions.indexOf(
-    "https://graph.facebook.com/v21.0/me/messages",
-  )
+  const metaFetchPos = inboxActions.indexOf('metaGraphUrl("me/messages")')
   assert.ok(
     sessionPos > -1,
     "canSendSessionMessage doit être appelée dans sendReply",
@@ -377,9 +379,7 @@ test("[inbox-actions] canSendSessionMessage vérifié avant envoi Meta (fenêtre
 })
 
 test("[inbox-actions] journalisation après confirmation Meta — jamais avant", () => {
-  const metaFetchPos = inboxActions.indexOf(
-    "https://graph.facebook.com/v21.0/me/messages",
-  )
+  const metaFetchPos = inboxActions.indexOf('metaGraphUrl("me/messages")')
   const appendPos = inboxActions.lastIndexOf("appendOutboundMessageCore(")
   assert.ok(
     metaFetchPos < appendPos,

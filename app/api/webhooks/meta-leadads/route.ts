@@ -25,32 +25,13 @@
  */
 
 import { type NextRequest, NextResponse } from "next/server"
-import { withSystemContext, withTenantContext } from "@/lib/db/tenant-context"
-import { auditEvents } from "@/lib/db/schema"
 import { getDefaultAgencyId } from "@/lib/agencies/default-agency"
 import { verifyWhatsAppSignature } from "@/lib/whatsapp/signing"
-import { fetchMetaLeadFieldDataCore } from "@/lib/meta-leadads/provider"
-import { captureMetaLeadCore } from "@/lib/meta-leadads/lead-capture-core"
-import { notifyLeadCreated } from "@/lib/crm/lead-created-notify"
 import {
-  LEADADS_FAILURE_ACTION,
-  processLeadgenBatchCore,
-} from "@/lib/meta-leadads/webhook-batch"
-
-interface MetaLeadgenWebhookPayload {
-  object?: string
-  entry?: Array<{
-    changes?: Array<{
-      field?: string
-      value?: {
-        leadgen_id?: string
-        page_id?: string
-        form_id?: string
-        created_time?: number
-      }
-    }>
-  }>
-}
+  extractLeadgenIds,
+  processLeadgenIds,
+  type MetaPagePayload,
+} from "@/lib/meta/page-webhook-core"
 
 export async function GET(request: NextRequest) {
   const verifyToken = process.env.META_LEADADS_VERIFY_TOKEN
@@ -87,7 +68,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Invalid signature" }, { status: 400 })
   }
 
-  let payload: MetaLeadgenWebhookPayload
+  let payload: MetaPagePayload
   try {
     payload = JSON.parse(rawBody.toString("utf8"))
   } catch {
@@ -100,35 +81,14 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "No agency configured" }, { status: 503 })
   }
 
-  const leadgenIds =
-    payload.entry
-      ?.flatMap((e) => e.changes ?? [])
-      .filter((c) => c.field === "leadgen")
-      .map((c) => c.value?.leadgen_id)
-      .filter((id): id is string => Boolean(id)) ?? []
-
   // G-05 — tout échec (Meta, base) est tracé et renvoie 500 : Meta relivre
   // la notification, les leads déjà enregistrés du lot sont ignorés au
-  // renvoi (idempotence leadgen_id) — plus aucun prospect perdu en silence.
-  const { processed, failures } = await processLeadgenBatchCore(leadgenIds, {
-    fetchLead: fetchMetaLeadFieldDataCore,
-    capture: (lead) =>
-      withTenantContext({ agencyId, userId: "", isSuperAdmin: true }, (tx) =>
-        captureMetaLeadCore(tx, { agencyId, data: lead }),
-      ),
-    notifyCreated: (leadId) =>
-      notifyLeadCreated({ agencyId, leadId, channel: "meta_lead_ads" }),
-    recordFailure: (failure) =>
-      withSystemContext((tx) =>
-        tx.insert(auditEvents).values({
-          agencyId,
-          entityType: "meta_leadgen",
-          entityId: failure.leadgenId,
-          action: LEADADS_FAILURE_ACTION,
-          diff: { code: failure.code },
-        }),
-      ).then(() => undefined),
-  })
+  // renvoi (idempotence leadgen_id). Code partagé avec /meta-page
+  // (CRM-META-CONNECT-01).
+  const { processed, failures } = await processLeadgenIds(
+    agencyId,
+    extractLeadgenIds(payload),
+  )
 
   if (failures.length > 0) {
     return NextResponse.json(

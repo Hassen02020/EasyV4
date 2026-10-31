@@ -76,10 +76,15 @@ test("sans texte (pièce jointe, accusé), sans mid ou sans expéditeur → igno
 })
 
 test("routes Messenger / Instagram : identifiant externe, jamais contactPhone ; lecture via extractMetaInboundMessages", () => {
-  for (const ch of ["messenger", "instagram"]) {
+  // CRM-META-CONNECT-01 : traitement partagé par /messenger, /instagram
+  // et la route Page unifiée /meta-page.
+  const core = src("lib/meta/page-webhook-core.ts")
+  assert.match(core, /extractMetaInboundMessages\(/)
+  assert.match(core, /contactExternalId: senderId/)
+  assert.doesNotMatch(core, /contactPhone/)
+  for (const ch of ["messenger", "instagram", "meta-page"]) {
     const route = src(`app/api/webhooks/${ch}/route.ts`)
-    assert.match(route, /extractMetaInboundMessages\(/, ch)
-    assert.match(route, /contactExternalId: senderId/, ch)
+    assert.match(route, /processMessagingEvents\(/, ch)
     assert.doesNotMatch(route, /contactPhone/, ch)
     assert.doesNotMatch(route, /timestamp \* 1000/, ch)
   }

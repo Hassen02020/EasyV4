@@ -189,3 +189,26 @@ test("CRM-LEADADS-UNIQUE-01 (G-17) : livraisons SIMULTANÉES du même leadgenId 
   )
   assert.equal(matching.length, 1)
 })
+
+test("CRM-LEADADS-UNIQUE-01 (G-17, 0147) : la base refuse un 2e lead pour le même leadgen_id, même sans verrou ; le site garde ses doublons légitimes", async (t) => {
+  if (!dbAvailable) return void t.skip(skipReason())
+  const sourcePage = `meta_leadads:lg_${randomUUID()}`
+  const insert = (page: string) =>
+    withSystemContext((tx) =>
+      tx
+        .insert(leads)
+        .values({ agencyId, firstName: "Direct", sourcePage: page }),
+    )
+
+  await insert(sourcePage)
+  await assert.rejects(insert(sourcePage), (err: unknown) => {
+    const code =
+      (err as { code?: string }).code ??
+      (err as { cause?: { code?: string } }).cause?.code
+    return code === "23505"
+  })
+
+  // Index PARTIEL : deux demandes du site sur la même page restent permises.
+  await insert("/hotels/519")
+  await insert("/hotels/519")
+})

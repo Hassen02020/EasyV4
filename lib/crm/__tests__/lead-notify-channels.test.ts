@@ -63,13 +63,20 @@ test("email : le texte suit le canal, jamais « formulaire de contact » pour Wh
 })
 
 test("câblage : chaque canal entrant émet seulement à la création ; l'équipe n'émet pas", () => {
-  for (const ch of ["whatsapp", "messenger", "instagram"]) {
-    const route = src(`app/api/webhooks/${ch}/route.ts`)
+  assert.match(
+    src("app/api/webhooks/whatsapp/route.ts"),
+    /if \(inbound\.createdLeadId\) \{\s*await notifyLeadCreated\(\{[\s\S]*?channel: "whatsapp"/,
+  )
+  // Messenger / Instagram (et la route Page unifiée) : traitement partagé
+  // (CRM-META-CONNECT-01), même condition « créé seulement ».
+  assert.match(
+    src("lib/meta/page-webhook-core.ts"),
+    /if \(inbound\.createdLeadId\) \{\s*await notifyLeadCreated\(\{[\s\S]*?channel,/,
+  )
+  for (const ch of ["messenger", "instagram"]) {
     assert.match(
-      route,
-      new RegExp(
-        `if \\(inbound\\.createdLeadId\\) \\{\\s*await notifyLeadCreated\\(\\{[\\s\\S]*?channel: "${ch}"`,
-      ),
+      src(`app/api/webhooks/${ch}/route.ts`),
+      new RegExp(`processMessagingEvents\\(agencyId, "${ch}", payload\\)`),
       ch,
     )
   }
@@ -79,7 +86,7 @@ test("câblage : chaque canal entrant émet seulement à la création ; l'équip
     /if \(!captured\.alreadyProcessed\) \{\s*await deps\.notifyCreated\(captured\.leadId\)/,
   )
   assert.match(
-    src("app/api/webhooks/meta-leadads/route.ts"),
+    src("lib/meta/page-webhook-core.ts"),
     /notifyCreated: \(leadId\) =>\s*notifyLeadCreated\(\{ agencyId, leadId, channel: "meta_lead_ads" \}\)/,
   )
   assert.match(

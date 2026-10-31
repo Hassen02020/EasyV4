@@ -33,6 +33,7 @@ import {
   type Customer360,
 } from "@/lib/admin/customer-360-core"
 import { getWhatsAppProvider } from "@/lib/whatsapp/provider"
+import { metaGraphUrl } from "@/lib/meta/graph"
 
 const SUPPORT_STAFF_ROLES = ["super_admin", "manager", "agent_resa"] as const
 
@@ -155,7 +156,8 @@ export type SendReplyResult = { ok: true } | { ok: false; error: string }
  * Réponse libre (hors template) — WhatsApp, Messenger et Instagram dans la
  * fenêtre de service 24h Meta (voir canSendSessionMessage).
  *
- * Messenger / Instagram : POST /me/messages via Meta Graph API v21.0,
+ * Messenger / Instagram : POST /me/messages via Meta Graph API (version :
+ * lib/meta/graph.ts, META_GRAPH_API_VERSION, v21.0 par défaut),
  * messaging_type:"RESPONSE", recipient.id = PSID / IGSID (contactExternalId).
  * Requiert META_PAGE_ACCESS_TOKEN ; guard explicite → erreur si absent.
  *
@@ -251,21 +253,18 @@ export async function sendReply(input: {
       )
     ) {
       const pageAccessToken = process.env.META_PAGE_ACCESS_TOKEN!
-      const metaRes = await fetch(
-        "https://graph.facebook.com/v21.0/me/messages",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${pageAccessToken}`,
-          },
-          body: JSON.stringify({
-            recipient: { id: recipientId },
-            messaging_type: "RESPONSE",
-            message: { text: body },
-          }),
+      const metaRes = await fetch(metaGraphUrl("me/messages"), {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${pageAccessToken}`,
         },
-      )
+        body: JSON.stringify({
+          recipient: { id: recipientId },
+          messaging_type: "RESPONSE",
+          message: { text: body },
+        }),
+      })
       if (!metaRes.ok) {
         const errData = await metaRes.json().catch(() => ({}))
         console.error(

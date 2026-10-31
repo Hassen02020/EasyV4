@@ -21,15 +21,10 @@
  */
 
 import { type NextRequest, NextResponse } from "next/server"
-import { withTenantContext } from "@/lib/db/tenant-context"
 import { getDefaultAgencyId } from "@/lib/agencies/default-agency"
 import { verifyWhatsAppSignature } from "@/lib/whatsapp/signing"
-import { upsertConversationForInboundCore } from "@/lib/crm/inbox-core"
-import { notifyLeadCreated } from "@/lib/crm/lead-created-notify"
-import {
-  extractMetaInboundMessages,
-  type MetaMessagingPayload,
-} from "@/lib/crm/meta-messaging"
+import { type MetaMessagingPayload } from "@/lib/crm/meta-messaging"
+import { processMessagingEvents } from "@/lib/meta/page-webhook-core"
 
 export async function GET(request: NextRequest) {
   const verifyToken = process.env.META_MESSENGER_VERIFY_TOKEN
@@ -83,38 +78,10 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "No agency configured" }, { status: 503 })
   }
 
-  let processed = 0
-  // CRM-SOCIAL-CODE-FIX-01 — échos de la Page ignorés, horodatage Meta en
-  // millisecondes (lib/crm/meta-messaging.ts).
-  for (const { senderId, mid, text, sentAt } of extractMetaInboundMessages(
-    payload,
-  )) {
-    try {
-      const inbound = await withTenantContext(
-        { agencyId, userId: "", isSuperAdmin: true },
-        (tx) =>
-          upsertConversationForInboundCore(tx, {
-            agencyId,
-            channel: "messenger",
-            contactExternalId: senderId,
-            body: text,
-            externalMessageId: mid,
-            sentAt,
-          }),
-      )
-      processed++
-      // G-03 — email « nouveau lead » seulement si ce message a créé le lead.
-      if (inbound.createdLeadId) {
-        await notifyLeadCreated({
-          agencyId,
-          leadId: inbound.createdLeadId,
-          channel: "messenger",
-        })
-      }
-    } catch (err) {
-      console.error("[Webhook/Messenger] Échec traitement message", mid, err)
-    }
-  }
+  // Code partagé avec /meta-page (CRM-META-CONNECT-01) : échos ignorés,
+  // horodatage Meta en millisecondes, identifiant externe, notification à
+  // la création seulement.
+  const processed = await processMessagingEvents(agencyId, "messenger", payload)
 
   return NextResponse.json({ ok: true, processed })
 }

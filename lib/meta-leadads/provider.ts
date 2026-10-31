@@ -13,6 +13,11 @@
  * succès, même discipline que lib/whatsapp/provider.ts.
  */
 
+import { metaGraphUrl } from "@/lib/meta/graph"
+
+/** Champs Graph demandés pour un lead (seuls ceux réellement utilisés). */
+export const LEAD_FIELDS = "id,created_time,field_data"
+
 export type MetaLeadAdsProviderCode =
   | "META_LEADADS_PROVIDER_NOT_CONFIGURED"
   | "META_LEADADS_FETCH_FAILED"
@@ -61,10 +66,9 @@ export async function fetchMetaLeadFieldDataCore(
     return { ok: false, code: "META_LEADADS_PROVIDER_NOT_CONFIGURED" }
   }
 
-  const apiVersion = process.env.META_GRAPH_API_VERSION || "v21.0"
-  const url = `https://graph.facebook.com/${apiVersion}/${encodeURIComponent(
-    leadgenId,
-  )}?access_token=${encodeURIComponent(accessToken)}`
+  // Champs demandés explicitement (CRM-META-CONNECT-01) : ne pas dépendre
+  // des champs renvoyés par défaut par Graph.
+  const url = `${metaGraphUrl(encodeURIComponent(leadgenId))}?fields=${LEAD_FIELDS}&access_token=${encodeURIComponent(accessToken)}`
 
   let response: Response
   try {

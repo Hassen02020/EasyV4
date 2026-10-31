@@ -18,17 +18,24 @@
  *     (lib/whatsapp/signing.ts — générique Meta malgré son nom, voir sa
  *     propre en-tête ; réutilisée telle quelle, jamais dupliquée).
  *  2. Idempotence sur `leadgenId` (lib/meta-leadads/lead-capture-core.ts).
+ *  4. G-05 : un lead non récupéré/enregistré → trace `audit_events` + 500
+ *     pour que Meta relivre (lib/meta-leadads/webhook-batch.ts).
  *  3. Toute requête sans credentials configurés échoue explicitement
  *     (503) — jamais un faux succès.
  */
 
 import { type NextRequest, NextResponse } from "next/server"
-import { withTenantContext } from "@/lib/db/tenant-context"
+import { withSystemContext, withTenantContext } from "@/lib/db/tenant-context"
+import { auditEvents } from "@/lib/db/schema"
 import { getDefaultAgencyId } from "@/lib/agencies/default-agency"
 import { verifyWhatsAppSignature } from "@/lib/whatsapp/signing"
 import { fetchMetaLeadFieldDataCore } from "@/lib/meta-leadads/provider"
 import { captureMetaLeadCore } from "@/lib/meta-leadads/lead-capture-core"
 import { notifyLeadCreated } from "@/lib/crm/lead-created-notify"
+import {
+  LEADADS_FAILURE_ACTION,
+  processLeadgenBatchCore,
+} from "@/lib/meta-leadads/webhook-batch"
 
 interface MetaLeadgenWebhookPayload {
   object?: string
@@ -100,46 +107,34 @@ export async function POST(request: NextRequest) {
       .map((c) => c.value?.leadgen_id)
       .filter((id): id is string => Boolean(id)) ?? []
 
-  let processed = 0
-  for (const leadgenId of leadgenIds) {
-    const fetched = await fetchMetaLeadFieldDataCore(leadgenId)
-    if (!fetched.ok) {
-      console.error(
-        "[Webhook/MetaLeadAds] Échec récupération lead",
-        leadgenId,
-        fetched.code,
-        fetched.message,
-      )
-      continue
-    }
-
-    try {
-      const captured = await withTenantContext(
-        { agencyId, userId: "", isSuperAdmin: true },
-        (tx) => captureMetaLeadCore(tx, { agencyId, data: fetched.lead }),
-      )
-      processed++
-      // G-03 — email « nouveau lead » seulement à la création (jamais sur
-      // un leadgen_id déjà traité, que Meta peut relivrer).
-      if (!captured.alreadyProcessed) {
-        await notifyLeadCreated({
+  // G-05 — tout échec (Meta, base) est tracé et renvoie 500 : Meta relivre
+  // la notification, les leads déjà enregistrés du lot sont ignorés au
+  // renvoi (idempotence leadgen_id) — plus aucun prospect perdu en silence.
+  const { processed, failures } = await processLeadgenBatchCore(leadgenIds, {
+    fetchLead: fetchMetaLeadFieldDataCore,
+    capture: (lead) =>
+      withTenantContext({ agencyId, userId: "", isSuperAdmin: true }, (tx) =>
+        captureMetaLeadCore(tx, { agencyId, data: lead }),
+      ),
+    notifyCreated: (leadId) =>
+      notifyLeadCreated({ agencyId, leadId, channel: "meta_lead_ads" }),
+    recordFailure: (failure) =>
+      withSystemContext((tx) =>
+        tx.insert(auditEvents).values({
           agencyId,
-          leadId: captured.leadId,
-          channel: "meta_lead_ads",
-        })
-      }
-    } catch (err) {
-      console.error(
-        "[Webhook/MetaLeadAds] Échec traitement lead",
-        leadgenId,
-        err,
-      )
-    }
-  }
+          entityType: "meta_leadgen",
+          entityId: failure.leadgenId,
+          action: LEADADS_FAILURE_ACTION,
+          diff: { code: failure.code },
+        }),
+      ).then(() => undefined),
+  })
 
-  // Toujours 200 dès que la signature est valide — même raisonnement que
-  // le webhook WhatsApp : Meta réessaie agressivement un webhook en échec,
-  // un lead individuel en erreur (déjà journalisé) ne doit jamais bloquer
-  // les autres.
+  if (failures.length > 0) {
+    return NextResponse.json(
+      { ok: false, processed, failed: failures.length },
+      { status: 500 },
+    )
+  }
   return NextResponse.json({ ok: true, processed })
 }

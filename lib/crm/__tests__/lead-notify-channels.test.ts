@@ -73,9 +73,14 @@ test("câblage : chaque canal entrant émet seulement à la création ; l'équip
       ch,
     )
   }
+  // Lead Ads (G-05) : la condition vit dans processLeadgenBatchCore.
+  assert.match(
+    src("lib/meta-leadads/webhook-batch.ts"),
+    /if \(!captured\.alreadyProcessed\) \{\s*await deps\.notifyCreated\(captured\.leadId\)/,
+  )
   assert.match(
     src("app/api/webhooks/meta-leadads/route.ts"),
-    /if \(!captured\.alreadyProcessed\) \{\s*await notifyLeadCreated\(\{[\s\S]*?channel: "meta_lead_ads"/,
+    /notifyCreated: \(leadId\) =>\s*notifyLeadCreated\(\{ agencyId, leadId, channel: "meta_lead_ads" \}\)/,
   )
   assert.match(
     src("app/api/webhooks/resend-inbound/route.ts"),

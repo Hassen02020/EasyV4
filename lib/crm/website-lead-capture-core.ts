@@ -47,6 +47,12 @@ export interface WebsiteLeadCaptureParams {
   campaignRef?: string | null
   /** CRM-LEAD-FLOW-01 — case de consentement marketing cochée explicitement. */
   marketingConsent?: boolean
+  /**
+   * CRM-SOCIAL-CODE-FIX-01 — provenance du lead. Par défaut le formulaire du
+   * site (`website` / `website_form`) ; l'email entrant passe la sienne pour
+   * ne plus être compté comme un formulaire du site.
+   */
+  origin?: { actorRef: string; source: string }
 }
 
 export interface WebsiteLeadCaptureResult {
@@ -81,8 +87,8 @@ export async function captureWebsiteLeadCore(
     agencyId: params.agencyId,
     leadId: created.id,
     role: "channel",
-    actorRef: "website",
-    source: "website_form",
+    actorRef: params.origin?.actorRef ?? "website",
+    source: params.origin?.source ?? "website_form",
     authorized: true,
   })
 

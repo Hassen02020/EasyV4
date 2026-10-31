@@ -10,14 +10,12 @@
  *    les autres webhooks — jamais un faux succès).
  *  - Le secret est comparé en constant-time (timingSafeEqual).
  *
- * Idempotence :
- *  - Resend envoie un `email_id` unique par email ; il est passé comme
- *    `externalMessageId` dans createLeadCore → lead dupliqué impossible
- *    (sourcePage stocke l'email_id, pas de contrainte DB unique ici — si
- *    Resend re-livre, le deuxième appel créera un lead ; acceptable car
- *    les agents voient les doublons en pipeline). Si une garantie stricte
- *    est nécessaire plus tard, ajouter un index unique sur
- *    (agency_id, source_page) dans leads.
+ * Idempotence (CRM-SOCIAL-CODE-FIX-01) :
+ *  - Resend envoie un `email_id` unique par email ; le lead est enregistré
+ *    avec `source_page = email_inbound:<email_id>` et un renvoi du même
+ *    email_id (même simultané, verrou transactionnel) ne crée ni lead ni
+ *    notification (lib/crm/inbound-email-capture-core.ts).
+ *  - Provenance `email` / `email_inbound` (jamais `website_form`).
  *
  * Pas de GET : Resend inbound ne fait pas de handshake `hub.*` à la
  * différence des webhooks Meta.
@@ -27,7 +25,7 @@ import { type NextRequest, NextResponse } from "next/server"
 import { timingSafeEqual } from "crypto"
 import { withTenantContext } from "@/lib/db/tenant-context"
 import { getDefaultAgencyId } from "@/lib/agencies/default-agency"
-import { captureWebsiteLeadCore } from "@/lib/crm/website-lead-capture-core"
+import { captureInboundEmailLeadCore } from "@/lib/crm/inbound-email-capture-core"
 import { notifyLeadCreated } from "@/lib/crm/lead-created-notify"
 
 interface ResendInboundPayload {
@@ -106,22 +104,23 @@ export async function POST(request: NextRequest) {
     const captured = await withTenantContext(
       { agencyId, userId: "", isSuperAdmin: true },
       (tx) =>
-        captureWebsiteLeadCore(tx, {
+        captureInboundEmailLeadCore(tx, {
           agencyId,
           firstName,
           email,
           message,
-          productType: "general",
-          sourcePage: emailId ? `email_inbound:${emailId}` : "email_inbound",
-          intention: "standard",
+          emailId,
         }),
     )
-    // G-03 — chaque email entrant crée un lead : email « nouveau lead ».
-    await notifyLeadCreated({
-      agencyId,
-      leadId: captured.leadId,
-      channel: "email",
-    })
+    // G-03 — email « nouveau lead » seulement à la création : un renvoi du
+    // même email_id (CRM-SOCIAL-CODE-FIX-01) ne notifie pas une seconde fois.
+    if (!captured.alreadyProcessed) {
+      await notifyLeadCreated({
+        agencyId,
+        leadId: captured.leadId,
+        channel: "email",
+      })
+    }
     return NextResponse.json({ ok: true })
   } catch (err) {
     console.error("[Webhook/ResendInbound] Échec traitement email entrant", err)

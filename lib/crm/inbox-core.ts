@@ -147,12 +147,33 @@ const MESSAGE_PREVIEW_LENGTH = 200
  * faisait jamais, laissant `contacts` incomplet pour tout contact qui
  * n'avait encore été ciblé par aucune campagne.
  */
+/**
+ * CRM-SOCIAL-CODE-FIX-01 — canaux identifiés par un identifiant Meta (PSID
+ * Messenger, IGSID Instagram) et non par un téléphone : l'identifiant va dans
+ * `contact_external_id` (index unique existant, 0046), jamais dans
+ * `contact_phone` ni `leads.phone`.
+ */
+export const EXTERNAL_ID_CHANNELS = ["messenger", "instagram"] as const
+
+export function isExternalIdChannel(channel: string): boolean {
+  return (EXTERNAL_ID_CHANNELS as readonly string[]).includes(channel)
+}
+
+const DEFAULT_LEAD_NAME: Partial<Record<CrmChannel, string>> = {
+  whatsapp: "Contact WhatsApp",
+  messenger: "Contact Messenger",
+  instagram: "Contact Instagram",
+}
+
 export async function upsertConversationForInboundCore(
   tx: DrizzleTransaction,
   params: {
     agencyId: string
     channel: CrmChannel
-    contactPhone: string
+    /** WhatsApp : téléphone normalisé. */
+    contactPhone?: string | null
+    /** Messenger / Instagram : PSID / IGSID (jamais un téléphone). */
+    contactExternalId?: string | null
     contactName?: string | null
     body: string
     externalMessageId: string
@@ -165,10 +186,16 @@ export async function upsertConversationForInboundCore(
   /** Renseigné UNIQUEMENT si ce message a créé un nouveau lead (G-03 : notification). */
   createdLeadId: string | null
 }> {
+  const byExternalId = isExternalIdChannel(params.channel)
+  const contactRef = byExternalId
+    ? params.contactExternalId
+    : params.contactPhone
+  if (!contactRef) throw new Error("CONTACT_REF_REQUIRED")
+
   const contact = await resolveOrCreateContactCore(tx, {
     agencyId: params.agencyId,
     channel: params.channel,
-    rawRef: params.contactPhone,
+    rawRef: contactRef,
   })
 
   const [existing] = await tx
@@ -178,7 +205,9 @@ export async function upsertConversationForInboundCore(
       and(
         eq(crmConversations.agencyId, params.agencyId),
         eq(crmConversations.channel, params.channel),
-        eq(crmConversations.contactPhone, params.contactPhone),
+        byExternalId
+          ? eq(crmConversations.contactExternalId, contactRef)
+          : eq(crmConversations.contactPhone, contactRef),
       ),
     )
     .limit(1)
@@ -203,25 +232,32 @@ export async function upsertConversationForInboundCore(
   } else {
     // Lie à un lead déjà existant portant ce téléphone (créé via un autre
     // canal — formulaire web, etc.) plutôt que d'en fabriquer un doublon.
-    const [matchingLead] = await tx
-      .select({ id: leads.id })
-      .from(leads)
-      .where(
-        and(
-          eq(leads.agencyId, params.agencyId),
-          eq(leads.phone, params.contactPhone),
-        ),
-      )
-      .orderBy(desc(leads.createdAt))
-      .limit(1)
+    // Jamais pour Messenger / Instagram : un PSID / IGSID n'est pas un
+    // téléphone et ne doit jamais être comparé à `leads.phone`.
+    const [matchingLead] = byExternalId
+      ? []
+      : await tx
+          .select({ id: leads.id })
+          .from(leads)
+          .where(
+            and(
+              eq(leads.agencyId, params.agencyId),
+              eq(leads.phone, contactRef),
+            ),
+          )
+          .orderBy(desc(leads.createdAt))
+          .limit(1)
 
     if (matchingLead) {
       leadId = matchingLead.id
     } else {
       const created = await createLeadCore(tx, {
         agencyId: params.agencyId,
-        firstName: params.contactName?.trim() || "Contact WhatsApp",
-        phone: params.contactPhone,
+        firstName:
+          params.contactName?.trim() ||
+          DEFAULT_LEAD_NAME[params.channel] ||
+          "Contact",
+        phone: byExternalId ? null : contactRef,
         message: params.body,
         productType: "general",
         sourcePage: params.channel,
@@ -256,7 +292,8 @@ export async function upsertConversationForInboundCore(
       .values({
         agencyId: params.agencyId,
         channel: params.channel,
-        contactPhone: params.contactPhone,
+        contactPhone: byExternalId ? null : contactRef,
+        contactExternalId: byExternalId ? contactRef : null,
         contactName: params.contactName ?? undefined,
         leadId,
         lastMessageAt: params.sentAt,

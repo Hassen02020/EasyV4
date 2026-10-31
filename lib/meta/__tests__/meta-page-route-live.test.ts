@@ -34,6 +34,11 @@ let graphResponse: () => Response = () => new Response("{}", { status: 500 })
 
 type RouteModule = typeof import("@/app/api/webhooks/meta-page/route")
 let route: RouteModule
+let legacy: {
+  leadads: typeof import("@/app/api/webhooks/meta-leadads/route")
+  messenger: typeof import("@/app/api/webhooks/messenger/route")
+  instagram: typeof import("@/app/api/webhooks/instagram/route")
+}
 
 async function isDbAvailable() {
   try {
@@ -70,6 +75,11 @@ before(async () => {
   process.env.META_PAGE_VERIFY_TOKEN = VERIFY_TOKEN
   process.env.META_PAGE_ACCESS_TOKEN = "test-page-token"
   route = await import("@/app/api/webhooks/meta-page/route")
+  legacy = {
+    leadads: await import("@/app/api/webhooks/meta-leadads/route"),
+    messenger: await import("@/app/api/webhooks/messenger/route"),
+    instagram: await import("@/app/api/webhooks/instagram/route"),
+  }
 })
 
 after(async () => {
@@ -278,4 +288,144 @@ test("objet autre que « page » → ignoré (200), rien n'est écrit", async (t
   const res = await route.POST(signedPost({ object: "instagram", entry: [] }))
   assert.equal(res.status, 200)
   assert.equal(await count("conversations"), before)
+})
+
+const notifiedFor = (leadId: string) =>
+  notified.filter((n) => n.leadId === leadId).length
+
+async function messagesOf(externalId: string) {
+  const [conv] = await withSystemContext((tx) =>
+    tx
+      .select({ id: crmConversations.id, leadId: crmConversations.leadId })
+      .from(crmConversations)
+      .where(eq(crmConversations.contactExternalId, externalId)),
+  )
+  if (!conv) return { conv: null, messages: 0 }
+  const msgs = await withSystemContext((tx) =>
+    tx
+      .select({ id: crmMessages.id })
+      .from(crmMessages)
+      .where(eq(crmMessages.conversationId, conv.id)),
+  )
+  return { conv, messages: msgs.length }
+}
+
+test("indépendance (1/2) : un message Messenger qui échoue en base n'empêche pas le lead Lead Ads du même envoi", async (t) => {
+  if (!dbAvailable) return void t.skip(skip())
+  const leadgenId = `lg_${randomUUID()}`
+  graphResponse = graphLead(leadgenId)
+  // Identifiant de 200 caractères > varchar(128) : échec RÉEL d'écriture.
+  const badPsid = "P".repeat(200)
+  const res = await route.POST(
+    signedPost(
+      pagePayload({ psid: badPsid, mid: `m.${randomUUID()}`, leadgenId }),
+    ),
+  )
+  // Comportement documenté : un message en échec est journalisé, la réponse
+  // reste 200 (pas de relivraison Meta pour un message) — voir rapport.
+  assert.equal(res.status, 200)
+  assert.deepEqual(await res.json(), { ok: true, messages: 0, leads: 1 })
+  const [lead] = await withSystemContext((tx) =>
+    tx
+      .select({ id: leads.id })
+      .from(leads)
+      .where(eq(leads.sourcePage, `meta_leadads:${leadgenId}`)),
+  )
+  assert.ok(lead, "le lead Lead Ads est enregistré malgré l'échec du message")
+})
+
+test("renvoi Meta après un 500 : le lead manquant est créé une fois, le message n'est ni dupliqué ni re-notifié", async (t) => {
+  if (!dbAvailable) return void t.skip(skip())
+  const leadgenId = `lg_${randomUUID()}`
+  const psid = `PSID-${randomUUID().slice(0, 8)}`
+  const payload = pagePayload({ psid, mid: `m.${randomUUID()}`, leadgenId })
+
+  // 1re livraison : Graph en panne → 500, message enregistré + notifié.
+  graphResponse = () => new Response("{}", { status: 500 })
+  assert.equal((await route.POST(signedPost(payload))).status, 500)
+  const first = await messagesOf(psid)
+  assert.equal(first.messages, 1)
+  assert.equal(notifiedFor(first.conv!.leadId!), 1)
+
+  // Relivraison Meta (même envoi) : Graph répond → 200.
+  graphResponse = graphLead(leadgenId)
+  const second = await route.POST(signedPost(payload))
+  assert.equal(second.status, 200)
+  assert.deepEqual(await second.json(), { ok: true, messages: 1, leads: 1 })
+
+  const after = await messagesOf(psid)
+  assert.equal(after.messages, 1, "message non dupliqué (idempotence mid)")
+  assert.equal(
+    notifiedFor(first.conv!.leadId!),
+    1,
+    "pas de 2e notification Messenger",
+  )
+  const metaLeads = await withSystemContext((tx) =>
+    tx
+      .select({ id: leads.id })
+      .from(leads)
+      .where(eq(leads.sourcePage, `meta_leadads:${leadgenId}`)),
+  )
+  assert.equal(metaLeads.length, 1)
+  assert.equal(notifiedFor(metaLeads[0]!.id), 1)
+
+  // 3e livraison identique : plus rien ne change.
+  const third = await route.POST(signedPost(payload))
+  assert.equal(third.status, 200)
+  assert.equal((await messagesOf(psid)).messages, 1)
+  assert.equal(notifiedFor(metaLeads[0]!.id), 1)
+})
+
+test("anciennes routes : /meta-leadads, /messenger et /instagram fonctionnent toujours (même code partagé)", async (t) => {
+  if (!dbAvailable) return void t.skip(skip())
+  // /meta-leadads
+  const leadgenId = `lg_${randomUUID()}`
+  graphResponse = graphLead(leadgenId)
+  const la = await legacy.leadads.POST(
+    signedPost({
+      object: "page",
+      entry: [
+        { changes: [{ field: "leadgen", value: { leadgen_id: leadgenId } }] },
+      ],
+    }),
+  )
+  assert.equal(la.status, 200)
+  assert.deepEqual(await la.json(), { ok: true, processed: 1 })
+
+  // /messenger
+  const psid = `PSID-${randomUUID().slice(0, 8)}`
+  const ms = await legacy.messenger.POST(
+    signedPost(pagePayload({ psid, mid: `m.${randomUUID()}` })),
+  )
+  assert.equal(ms.status, 200)
+  assert.deepEqual(await ms.json(), { ok: true, processed: 1 })
+  assert.equal((await messagesOf(psid)).messages, 1)
+
+  // /instagram
+  const igsid = `IG-${randomUUID().slice(0, 8)}`
+  const ig = await legacy.instagram.POST(
+    signedPost({
+      object: "instagram",
+      entry: [
+        {
+          messaging: [
+            {
+              sender: { id: igsid },
+              timestamp: 1793434800000,
+              message: { mid: `ig.${randomUUID()}`, text: "Salut" },
+            },
+          ],
+        },
+      ],
+    }),
+  )
+  assert.equal(ig.status, 200)
+  const igConv = await messagesOf(igsid)
+  assert.equal(igConv.messages, 1)
+
+  // Signature invalide refusée sur chacune.
+  for (const r of [legacy.leadads, legacy.messenger, legacy.instagram]) {
+    const bad = await r.POST(signedPost({ object: "page", entry: [] }, "faux"))
+    assert.equal(bad.status, 400)
+  }
 })

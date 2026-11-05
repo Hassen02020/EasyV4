@@ -45,6 +45,18 @@ function firstMatchingField(
   return null
 }
 
+/** Trace de provenance : `page_id=…; form_id=…` (champs absents omis). */
+export function metaLeadOriginNotes(
+  origin: { pageId: string | null; formId: string | null } | undefined,
+): string | null {
+  if (!origin) return null
+  const parts = [
+    origin.pageId ? `page_id=${origin.pageId}` : null,
+    origin.formId ? `form_id=${origin.formId}` : null,
+  ].filter(Boolean)
+  return parts.length > 0 ? parts.join("; ") : null
+}
+
 export interface MetaLeadCaptureResult {
   leadId: string
   /** `null` : ni email ni téléphone dans field_data — aucun contact résolu, jamais un contact fabriqué. */
@@ -55,7 +67,12 @@ export interface MetaLeadCaptureResult {
 
 export async function captureMetaLeadCore(
   tx: DrizzleTransaction,
-  params: { agencyId: string; data: MetaLeadFieldData },
+  params: {
+    agencyId: string
+    data: MetaLeadFieldData
+    /** META-CRM-E2E-01 (P2-2) — Page et formulaire Meta d'origine (identifiants techniques, non personnels). */
+    origin?: { pageId: string | null; formId: string | null }
+  },
 ): Promise<MetaLeadCaptureResult> {
   const sourcePage = `meta_leadads:${params.data.leadgenId}`
 
@@ -107,6 +124,7 @@ export async function captureMetaLeadCore(
     role: "channel",
     actorRef: "meta_leadads",
     source: "meta_leadads_webhook",
+    notes: metaLeadOriginNotes(params.origin),
     // Signature HMAC déjà vérifiée avant l'appel à cette fonction (voir
     // app/api/webhooks/meta-leadads/route.ts) — même raisonnement que le
     // webhook WhatsApp (inbox-core.ts).

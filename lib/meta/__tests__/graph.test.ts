@@ -47,10 +47,9 @@ test("Lead Ads : champs demandés explicitement (id, created_time, field_data)",
   else process.env.META_PAGE_ACCESS_TOKEN = savedToken
 
   assert.equal(LEAD_FIELDS, "id,created_time,field_data")
-  assert.match(
-    calls[0]!,
-    /\/lg_1\?fields=id,created_time,field_data&access_token=tok$/,
-  )
+  assert.match(calls[0]!, /\/lg_1\?fields=id,created_time,field_data$/)
+  // META-CRM-E2E-01 (P2-1) : le jeton n'est plus dans l'URL.
+  assert.doesNotMatch(calls[0]!, /access_token|tok/)
   assert.ok(r.ok && r.lead.fields.email === "a@b.test")
 })
 

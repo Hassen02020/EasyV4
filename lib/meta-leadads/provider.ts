@@ -32,9 +32,52 @@ export interface MetaLeadFieldData {
   createdTime: string | null
 }
 
+/**
+ * META-CRM-E2E-01 (P1-2) — diagnostic d'un échec Graph sans donnée
+ * sensible : seuls le code, le sous-code, le type et l'identifiant de
+ * trace Meta sont conservés (jamais le message brut, jamais l'URL ni le
+ * jeton). Valeurs filtrées par forme : un champ inattendu est ignoré.
+ */
+export interface MetaGraphErrorInfo {
+  status: number
+  code?: number
+  subcode?: number
+  type?: string
+  fbtraceId?: string
+}
+
 export type MetaLeadFetchResult =
   | { ok: true; lead: MetaLeadFieldData }
-  | { ok: false; code: MetaLeadAdsProviderCode; message?: string }
+  | {
+      ok: false
+      code: MetaLeadAdsProviderCode
+      message?: string
+      graph?: MetaGraphErrorInfo
+    }
+
+export function parseMetaGraphError(
+  status: number,
+  body: unknown,
+): MetaGraphErrorInfo {
+  const info: MetaGraphErrorInfo = { status }
+  const err =
+    body && typeof body === "object" && "error" in body
+      ? (body as { error?: unknown }).error
+      : null
+  if (!err || typeof err !== "object") return info
+  const e = err as Record<string, unknown>
+  if (Number.isInteger(e.code)) info.code = e.code as number
+  if (Number.isInteger(e.error_subcode))
+    info.subcode = e.error_subcode as number
+  if (typeof e.type === "string" && /^[A-Za-z]{1,64}$/.test(e.type))
+    info.type = e.type
+  if (
+    typeof e.fbtrace_id === "string" &&
+    /^[A-Za-z0-9_-]{1,64}$/.test(e.fbtrace_id)
+  )
+    info.fbtraceId = e.fbtrace_id
+  return info
+}
 
 interface GraphApiFieldDatum {
   name: string
@@ -67,12 +110,17 @@ export async function fetchMetaLeadFieldDataCore(
   }
 
   // Champs demandés explicitement (CRM-META-CONNECT-01) : ne pas dépendre
-  // des champs renvoyés par défaut par Graph.
-  const url = `${metaGraphUrl(encodeURIComponent(leadgenId))}?fields=${LEAD_FIELDS}&access_token=${encodeURIComponent(accessToken)}`
+  // des champs renvoyés par défaut par Graph. META-CRM-E2E-01 (P2-1) : le
+  // jeton part dans l'en-tête Authorization, jamais dans l'URL (qui peut
+  // apparaître dans un message d'erreur ou un journal).
+  const url = `${metaGraphUrl(encodeURIComponent(leadgenId))}?fields=${LEAD_FIELDS}`
 
   let response: Response
   try {
-    response = await fetch(url, { method: "GET" })
+    response = await fetch(url, {
+      method: "GET",
+      headers: { Authorization: `Bearer ${accessToken}` },
+    })
   } catch (err) {
     return {
       ok: false,
@@ -82,10 +130,12 @@ export async function fetchMetaLeadFieldDataCore(
   }
 
   if (!response.ok) {
+    const errorBody = await response.json().catch(() => null)
     return {
       ok: false,
       code: "META_LEADADS_FETCH_FAILED",
       message: `Graph API HTTP ${response.status}`,
+      graph: parseMetaGraphError(response.status, errorBody),
     }
   }
 

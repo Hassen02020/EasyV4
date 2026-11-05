@@ -121,11 +121,32 @@ test("route : 500 dès qu'un lead a échoué (Meta relivre), trace audit_events 
       /if \(failures\.length > 0\) \{\s*return NextResponse\.json\([\s\S]*?\{ status: 500 \}/,
       f,
     )
-    assert.match(route, /processLeadgenIds\(/, f)
+    assert.match(route, /processLeadgenEvents\(/, f)
     assert.doesNotMatch(route, /continue\n/, f)
   }
   assert.match(
     readFileSync("lib/meta/page-webhook-core.ts", "utf8"),
-    /action: LEADADS_FAILURE_ACTION,\s*diff: \{ code: failure\.code \}/,
+    /action: LEADADS_FAILURE_ACTION,\s*diff: failure\.graph\s*\?\s*\{ code: failure\.code, graph: failure\.graph \}\s*:\s*\{ code: failure\.code \}/,
   )
+})
+
+test("META-CRM-E2E-01 (P1-2) : le diagnostic Graph accompagne l'échec, sans message", async () => {
+  const graph = { status: 400, code: 100, subcode: 33 }
+  const { deps, recorded } = makeDeps({
+    fetch: {
+      a: {
+        ok: false,
+        code: "META_LEADADS_FETCH_FAILED",
+        message: "https://graph.facebook.com/x?access_token=SECRET",
+        graph,
+      },
+    },
+  })
+  const r = await processLeadgenBatchCore(["a"], deps)
+  const expected = [
+    { leadgenId: "a", code: "META_LEADADS_FETCH_FAILED", graph },
+  ]
+  assert.deepEqual(r.failures, expected)
+  assert.deepEqual(recorded, expected)
+  assert.doesNotMatch(JSON.stringify(recorded), /SECRET|access_token/)
 })

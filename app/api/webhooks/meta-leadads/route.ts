@@ -28,8 +28,8 @@ import { type NextRequest, NextResponse } from "next/server"
 import { getDefaultAgencyId } from "@/lib/agencies/default-agency"
 import { verifyWhatsAppSignature } from "@/lib/whatsapp/signing"
 import {
-  extractLeadgenIds,
-  processLeadgenIds,
+  extractLeadgenEvents,
+  processLeadgenEvents,
   type MetaPagePayload,
 } from "@/lib/meta/page-webhook-core"
 
@@ -85,16 +85,21 @@ export async function POST(request: NextRequest) {
   // la notification, les leads déjà enregistrés du lot sont ignorés au
   // renvoi (idempotence leadgen_id). Code partagé avec /meta-page
   // (CRM-META-CONNECT-01).
-  const { processed, failures } = await processLeadgenIds(
+  const { processed, failures, ignored } = await processLeadgenEvents(
     agencyId,
-    extractLeadgenIds(payload),
+    extractLeadgenEvents(payload),
   )
 
   if (failures.length > 0) {
     return NextResponse.json(
-      { ok: false, processed, failed: failures.length },
+      {
+        ok: false,
+        processed,
+        ignored: ignored.length,
+        failed: failures.length,
+      },
       { status: 500 },
     )
   }
-  return NextResponse.json({ ok: true, processed })
+  return NextResponse.json({ ok: true, processed, ignored: ignored.length })
 }

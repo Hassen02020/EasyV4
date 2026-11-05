@@ -15,7 +15,9 @@
  *           toute logique → 400 sinon, rien n'est écrit ;
  *        3. messages Messenger traités (idempotence `mid`) ;
  *        4. leads `leadgen` traités : au moindre échec → 500 pour que Meta
- *           relivre (G-05) ; au renvoi, les messages et leads déjà
+ *           relivre (G-05) ; l'envoi de test Meta (`444444444444`) et une
+ *           autre Page que META_PAGE_ID sont tracés et ignorés, sans 500
+ *           (META-CRM-E2E-01) ; au renvoi, les messages et leads déjà
  *           enregistrés sont ignorés (idempotence), ni doublon ni second
  *           email.
  */
@@ -24,8 +26,8 @@ import { type NextRequest, NextResponse } from "next/server"
 import { getDefaultAgencyId } from "@/lib/agencies/default-agency"
 import { verifyWhatsAppSignature } from "@/lib/whatsapp/signing"
 import {
-  extractLeadgenIds,
-  processLeadgenIds,
+  extractLeadgenEvents,
+  processLeadgenEvents,
   processMessagingEvents,
   verifyMetaHandshake,
   type MetaPagePayload,
@@ -81,16 +83,28 @@ export async function POST(request: NextRequest) {
   }
 
   const messages = await processMessagingEvents(agencyId, "messenger", payload)
-  const { processed: leads, failures } = await processLeadgenIds(
-    agencyId,
-    extractLeadgenIds(payload),
-  )
+  const {
+    processed: leads,
+    failures,
+    ignored,
+  } = await processLeadgenEvents(agencyId, extractLeadgenEvents(payload))
 
   if (failures.length > 0) {
     return NextResponse.json(
-      { ok: false, messages, leads, failed: failures.length },
+      {
+        ok: false,
+        messages,
+        leads,
+        ignored: ignored.length,
+        failed: failures.length,
+      },
       { status: 500 },
     )
   }
-  return NextResponse.json({ ok: true, messages, leads })
+  return NextResponse.json({
+    ok: true,
+    messages,
+    leads,
+    ignored: ignored.length,
+  })
 }

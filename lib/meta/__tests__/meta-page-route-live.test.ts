@@ -31,6 +31,7 @@ let dbAvailable = false
 let agencyId = ""
 const notified: { leadId: string; channel: string }[] = []
 let graphResponse: () => Response = () => new Response("{}", { status: 500 })
+const fetchCalls: { url: string; auth: string | null }[] = []
 
 type RouteModule = typeof import("@/app/api/webhooks/meta-page/route")
 let route: RouteModule
@@ -70,7 +71,17 @@ before(async () => {
         void notified.push({ leadId: p.leadId, channel: p.channel }),
     },
   })
-  mock.method(globalThis, "fetch", async () => graphResponse())
+  mock.method(
+    globalThis,
+    "fetch",
+    async (input: string | URL, init?: RequestInit) => {
+      fetchCalls.push({
+        url: String(input),
+        auth: new Headers(init?.headers).get("authorization"),
+      })
+      return graphResponse()
+    },
+  )
   process.env.META_APP_SECRET = APP_SECRET
   process.env.META_PAGE_VERIFY_TOKEN = VERIFY_TOKEN
   process.env.META_PAGE_ACCESS_TOKEN = "test-page-token"
@@ -211,7 +222,12 @@ test("un envoi Page avec leadgen + messages : les DEUX sont traités ; écho ign
 
   const res = await route.POST(signedPost(payload))
   assert.equal(res.status, 200)
-  assert.deepEqual(await res.json(), { ok: true, messages: 1, leads: 1 })
+  assert.deepEqual(await res.json(), {
+    ok: true,
+    messages: 1,
+    leads: 1,
+    ignored: 0,
+  })
 
   const [conv] = await withSystemContext((tx) =>
     tx
@@ -278,7 +294,10 @@ test("échec Graph sur un leadgen → 500 (Meta relivre) + trace sans donnée pe
       .where(eq(auditEvents.entityId, leadgenId)),
   )
   assert.deepEqual(traces, [
-    { entityId: leadgenId, diff: { code: "META_LEADADS_FETCH_FAILED" } },
+    {
+      entityId: leadgenId,
+      diff: { code: "META_LEADADS_FETCH_FAILED", graph: { status: 500 } },
+    },
   ])
 })
 
@@ -324,7 +343,12 @@ test("indépendance (1/2) : un message Messenger qui échoue en base n'empêche 
   // Comportement documenté : un message en échec est journalisé, la réponse
   // reste 200 (pas de relivraison Meta pour un message) — voir rapport.
   assert.equal(res.status, 200)
-  assert.deepEqual(await res.json(), { ok: true, messages: 0, leads: 1 })
+  assert.deepEqual(await res.json(), {
+    ok: true,
+    messages: 0,
+    leads: 1,
+    ignored: 0,
+  })
   const [lead] = await withSystemContext((tx) =>
     tx
       .select({ id: leads.id })
@@ -351,7 +375,12 @@ test("renvoi Meta après un 500 : le lead manquant est créé une fois, le messa
   graphResponse = graphLead(leadgenId)
   const second = await route.POST(signedPost(payload))
   assert.equal(second.status, 200)
-  assert.deepEqual(await second.json(), { ok: true, messages: 1, leads: 1 })
+  assert.deepEqual(await second.json(), {
+    ok: true,
+    messages: 1,
+    leads: 1,
+    ignored: 0,
+  })
 
   const after = await messagesOf(psid)
   assert.equal(after.messages, 1, "message non dupliqué (idempotence mid)")
@@ -390,7 +419,7 @@ test("anciennes routes : /meta-leadads, /messenger et /instagram fonctionnent to
     }),
   )
   assert.equal(la.status, 200)
-  assert.deepEqual(await la.json(), { ok: true, processed: 1 })
+  assert.deepEqual(await la.json(), { ok: true, processed: 1, ignored: 0 })
 
   // /messenger
   const psid = `PSID-${randomUUID().slice(0, 8)}`
@@ -427,5 +456,216 @@ test("anciennes routes : /meta-leadads, /messenger et /instagram fonctionnent to
   for (const r of [legacy.leadads, legacy.messenger, legacy.instagram]) {
     const bad = await r.POST(signedPost({ object: "page", entry: [] }, "faux"))
     assert.equal(bad.status, 400)
+  }
+})
+
+// ─── META-CRM-E2E-01 (lot 2) ────────────────────────────────────────────
+
+async function auditFor(leadgenId: string) {
+  return withSystemContext((tx) =>
+    tx
+      .select({ action: auditEvents.action, diff: auditEvents.diff })
+      .from(auditEvents)
+      .where(eq(auditEvents.entityId, leadgenId)),
+  )
+}
+
+function leadgenPayload(
+  leadgenId: string,
+  opts: { pageId?: string; formId?: string; psid?: string } = {},
+) {
+  return {
+    object: "page",
+    entry: [
+      {
+        id: opts.pageId ?? "PAGE",
+        messaging: opts.psid
+          ? [
+              {
+                sender: { id: opts.psid },
+                timestamp: 1793434800000,
+                message: { mid: `m.${randomUUID()}`, text: "Bonjour" },
+              },
+            ]
+          : [],
+        changes: [
+          {
+            field: "leadgen",
+            value: {
+              leadgen_id: leadgenId,
+              page_id: opts.pageId ?? "PAGE",
+              form_id: opts.formId ?? "FORM-1",
+            },
+          },
+        ],
+      },
+    ],
+  }
+}
+
+test("E4 : META_PAGE_VERIFY_TOKEN absent → GET 503 ; META_APP_SECRET absent → POST 503, rien n'est écrit", async (t) => {
+  if (!dbAvailable) return void t.skip(skip())
+  const token = process.env.META_PAGE_VERIFY_TOKEN
+  const secret = process.env.META_APP_SECRET
+  try {
+    delete process.env.META_PAGE_VERIFY_TOKEN
+    const get = await route.GET(
+      new NextRequest(
+        `https://example.test/api/webhooks/meta-page?hub.mode=subscribe&hub.verify_token=${VERIFY_TOKEN}&hub.challenge=1`,
+      ),
+    )
+    assert.equal(get.status, 503)
+
+    delete process.env.META_APP_SECRET
+    const before = [await count("leads"), await count("conversations")]
+    const post = await route.POST(
+      signedPost(leadgenPayload(`lg_${randomUUID()}`, { psid: "PSID-E4" })),
+    )
+    assert.equal(post.status, 503)
+    assert.deepEqual(
+      [await count("leads"), await count("conversations")],
+      before,
+    )
+  } finally {
+    process.env.META_PAGE_VERIFY_TOKEN = token
+    process.env.META_APP_SECRET = secret
+  }
+})
+
+test("P1-1 : envoi de test Meta (444444444444) → 200, tracé « ignoré », aucun appel Graph, aucun 500", async (t) => {
+  if (!dbAvailable) return void t.skip(skip())
+  const callsBefore = fetchCalls.length
+  const leadsBefore = await count("leads")
+  const res = await route.POST(signedPost(leadgenPayload("444444444444")))
+  assert.equal(res.status, 200)
+  assert.deepEqual(await res.json(), {
+    ok: true,
+    messages: 0,
+    leads: 0,
+    ignored: 1,
+  })
+  assert.equal(fetchCalls.length, callsBefore, "aucun appel Graph")
+  assert.equal(await count("leads"), leadsBefore)
+  const traces = (await auditFor("444444444444")).filter((r) =>
+    String(r.action).startsWith("meta_leadads."),
+  )
+  assert.ok(traces.length >= 1)
+  for (const r of traces) {
+    assert.equal(r.action, "meta_leadads.ignored")
+    assert.equal((r.diff as { reason: string }).reason, "meta_sample")
+  }
+  // La route historique applique la même règle.
+  const legacyRes = await legacy.leadads.POST(
+    signedPost(leadgenPayload("444444444444")),
+  )
+  assert.equal(legacyRes.status, 200)
+})
+
+test("P1-2 + P2-1 : échec Graph → trace avec code/sous-code/type/trace Meta, jamais le message ni le jeton ; jeton en en-tête, pas dans l'URL", async (t) => {
+  if (!dbAvailable) return void t.skip(skip())
+  const leadgenId = `lg_${randomUUID()}`
+  graphResponse = () =>
+    new Response(
+      JSON.stringify({
+        error: {
+          message:
+            "Unsupported get request. Object with ID 'x' does not exist (token test-page-token)",
+          type: "GraphMethodException",
+          code: 100,
+          error_subcode: 33,
+          fbtrace_id: "AbC123_xyz",
+        },
+      }),
+      { status: 400 },
+    )
+  const res = await route.POST(signedPost(leadgenPayload(leadgenId)))
+  assert.equal(res.status, 500, "un vrai échec garde le 500 (Meta relivre)")
+  const [trace] = await auditFor(leadgenId)
+  assert.deepEqual(trace!.diff, {
+    code: "META_LEADADS_FETCH_FAILED",
+    graph: {
+      status: 400,
+      code: 100,
+      subcode: 33,
+      type: "GraphMethodException",
+      fbtraceId: "AbC123_xyz",
+    },
+  })
+  assert.doesNotMatch(
+    JSON.stringify(trace),
+    /test-page-token|Unsupported|does not exist/,
+  )
+  const call = fetchCalls.at(-1)!
+  assert.doesNotMatch(call.url, /access_token|test-page-token/)
+  assert.match(call.url, /fields=id,created_time,field_data/)
+  assert.equal(call.auth, "Bearer test-page-token")
+})
+
+test("P1-3 + P2-2 : META_PAGE_ID configurée → autre Page ignorée (lead et message) ; bonne Page traitée avec page_id/form_id tracés", async (t) => {
+  if (!dbAvailable) return void t.skip(skip())
+  process.env.META_PAGE_ID = "177977315574057"
+  try {
+    const foreignLead = `lg_${randomUUID()}`
+    const foreignPsid = `PSID-${randomUUID().slice(0, 8)}`
+    const callsBefore = fetchCalls.length
+    const res = await route.POST(
+      signedPost(
+        leadgenPayload(foreignLead, { pageId: "999", psid: foreignPsid }),
+      ),
+    )
+    assert.equal(res.status, 200)
+    assert.deepEqual(await res.json(), {
+      ok: true,
+      messages: 0,
+      leads: 0,
+      ignored: 1,
+    })
+    assert.equal(fetchCalls.length, callsBefore)
+    assert.equal(
+      (await auditFor(foreignLead))[0]?.action,
+      "meta_leadads.ignored",
+    )
+    assert.deepEqual(await messagesOf(foreignPsid), {
+      conv: null,
+      messages: 0,
+    })
+
+    const goodLead = `lg_${randomUUID()}`
+    const goodPsid = `PSID-${randomUUID().slice(0, 8)}`
+    graphResponse = graphLead(goodLead)
+    const ok = await route.POST(
+      signedPost(
+        leadgenPayload(goodLead, {
+          pageId: "177977315574057",
+          formId: "FORM-NOV",
+          psid: goodPsid,
+        }),
+      ),
+    )
+    assert.equal(ok.status, 200)
+    assert.deepEqual(await ok.json(), {
+      ok: true,
+      messages: 1,
+      leads: 1,
+      ignored: 0,
+    })
+    const [lead] = await withSystemContext((tx) =>
+      tx
+        .select({ id: leads.id })
+        .from(leads)
+        .where(eq(leads.sourcePage, `meta_leadads:${goodLead}`)),
+    )
+    const origins = await withSystemContext((tx) =>
+      tx
+        .select({ notes: leadOriginEvents.notes })
+        .from(leadOriginEvents)
+        .where(eq(leadOriginEvents.leadId, lead!.id)),
+    )
+    assert.deepEqual(
+      origins.map((o) => o.notes),
+      ["page_id=177977315574057; form_id=FORM-NOV"],
+    )
+  } finally {
+    delete process.env.META_PAGE_ID
   }
 })

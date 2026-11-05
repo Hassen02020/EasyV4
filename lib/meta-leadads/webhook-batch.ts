@@ -14,7 +14,11 @@
  * lead-capture-core.ts) : ni doublon, ni second email.
  */
 
-import type { MetaLeadAdsProviderCode, MetaLeadFetchResult } from "./provider"
+import type {
+  MetaGraphErrorInfo,
+  MetaLeadAdsProviderCode,
+  MetaLeadFetchResult,
+} from "./provider"
 import type { MetaLeadCaptureResult } from "./lead-capture-core"
 
 export const LEADADS_FAILURE_ACTION = "meta_leadads.capture_failed"
@@ -26,6 +30,8 @@ export type LeadgenFailureCode =
 export interface LeadgenFailure {
   leadgenId: string
   code: LeadgenFailureCode
+  /** META-CRM-E2E-01 (P1-2) — code/sous-code/type/trace Meta, sans message ni jeton. */
+  graph?: MetaGraphErrorInfo
 }
 
 export interface LeadgenBatchDeps {
@@ -49,7 +55,9 @@ export async function processLeadgenBatchCore(
     try {
       const fetched = await deps.fetchLead(leadgenId)
       if (!fetched.ok) {
-        failure = { leadgenId, code: fetched.code }
+        failure = fetched.graph
+          ? { leadgenId, code: fetched.code, graph: fetched.graph }
+          : { leadgenId, code: fetched.code }
       } else {
         const captured = await deps.capture(fetched.lead)
         processed++
@@ -69,6 +77,7 @@ export async function processLeadgenBatchCore(
         "[Webhook/MetaLeadAds] Échec lead",
         failure.leadgenId,
         failure.code,
+        ...(failure.graph ? [JSON.stringify(failure.graph)] : []),
       )
       // La trace ne doit jamais empêcher le traitement des autres leads.
       await deps.recordFailure(failure).catch((err) => {

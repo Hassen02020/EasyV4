@@ -36,7 +36,8 @@ import {
 import { executeHotelSearchThroughHub } from "@/lib/hotel-suppliers/search-hub"
 import { signHotelSearchOffersInPlace } from "@/lib/booking/price-token"
 import { getMarginsForAgency } from "@/lib/pro/server-context"
-import { applyMarginToHotelOffer } from "@/lib/pro/pricing"
+import { applyPriceToHotelOffer } from "@/lib/pro/pricing"
+import { resolveHotelAgencyPricer } from "@/lib/hotels/commercial-engine"
 import type { HotelOfferDTO } from "@/lib/mygo/types"
 
 export const revalidate = 300 // 5 min — les prix changent vite
@@ -124,14 +125,22 @@ export async function GET(req: NextRequest) {
     // calculée indépendamment à partir du prix myGo frais au moment de la
     // réservation (myGoBooking.totalPrice), donc aucune perte de la
     // vérification anti-fraude existante.
+    // PRICING-HOTEL-TRUTH-01 : même tarificateur (règle commerciale B2C,
+    // sinon marge) que lib/booking/guest-actions.ts au paiement — le prix
+    // signé ci-dessous est donc celui qui sera facturé.
     const typedBody = body as { offers: HotelOfferDTO[] }
     const margins = await getMarginsForAgency(
       tenantContext?.agencyId ?? null,
       undefined,
       "direct",
     )
+    const hotelPricer = await resolveHotelAgencyPricer(
+      tenantContext?.agencyId ?? null,
+      "B2C",
+      margins.hotel,
+    )
     typedBody.offers = typedBody.offers.map((offer) =>
-      applyMarginToHotelOffer(offer, margins),
+      applyPriceToHotelOffer(offer, hotelPricer.price),
     )
     signHotelSearchOffersInPlace(
       body as Parameters<typeof signHotelSearchOffersInPlace>[0],

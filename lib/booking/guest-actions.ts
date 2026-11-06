@@ -70,8 +70,7 @@ import { confirmHotelWithProvider, nextPublicRef } from "./actions"
 import { authoritativeUnitPrice } from "./hotel-provider-booking"
 import { getDefaultAgencyId } from "@/lib/agencies/default-agency"
 import { getMarginsForAgency } from "@/lib/pro/server-context"
-import { applyMargin } from "@/lib/pro/pricing"
-import { applyHotelCommercialEngine } from "@/lib/hotels/commercial-engine"
+import { resolveHotelAgencyPricer } from "@/lib/hotels/commercial-engine"
 import { resolveCheckoutPromoCore } from "@/lib/crm/promo-checkout-core"
 import { applyPromoDiscountCore } from "@/lib/finance/promo-discount-core"
 import { debitCustomerWallet } from "@/lib/finance/customer-wallet"
@@ -380,17 +379,16 @@ async function runCreateGuestReservation(
   // hotelMarginRule est toujours résolu (pour commission/ruleId downstream) ;
   // COMMERCIAL-HOTELS-01 : si une règle DB existe, son sellingAmount remplace
   // applyMargin() ; sinon fallback sur pricing_margins (comportement antérieur).
+  // PRICING-HOTEL-TRUTH-01 : tarificateur unique, identique à celui de la
+  // recherche publique (app/api/hotels/search-public/route.ts).
   const hotelMarginRule = (await getMarginsForAgency(agencyId, "", "direct"))
     .hotel
-  const commercialResultB2C = await applyHotelCommercialEngine(
-    myGoBooking.totalPrice,
-    "TND",
+  const hotelPricerB2C = await resolveHotelAgencyPricer(
     agencyId,
     "B2C",
+    hotelMarginRule,
   )
-  const agencyPriceBeforePromo = commercialResultB2C
-    ? commercialResultB2C.sellingAmount
-    : applyMargin(myGoBooking.totalPrice, hotelMarginRule)
+  const agencyPriceBeforePromo = hotelPricerB2C.price(myGoBooking.totalPrice)
   const fiscalRuleForBreakdown = await getActiveFiscalRule(
     "TN",
     "hotel",

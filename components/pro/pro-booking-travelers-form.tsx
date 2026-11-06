@@ -132,6 +132,10 @@ export function ProBookingTravelersForm({
           civicIdType: traveler.civicIdType,
           civicId: traveler.civicId.trim(),
         },
+        // PRICING-HOTEL-TRUTH-01 : le total affiché ci-contre ; si le débit
+        // réel en diffère, la réservation est refusée (PRICE_CHANGED), sans
+        // débit.
+        expectedTotalTnd: totalTnd,
       })
 
       if (!result.ok) {

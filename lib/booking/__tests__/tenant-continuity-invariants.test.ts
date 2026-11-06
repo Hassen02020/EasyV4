@@ -78,7 +78,7 @@ test("lib/booking/actions.ts : confirmHotelWithProvider() utilise le client tena
   )
 })
 
-test("lib/booking/actions.ts : les 2 sites de compensation (conflit idempotence B2B, catch général) annulent via myGoAccess.client — MÊME compte que la création, jamais un client re-résolu", () => {
+test("lib/booking/actions.ts : les 3 sites de compensation (conflit idempotence B2B, garde anti-dérive PRICING-HOTEL-TRUTH-01, catch général) annulent via myGoAccess.client — MÊME compte que la création, jamais un client re-résolu", () => {
   assert.equal(
     countOccurrences(
       normalizeCode(actionsSrc),
@@ -86,7 +86,7 @@ test("lib/booking/actions.ts : les 2 sites de compensation (conflit idempotence 
         "await (myGoAccess.client ?? getMyGoClient()).cancelBooking({ bookingId: myGoBooking.bookingId })",
       ),
     ),
-    2,
+    3,
   )
 })
 

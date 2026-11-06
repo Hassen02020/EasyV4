@@ -6,9 +6,12 @@ import { Button } from "@/components/ui/button"
 import { BookingTravelersForm } from "@/components/pro/booking-travelers-form"
 import { ProBookingTravelersForm } from "@/components/pro/pro-booking-travelers-form"
 import { buildBookingContext } from "@/lib/pro/booking-context"
-import { getActivePartnerMargins } from "@/lib/pro/server-context"
+import {
+  getActivePartnerHotelPricer,
+  getActivePartnerMargins,
+} from "@/lib/pro/server-context"
 import { HotelSearchQuerySchema, runHotelSearch } from "@/lib/mygo/search-core"
-import { applyMarginToHotelOffer } from "@/lib/pro/pricing"
+import { applyPriceToHotelOffer } from "@/lib/pro/pricing"
 import { computePriceBreakdown } from "@/lib/booking/pricing"
 import { matchSelectedRoom } from "@/lib/booking/room-match"
 import { resolvePartnerMyGoAccess } from "@/lib/hotel-suppliers/tenant/live-resolution"
@@ -138,9 +141,9 @@ export default async function ProBookingTravelersPage({
     // (inchangé) au moment de la confirmation.
     // PHASE 27.1 — compte fournisseur MyGo résolu pour l'agence de la
     // session partenaire courante (voir lib/hotel-suppliers/tenant/live-resolution.ts).
-    const [access, margins] = await Promise.all([
+    const [access, hotelPricer] = await Promise.all([
       resolvePartnerMyGoAccess(),
-      getActivePartnerMargins(),
+      getActivePartnerHotelPricer(),
     ])
     const result = await runHotelSearch(
       q,
@@ -166,7 +169,7 @@ export default async function ProBookingTravelersPage({
       )
     }
 
-    const offer = applyMarginToHotelOffer(rawOffer, margins)
+    const offer = applyPriceToHotelOffer(rawOffer, hotelPricer.price)
     const marginedRoom = offer.boardings
       .find((b) => b.id === boardingIdNum)
       ?.pax.flatMap((p) => p.rooms)

@@ -194,16 +194,36 @@ export function applyMarginToHotelOffer<
   },
 >(offer: T, margins: MarginMap): T {
   const rule = margins.hotel
+  return applyPriceToHotelOffer(offer, (net) => applyMargin(net, rule))
+}
+
+/**
+ * PRICING-HOTEL-TRUTH-01 — applique une fonction de prix (prix net → prix
+ * agence) à chaque chambre et à `fromPrice` d'une offre hôtel, immuablement.
+ * Utilisé avec le tarificateur unique `resolveHotelAgencyPricer`
+ * (lib/hotels/commercial-engine.ts) pour que le prix AFFICHÉ soit calculé
+ * par exactement la même fonction que le prix FACTURÉ. Toute fonction de
+ * prix utilisée ici est croissante (marge %, marge fixe, frais + markup
+ * borné), donc `fromPrice` reste le minimum des chambres.
+ */
+export function applyPriceToHotelOffer<
+  T extends {
+    fromPrice: number
+    boardings: {
+      pax: { rooms: { price: number }[] }[]
+    }[]
+  },
+>(offer: T, price: (netTnd: number) => number): T {
   return {
     ...offer,
-    fromPrice: applyMargin(offer.fromPrice, rule),
+    fromPrice: price(offer.fromPrice),
     boardings: offer.boardings.map((b) => ({
       ...b,
       pax: b.pax.map((p) => ({
         ...p,
         rooms: p.rooms.map((r) => ({
           ...r,
-          price: applyMargin(r.price, rule),
+          price: price(r.price),
         })),
       })),
     })),

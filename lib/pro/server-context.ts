@@ -30,6 +30,11 @@ import {
   type MarginRule,
 } from "./pricing"
 import type { DistributionChannel } from "@/lib/types/tenant"
+import {
+  makeHotelAgencyPricer,
+  resolveHotelAgencyPricer,
+  type HotelAgencyPricer,
+} from "@/lib/hotels/commercial-engine"
 
 /**
  * Résout le canal de distribution d'un profil partenaire.
@@ -227,5 +232,40 @@ export async function getActivePartnerMargins(): Promise<MarginMap> {
       code: err instanceof Error ? err.constructor.name : "unknown",
     })
     return { ...DEFAULT_MARGINS }
+  }
+}
+
+/**
+ * PRICING-HOTEL-TRUTH-01 — tarificateur hôtel de la session partenaire :
+ * même agence, même marge et même canal moteur ("B2B") que
+ * `createReservationFromDraft` (lib/booking/actions.ts) au moment du débit.
+ * Prix affiché dans /pro = prix débité. Sans session ou en cas d'erreur :
+ * marges par défaut seules (pages de démo affichables), comme
+ * `getActivePartnerMargins`.
+ */
+export async function getActivePartnerHotelPricer(): Promise<HotelAgencyPricer> {
+  try {
+    const supabase = await createServerSupabase()
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+    if (!user) return makeHotelAgencyPricer(null, DEFAULT_MARGINS.hotel)
+    const profile = await getCurrentPartnerProfile(user.id)
+    if (!profile) return makeHotelAgencyPricer(null, DEFAULT_MARGINS.hotel)
+    const margins = await getMarginsForAgency(
+      profile.agency.id,
+      user.id,
+      resolvePartnerChannel(profile),
+    )
+    return await resolveHotelAgencyPricer(
+      profile.agency.id,
+      "B2B",
+      margins.hotel,
+    )
+  } catch (err) {
+    logger.error("[server-context] getActivePartnerHotelPricer failed", {
+      code: err instanceof Error ? err.constructor.name : "unknown",
+    })
+    return makeHotelAgencyPricer(null, DEFAULT_MARGINS.hotel)
   }
 }

@@ -16,6 +16,7 @@
 import { and, desc, eq, gte, isNull, lte, or } from "drizzle-orm"
 import { withSystemContext } from "@/lib/db/tenant-context"
 import { hotelCommercialRules } from "@/lib/db/schema/hotel-suppliers"
+import { applyMargin, type MarginRule } from "@/lib/pro/pricing"
 
 export type HotelDistributionChannel = "B2C" | "B2B" | "PARTNER" | "WHITE_LABEL"
 
@@ -222,4 +223,58 @@ export async function applyHotelCommercialEngine(
   const rules = await resolveHotelCommercialRules(agencyId, channel, hints)
   if (!rules) return null
   return computeHotelCommercialResult(supplierAmount, supplierCurrency, rules)
+}
+
+// ---------------------------------------------------------------------------
+// PRICING-HOTEL-TRUTH-01 — tarificateur unique hôtel (affichage = facturation)
+// ---------------------------------------------------------------------------
+
+export type HotelPriceSource = "commercial_rule" | "margin"
+
+export interface HotelAgencyPricer {
+  /** Origine du prix : règle commerciale DB, sinon marge `pricing_margins`. */
+  source: HotelPriceSource
+  rules: HotelCommercialRules | null
+  marginRule: MarginRule
+  /** Prix net fournisseur (TND, HT) → prix agence (TND, HT). */
+  price: (netTnd: number) => number
+}
+
+/**
+ * Fonction pure : la SEULE formule du prix agence d'un hôtel Tunisie.
+ * Règle commerciale si elle existe (frais + markup borné), sinon marge
+ * `pricing_margins` (applyMargin). Utilisée par la recherche publique,
+ * l'espace Pro ET les deux réservations (B2C, B2B) — jamais deux formules.
+ * Tout est en TND : une règle dans une autre devise est refusée par
+ * computeHotelCommercialResult (CURRENCY-DIM-01), jamais convertie.
+ */
+export function makeHotelAgencyPricer(
+  rules: HotelCommercialRules | null,
+  marginRule: MarginRule,
+): HotelAgencyPricer {
+  return {
+    source: rules ? "commercial_rule" : "margin",
+    rules,
+    marginRule,
+    price: rules
+      ? (netTnd) =>
+          computeHotelCommercialResult(netTnd, "TND", rules).sellingAmount
+      : (netTnd) => applyMargin(netTnd, marginRule),
+  }
+}
+
+/**
+ * Résout une fois les règles pour (agence, canal) puis renvoie le
+ * tarificateur. `agencyId` null (aucune agence résolue) → marge seule.
+ */
+export async function resolveHotelAgencyPricer(
+  agencyId: string | null,
+  channel: HotelDistributionChannel,
+  marginRule: MarginRule,
+  hints: HotelProductHints = {},
+): Promise<HotelAgencyPricer> {
+  const rules = agencyId
+    ? await resolveHotelCommercialRules(agencyId, channel, hints)
+    : null
+  return makeHotelAgencyPricer(rules, marginRule)
 }

@@ -15,7 +15,11 @@ import {
 } from "@/lib/db/schema"
 import type { BookingDraft, TravelerInput } from "./schemas"
 import { bookingDraftSchema, travelerSchemaWithIdRule } from "./schemas"
-import { computePriceBreakdown, buildFiscalSnapshot } from "./pricing"
+import {
+  computePriceBreakdown,
+  buildFiscalSnapshot,
+  priceDrifted,
+} from "./pricing"
 import {
   getActiveFiscalRule,
   getActiveFiscalRuleInTx,
@@ -23,8 +27,7 @@ import {
 import { decodeDraft } from "./draft-store"
 import { debitPartnerCredit } from "@/lib/pro/booking-actions"
 import { getMarginsForAgency } from "@/lib/pro/server-context"
-import { applyMargin } from "@/lib/pro/pricing"
-import { applyHotelCommercialEngine } from "@/lib/hotels/commercial-engine"
+import { resolveHotelAgencyPricer } from "@/lib/hotels/commercial-engine"
 import { recordReservationFinancials } from "@/lib/finance/reservation-financials"
 import { recordReservationTransition } from "@/lib/admin/reservation-status-history"
 import { creditPlatformCommission } from "@/lib/finance/platform-commission"
@@ -257,7 +260,13 @@ export type CreateReservationResult =
       publicRef: string
       guestAccessToken: string
     }
-  | { ok: false; error: string }
+  | {
+      ok: false
+      error: string
+      /** PRICING-HOTEL-TRUTH-01 — prix débité ≠ prix affiché à l'agence. */
+      code?: "PRICE_CHANGED"
+      currentTotalTnd?: number
+    }
 
 /**
  * Backstop DB idempotence B2B (trouvé pendant l'audit production readiness
@@ -318,6 +327,14 @@ export async function createReservationFromDraft(input: {
    * dupliqué par appelant.
    */
   idempotencyKey?: string
+  /**
+   * PRICING-HOTEL-TRUTH-01 — total TTC affiché à l'agence (récapitulatif
+   * /pro/booking/travelers). Si le montant réellement débité en diffère,
+   * la réservation est refusée (PRICE_CHANGED) au lieu de débiter un autre
+   * montant en silence — même garde que le parcours B2C (CART-DRIFT-01).
+   * Facultatif : absent = pas de contrôle (appelants historiques).
+   */
+  expectedTotalTnd?: number
 }): Promise<CreateReservationResult> {
   if (!process.env.DATABASE_URL) {
     return { ok: false, error: "Base de données non configurée" }
@@ -511,15 +528,14 @@ export async function createReservationFromDraft(input: {
   const hotelMarginRule = (
     await getMarginsForAgency(agencyId, authUserId, "b2b")
   ).hotel
-  const commercialResult = await applyHotelCommercialEngine(
-    myGoBooking.totalPrice,
-    "TND",
+  // PRICING-HOTEL-TRUTH-01 : tarificateur unique, identique à celui des
+  // pages /pro (getActivePartnerHotelPricer, lib/pro/server-context.ts).
+  const hotelPricerB2B = await resolveHotelAgencyPricer(
     agencyId,
     "B2B",
+    hotelMarginRule,
   )
-  const agencyHotelPrice = commercialResult
-    ? commercialResult.sellingAmount
-    : applyMargin(myGoBooking.totalPrice, hotelMarginRule)
+  const agencyHotelPrice = hotelPricerB2B.price(myGoBooking.totalPrice)
 
   const fiscalRuleForBreakdown = await getActiveFiscalRule(
     "TN",
@@ -533,6 +549,28 @@ export async function createReservationFromDraft(input: {
     children: draft.children,
     vatRate: parseFloat(fiscalRuleForBreakdown.vatRate),
   })
+
+  // --- Garde anti-dérive B2B (PRICING-HOTEL-TRUTH-01) ---
+  // L'agence a validé un total affiché ; si le total recalculé à partir du
+  // VRAI prix myGo + tarificateur unique diffère (repricing fournisseur,
+  // règle modifiée entre-temps), on annule la réservation fournisseur et on
+  // refuse, sans aucun débit — jamais un autre montant débité en silence.
+  if (priceDrifted(input.expectedTotalTnd, breakdown.totalTnd)) {
+    try {
+      await (myGoAccess.client ?? getMyGoClient()).cancelBooking({
+        bookingId: myGoBooking.bookingId,
+      })
+    } catch {
+      /* best effort — aucun débit ni réservation locale n'a eu lieu. */
+    }
+    await releaseInventoryLock()
+    return {
+      ok: false,
+      error: `Le prix de cette offre a changé (${input.expectedTotalTnd?.toFixed(3)} DT → ${breakdown.totalTnd.toFixed(3)} DT). Aucun montant n'a été débité. Merci de vérifier le nouveau montant avant de confirmer à nouveau.`,
+      code: "PRICE_CHANGED",
+      currentTotalTnd: breakdown.totalTnd,
+    }
+  }
 
   try {
     // Point d'injection de test — UNIQUEMENT actif en MYGO_MODE=virtual, pour

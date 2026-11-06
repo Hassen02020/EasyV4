@@ -20,8 +20,8 @@ import {
   validateSearchDateRange,
   runHotelSearch,
 } from "@/lib/mygo/search-core"
-import { applyMarginToHotelOffer } from "@/lib/pro/pricing"
-import { getActivePartnerMargins } from "@/lib/pro/server-context"
+import { applyPriceToHotelOffer } from "@/lib/pro/pricing"
+import { getActivePartnerHotelPricer } from "@/lib/pro/server-context"
 import { resolvePartnerMyGoAccess } from "@/lib/hotel-suppliers/tenant/live-resolution"
 import { ProRoomSelector } from "@/components/pro/pro-room-selector"
 
@@ -89,9 +89,9 @@ export default async function ProHotelDetailPage({
 
   // PHASE 27.1 — compte fournisseur MyGo résolu pour l'agence de la session
   // partenaire courante (voir lib/hotel-suppliers/tenant/live-resolution.ts).
-  const [access, margins] = await Promise.all([
+  const [access, hotelPricer] = await Promise.all([
     resolvePartnerMyGoAccess(),
-    getActivePartnerMargins(),
+    getActivePartnerHotelPricer(),
   ])
   const result = await runHotelSearch(
     q,
@@ -127,7 +127,7 @@ export default async function ProHotelDetailPage({
     )
   }
 
-  const offer = applyMarginToHotelOffer(result.dto.offers[0]!, margins)
+  const offer = applyPriceToHotelOffer(result.dto.offers[0]!, hotelPricer.price)
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:py-10">

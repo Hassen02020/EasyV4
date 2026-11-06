@@ -19,8 +19,8 @@ import {
   HotelSearchQuerySchema,
   validateSearchDateRange,
 } from "@/lib/mygo/search-core"
-import { applyMarginToHotelOffer } from "@/lib/pro/pricing"
-import { getActivePartnerMargins } from "@/lib/pro/server-context"
+import { applyPriceToHotelOffer } from "@/lib/pro/pricing"
+import { getActivePartnerHotelPricer } from "@/lib/pro/server-context"
 import { resolvePartnerMyGoAccess } from "@/lib/hotel-suppliers/tenant/live-resolution"
 import {
   runSearchThroughHub,
@@ -130,9 +130,9 @@ export default async function ProHotelsSerpPage({
   // PHASE 27.1 — compte fournisseur MyGo résolu pour l'agence de la session
   // partenaire courante (jamais le compte global MYGO_* si un compte tenant
   // est configuré) — voir lib/hotel-suppliers/tenant/live-resolution.ts.
-  const [access, margins] = await Promise.all([
+  const [access, hotelPricer] = await Promise.all([
     resolvePartnerMyGoAccess(),
-    getActivePartnerMargins(),
+    getActivePartnerHotelPricer(),
   ])
   // PHASE 28 — même orchestration Hub que /api/hotels/search — un seul
   // appel réseau myGo, résultat déjà autoritaire réutilisé pour
@@ -153,7 +153,7 @@ export default async function ProHotelsSerpPage({
   }
 
   const offers = result.dto.offers.map((o) =>
-    applyMarginToHotelOffer(o, margins),
+    applyPriceToHotelOffer(o, hotelPricer.price),
   )
   const currency = offers[0]?.currency ?? "TND"
 

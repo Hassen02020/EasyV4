@@ -320,6 +320,15 @@ async function runCreateGuestNetworkBooking(
           salePriceTnd: totalTnd,
           commissionPercent: directMarginRule.commissionPercent,
           marginRuleId: directMarginRule.ruleId,
+          // COMMERCIAL-AGREEMENT-MODELS-02 : accord Network actif (vendeur,
+          // canal, nœud fournisseur) → part Easy2Book = net fournisseur × %
+          // (prime sur commissionPercent) ; aucun accord = inchangé.
+          agreementContext: {
+            sellerAgencyId: agencyId,
+            channel: "b2c",
+            module: "network",
+            supplierPartyId: product.supplierNodeId,
+          },
           economicEntitlements: [
             {
               partyType: "supplier_node",

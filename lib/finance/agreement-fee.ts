@@ -1,7 +1,16 @@
 /**
  * COMMERCIAL-AGREEMENT-WIRING-01 — part Easy2Book issue d'un accord
- * commercial ACTIF (option 3 « frais / % sur prix net », D-01b,
- * docs/ECONOMIC_MODEL.md §2 et §10).
+ * commercial ACTIF (option 3, D-01b, docs/ECONOMIC_MODEL.md §2 et §10).
+ *
+ * COMMERCIAL-AGREEMENT-MODELS-02 — décision Direction (2026-11-06), appliquée
+ * strictement :
+ *   - nouveaux accords Network → POURCENTAGE du prix net fournisseur
+ *     (seule forme acceptée : `margin_rules.type = 'percent'`, taux > 0 écrit
+ *     par le super_admin ; frais fixes / hybrides refusés) ;
+ *   - hôtels Tunisie historiques → pourcentage de la marge vendeur
+ *     (`commissionPercent`, option 1) : JAMAIS résolus par un accord ici.
+ *   - aucun taux par défaut, aucun taux arbitraire (ni 10 %, ni 0 %) : le
+ *     premier taux Network est décidé par la Direction.
  *
  * Où vit le taux : `commercial_agreements` ne porte aucun montant ; le
  * « combien » vit dans une ligne `margin_rules` rattachée par
@@ -38,12 +47,16 @@ import { marginRules } from "@/lib/db/schema/financials"
 
 export type AgreementChannel = "b2c" | "b2b" | "network" | "white_label" | "api"
 
+/** Seul module monétisé par accord (décision Direction 2026-11-06). */
+export const AGREEMENT_MODULES = ["network"] as const
+export type AgreementModule = (typeof AGREEMENT_MODULES)[number]
+
 export interface AgreementFeeContext {
   /** Agence vendeuse (`agencies.id`) — partie `seller` de l'accord. */
   sellerAgencyId: string
   channel: AgreementChannel
-  /** Module de la réservation (`reservation_module`), comparé à `margin_rules.product_type`. */
-  module: string
+  /** Module de la réservation, comparé à `margin_rules.product_type`. Network uniquement. */
+  module: AgreementModule
   /** Date du fait générateur (confirmation, D-01c). Défaut : maintenant. */
   at?: Date
   /** Parties précises de la vente, si connues (null = non modélisées). */
@@ -60,6 +73,7 @@ export interface ResolvedAgreementRule {
 }
 
 export type AgreementFeeErrorCode =
+  | "AGREEMENT_MODULE_NOT_ALLOWED"
   | "AGREEMENT_CONFLICT"
   | "AGREEMENT_RULE_CONFLICT"
   | "AGREEMENT_CURRENCY_UNSUPPORTED"
@@ -111,6 +125,14 @@ export async function resolveActiveAgreementRule(
   tx: DrizzleTransaction,
   ctx: AgreementFeeContext,
 ): Promise<ResolvedAgreementRule | null> {
+  // Défense en profondeur (le type l'interdit déjà) : les hôtels Tunisie
+  // restent sur l'option 1, jamais sur un accord.
+  if (!(AGREEMENT_MODULES as readonly string[]).includes(ctx.module)) {
+    throw new AgreementFeeError(
+      "AGREEMENT_MODULE_NOT_ALLOWED",
+      `module ${ctx.module} : la part Easy2Book par accord est réservée au module Network.`,
+    )
+  }
   const day = tunisDate(ctx.at ?? new Date())
 
   const agreements = (
@@ -230,31 +252,30 @@ export async function resolveActiveAgreementRule(
 
 const round2 = (v: number) => Math.round((v + Number.EPSILON) * 100) / 100
 
-/** Part Easy2Book option 3 : `net × %`, `fixe`, ou les deux (hybrid). */
+/**
+ * Part Easy2Book option 3, modèle Network : `prix net fournisseur × taux %`.
+ * Seule forme acceptée (décision Direction 2026-11-06) : frais fixes,
+ * formule hybride, taux absent, nul ou négatif → refus.
+ */
 export function computeAgreementFee(
   netTnd: number,
   rule: ResolvedAgreementRule,
 ): { amount: number; basis: string } {
   const p = rule.percentValue
-  const f = rule.fixedValue
-  const needP = rule.type === "percent" || rule.type === "hybrid"
-  const needF = rule.type === "fixed" || rule.type === "hybrid"
-  if (
-    (needP && (p === null || !Number.isFinite(p) || p < 0)) ||
-    (needF && (f === null || !Number.isFinite(f) || f < 0))
-  ) {
+  if (rule.type !== "percent") {
     throw new AgreementFeeError(
       "AGREEMENT_RULE_INVALID",
-      `ligne ${rule.ruleId} (${rule.type}) : valeur manquante ou négative.`,
+      `ligne ${rule.ruleId} (${rule.type}) : seul un pourcentage du prix net fournisseur est autorisé pour un accord Network.`,
     )
   }
-  const amount = round2((needP ? (netTnd * p!) / 100 : 0) + (needF ? f! : 0))
-  const parts = [
-    needP ? `net × ${p}%` : null,
-    needF ? `${f!.toFixed(2)} TND fixe` : null,
-  ].filter(Boolean)
+  if (p === null || !Number.isFinite(p) || p <= 0 || rule.fixedValue !== null) {
+    throw new AgreementFeeError(
+      "AGREEMENT_RULE_INVALID",
+      `ligne ${rule.ruleId} : taux absent, nul ou négatif, ou montant fixe renseigné — le taux doit être décidé par la Direction.`,
+    )
+  }
   return {
-    amount,
-    basis: `frais Easy2Book accord ${rule.agreementId} (option 3 : ${parts.join(" + ")})`,
+    amount: round2((netTnd * p) / 100),
+    basis: `frais Easy2Book accord ${rule.agreementId} (net fournisseur × ${p}%)`,
   }
 }

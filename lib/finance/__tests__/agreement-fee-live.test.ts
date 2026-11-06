@@ -124,7 +124,7 @@ async function newReservation(f: {
         agencyId: f.agencyId,
         publicRef: `TEST-AGR-${suffix}`,
         customerId: c!.id,
-        module: "hotel",
+        module: "network",
         source: "manual",
         status: "confirmed",
         originalCurrency: "TND",
@@ -140,7 +140,7 @@ async function newReservation(f: {
 
 type AgreementSeed = {
   status?: "draft" | "active" | "suspended" | "terminated"
-  channel?: "b2c" | "b2b"
+  channel?: "b2c" | "b2b" | "network"
   currency?: string
   validFrom?: string | null
   validTo?: string | null
@@ -174,7 +174,7 @@ async function seedAgreement(agencyId: string, a: AgreementSeed) {
           agencyId,
           agreementId: row!.id,
           name: "accord test",
-          productType: "hotel",
+          productType: "network",
           type: "percent",
           ...r,
         })
@@ -185,8 +185,8 @@ async function seedAgreement(agencyId: string, a: AgreementSeed) {
   })
 }
 
-/** Lignes construites comme dans lib/booking/guest-actions.ts (option 1 : 5 % de la marge). */
-function hotelLines(
+/** Lignes construites comme dans lib/network/product-booking-actions.ts (option 1 : 5 % de la marge). */
+function networkLines(
   agencyId: string,
   net: number,
   sale: number,
@@ -230,9 +230,11 @@ async function record(
   opts: {
     net?: number
     sale?: number
-    channel?: "b2c" | "b2b"
+    channel?: "b2c" | "b2b" | "network"
     treatment?: "non_refundable" | "full_reversal"
     withContext?: boolean
+    module?: string
+    supplierPartyId?: string | null
   } = {},
 ) {
   const net = opts.net ?? 400
@@ -246,7 +248,7 @@ async function record(
         supplierPriceTnd: net,
         salePriceTnd: sale,
         commissionPercent: 5,
-        economicEntitlements: hotelLines(
+        economicEntitlements: networkLines(
           agencyId,
           net,
           sale,
@@ -259,7 +261,8 @@ async function record(
               agreementContext: {
                 sellerAgencyId: agencyId,
                 channel: opts.channel ?? "b2c",
-                module: "hotel",
+                module: (opts.module ?? "network") as "network",
+                supplierPartyId: opts.supplierPartyId ?? null,
               },
             }),
       })
@@ -321,7 +324,7 @@ async function expectRefusal(
 
 // ─── Calcul pur ────────────────────────────────────────────────────────────
 
-test("calcul option 3 : %, fixe, hybride, arrondi à 2 décimales (stockage numeric(14,2))", () => {
+test("calcul Network : pourcentage du prix net fournisseur uniquement, arrondi à 2 décimales", () => {
   const base = {
     agreementId: "a",
     ruleId: "r",
@@ -332,19 +335,6 @@ test("calcul option 3 : %, fixe, hybride, arrondi à 2 décimales (stockage nume
     computeAgreementFee(400, { ...base, type: "percent", percentValue: 2 })
       .amount,
     8,
-  )
-  assert.equal(
-    computeAgreementFee(400, { ...base, type: "fixed", fixedValue: 25 }).amount,
-    25,
-  )
-  assert.equal(
-    computeAgreementFee(400, {
-      ...base,
-      type: "hybrid",
-      percentValue: 1,
-      fixedValue: 3,
-    }).amount,
-    7,
   )
   // 333.333 × 1,5 % = 4,999995 → 5,00 ; 123.45 × 3 % = 3,7035 → 3,70
   assert.equal(
@@ -360,19 +350,20 @@ test("calcul option 3 : %, fixe, hybride, arrondi à 2 décimales (stockage nume
       .amount,
     3.7,
   )
-  assert.throws(
-    () =>
-      computeAgreementFee(400, {
-        ...base,
-        type: "percent",
-        percentValue: null,
-      }),
-    /AGREEMENT_RULE_INVALID/,
-  )
-  assert.throws(
-    () => computeAgreementFee(400, { ...base, type: "fixed", fixedValue: -1 }),
-    /AGREEMENT_RULE_INVALID/,
-  )
+  // Décision Direction 2026-11-06 : ni frais fixes, ni hybride, ni taux
+  // absent/nul/négatif (aucun taux arbitraire, 0 % compris).
+  for (const bad of [
+    { ...base, type: "fixed" as const, fixedValue: 25 },
+    // Type « fixe » portant un pourcentage : refusé sur le type seul.
+    { ...base, type: "fixed" as const, percentValue: 2 },
+    { ...base, type: "hybrid" as const, percentValue: 1, fixedValue: 3 },
+    { ...base, type: "percent" as const, percentValue: null },
+    { ...base, type: "percent" as const, percentValue: 0 },
+    { ...base, type: "percent" as const, percentValue: -1 },
+    { ...base, type: "percent" as const, percentValue: 2, fixedValue: 5 },
+  ]) {
+    assert.throws(() => computeAgreementFee(400, bad), /AGREEMENT_RULE_INVALID/)
+  }
 })
 
 test("date de validité évaluée au fuseau de Tunisie", () => {
@@ -380,16 +371,17 @@ test("date de validité évaluée au fuseau de Tunisie", () => {
   assert.equal(tunisDate(new Date("2026-12-31T23:30:00Z")), "2027-01-01")
 })
 
-test("câblage : parcours hôtel B2C et B2B passent le contexte d'accord avec le bon canal", () => {
-  const guest = readFileSync("lib/booking/guest-actions.ts", "utf8")
-  const b2b = readFileSync("lib/booking/actions.ts", "utf8")
+test("câblage : hôtels Tunisie restent sur l'option 1 (aucun accord) ; Network B2B et B2C passent le contexte d'accord", () => {
+  for (const f of ["lib/booking/guest-actions.ts", "lib/booking/actions.ts"]) {
+    assert.doesNotMatch(readFileSync(f, "utf8"), /agreementContext/, f)
+  }
   assert.match(
-    guest,
-    /agreementContext: \{\s*sellerAgencyId: agencyId,\s*channel: "b2c",\s*module: "hotel",\s*\}/,
+    readFileSync("lib/network/product-booking-actions.ts", "utf8"),
+    /agreementContext: \{\s*sellerAgencyId: agencyId,\s*channel: "network",\s*module: "network",\s*supplierPartyId: product\.supplierNodeId,\s*\}/,
   )
   assert.match(
-    b2b,
-    /agreementContext: \{\s*sellerAgencyId: agencyId,\s*channel: "b2b",\s*module: "hotel",\s*\}/,
+    readFileSync("lib/network/guest-booking-actions.ts", "utf8"),
+    /agreementContext: \{\s*sellerAgencyId: agencyId,\s*channel: "b2c",\s*module: "network",\s*supplierPartyId: product\.supplierNodeId,\s*\}/,
   )
 })
 
@@ -446,21 +438,58 @@ test("live : accord actif (2 % du net) → ligne platform_fee, marge vendeur ré
   )
 })
 
-test("live : frais fixes et hybrides", async (t) => {
+test("live : accord à frais fixes ou hybride → refus, rien n'est écrit", async (t) => {
   if (!dbAvailable) return void t.skip(skip())
-  const f1 = await newAgency()
-  await seedAgreement(f1.agencyId, {
-    rules: [{ type: "fixed", fixedValue: "25.00" }],
+  for (const rule of [
+    { type: "fixed" as const, fixedValue: "25.00", percentValue: null },
+    { type: "hybrid" as const, percentValue: "1.00", fixedValue: "3.00" },
+    { type: "percent" as const, percentValue: "0.00" },
+  ]) {
+    const f = await newAgency()
+    await seedAgreement(f.agencyId, { rules: [rule] })
+    await expectRefusal(
+      f.agencyId,
+      await newReservation(f),
+      "AGREEMENT_RULE_INVALID",
+    )
+  }
+})
+
+test("live : module hôtel → refus explicite, même avec un accord actif (hôtels = option 1)", async (t) => {
+  if (!dbAvailable) return void t.skip(skip())
+  const f = await newAgency()
+  await seedAgreement(f.agencyId, {
+    rules: [{ type: "percent", percentValue: "2.00", productType: "hotel" }],
   })
-  const r1 = await newReservation(f1)
-  assert.equal((await record(f1.agencyId, r1)).commissionAmount, 25)
-  const f2 = await newAgency()
-  await seedAgreement(f2.agencyId, {
-    rules: [{ type: "hybrid", percentValue: "1.00", fixedValue: "3.00" }],
+  const rid = await newReservation(f)
+  await assert.rejects(
+    record(f.agencyId, rid, { module: "hotel" }),
+    (e: unknown) =>
+      e instanceof AgreementFeeError &&
+      e.code === "AGREEMENT_MODULE_NOT_ALLOWED",
+  )
+  assert.equal((await readBack(rid)).lines.length, 0)
+})
+
+test("live : accord propre à un nœud fournisseur → appliqué à ce nœud seulement", async (t) => {
+  if (!dbAvailable) return void t.skip(skip())
+  const node = randomUUID()
+  const f = await newAgency()
+  await seedAgreement(f.agencyId, {
+    supplierPartyId: node,
+    rules: [{ type: "percent", percentValue: "2.00" }],
   })
-  const r2 = await newReservation(f2)
-  assert.equal((await record(f2.agencyId, r2)).commissionAmount, 7)
-  assert.equal(sum((await readBack(r2)).lines), 500)
+  const r1 = await newReservation(f)
+  assert.equal(
+    (await record(f.agencyId, r1, { supplierPartyId: node })).commissionAmount,
+    8,
+  )
+  const r2 = await newReservation(f)
+  assert.equal(
+    (await record(f.agencyId, r2, { supplierPartyId: randomUUID() }))
+      .commissionAmount,
+    5,
+  )
 })
 
 test("live : accords non applicables → inchangé (brouillon, suspendu, expiré, autre canal, autre module, fournisseur précis, autre agence)", async (t) => {
@@ -523,7 +552,7 @@ test("live : deux accords actifs applicables → refus, rien n'est écrit", asyn
     rules: [{ type: "percent", percentValue: "2.00" }],
   })
   await seedAgreement(f.agencyId, {
-    rules: [{ type: "fixed", fixedValue: "10.00" }],
+    rules: [{ type: "percent", percentValue: "3.00" }],
   })
   await expectRefusal(f.agencyId, await newReservation(f), "AGREEMENT_CONFLICT")
 })
@@ -562,7 +591,7 @@ test("live : frais supérieurs à la marge vendeur → refus", async (t) => {
   if (!dbAvailable) return void t.skip(skip())
   const f = await newAgency()
   await seedAgreement(f.agencyId, {
-    rules: [{ type: "fixed", fixedValue: "100.01" }],
+    rules: [{ type: "percent", percentValue: "25.01" }], // 400 × 25,01 % = 100,04
   })
   await expectRefusal(
     f.agencyId,
@@ -572,7 +601,7 @@ test("live : frais supérieurs à la marge vendeur → refus", async (t) => {
   // Frais = marge exactement : accepté, marge vendeur 0.
   const g = await newAgency()
   await seedAgreement(g.agencyId, {
-    rules: [{ type: "fixed", fixedValue: "100.00" }],
+    rules: [{ type: "percent", percentValue: "25.00" }], // 400 × 25 % = 100
   })
   const rid = await newReservation(g)
   assert.equal((await record(g.agencyId, rid)).commissionAmount, 100)
@@ -653,7 +682,7 @@ test("live : annulation → reversement de la ligne platform_fee (full_reversal)
   assert.deepEqual(credits.map((c) => c.amount).sort(), ["-8.00", "8.00"])
 })
 
-test("live : annulation hôtel (non_refundable) → frais conservés, compensation à 0", async (t) => {
+test("live : annulation Network (non_refundable) → frais conservés, compensation à 0", async (t) => {
   if (!dbAvailable) return void t.skip(skip())
   const f = await newAgency()
   await seedAgreement(f.agencyId, {

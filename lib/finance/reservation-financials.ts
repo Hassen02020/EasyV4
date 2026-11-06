@@ -165,7 +165,7 @@ export interface RecordReservationFinancialsInput {
    * accord commercial ACTIF (lib/finance/agreement-fee.ts). Optionnel :
    * absent, ou aucun accord applicable = comportement STRICTEMENT inchangé.
    * Accord trouvé = priorité sur `commissionPercent` (option 1) : la part
-   * Easy2Book devient la ligne `platform_fee` (option 3, net × % ou fixe),
+   * Easy2Book devient la ligne `platform_fee` (option 3, net fournisseur × % — module Network uniquement),
    * prélevée sur la marge vendeur — le prix client ne change pas et la
    * somme des droits reste égale à `salePriceTnd`. Exige que l'appelant
    * fournisse `economicEntitlements` avec exactement une ligne vendeur

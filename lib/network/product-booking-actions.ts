@@ -279,6 +279,15 @@ export async function createNetworkProductBooking(
           salePriceTnd: totalTnd,
           commissionPercent: networkMarginRule.commissionPercent,
           marginRuleId: networkMarginRule.ruleId,
+          // COMMERCIAL-AGREEMENT-MODELS-02 : accord Network actif (vendeur,
+          // canal, nœud fournisseur) → part Easy2Book = net fournisseur × %
+          // (prime sur commissionPercent) ; aucun accord = inchangé.
+          agreementContext: {
+            sellerAgencyId: agencyId,
+            channel: "network",
+            module: "network",
+            supplierPartyId: product.supplierNodeId,
+          },
           // economic_entitlements — §3.1 : supplier (coût réel, aucun
           // fournisseur réel crédité au-delà de cet enregistrement, cf.
           // audit "le nœud fournisseur n'est crédité nulle part" — hors

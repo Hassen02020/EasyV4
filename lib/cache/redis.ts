@@ -2,7 +2,8 @@
  * Client Redis partagé (Upstash) + helpers de cache.
  *
  * Stratégie :
- *  - Si UPSTASH_REDIS_REST_URL est défini → Redis distribué (production).
+ *  - Si UPSTASH_REDIS_REST_URL/_TOKEN (ou, à défaut, KV_REST_API_URL/_TOKEN
+ *    de l'intégration Vercel) sont définis → Redis distribué (production).
  *  - Sinon → fallback MemoryCache process-local (dev / CI sans Redis).
  *
  * Exports publics :
@@ -51,12 +52,42 @@ const memCache = {
 let _redis: Redis | null = null
 
 /** Retourne le client Redis Upstash. Null si env vars absentes (→ fallback mémoire). */
+/**
+ * AVAILABILITY-REDIS-PROD-01 — identifiants REST Redis.
+ *
+ * Noms historiques : `UPSTASH_REDIS_REST_URL` / `UPSTASH_REDIS_REST_TOKEN`.
+ * L'intégration Upstash de la Marketplace Vercel crée, elle,
+ * `KV_REST_API_URL` / `KV_REST_API_TOKEN` (constaté en production le
+ * 2026-11-06). Les noms historiques priment ; les noms KV servent de repli,
+ * par PAIRE complète (jamais une URL d'un fournisseur avec le jeton d'un
+ * autre). `KV_REST_API_READ_ONLY_TOKEN` n'est JAMAIS utilisé : le verrou
+ * d'inventaire et la limitation de débit doivent écrire.
+ */
+export function resolveRedisRestEnv(
+  env: Record<string, string | undefined> = process.env,
+): { url: string; token: string; source: "upstash" | "kv" } | null {
+  if (env.UPSTASH_REDIS_REST_URL && env.UPSTASH_REDIS_REST_TOKEN) {
+    return {
+      url: env.UPSTASH_REDIS_REST_URL,
+      token: env.UPSTASH_REDIS_REST_TOKEN,
+      source: "upstash",
+    }
+  }
+  if (env.KV_REST_API_URL && env.KV_REST_API_TOKEN) {
+    return {
+      url: env.KV_REST_API_URL,
+      token: env.KV_REST_API_TOKEN,
+      source: "kv",
+    }
+  }
+  return null
+}
+
 export function getRedis(): Redis | null {
   if (_redis) return _redis
-  const url = process.env.UPSTASH_REDIS_REST_URL
-  const token = process.env.UPSTASH_REDIS_REST_TOKEN
-  if (!url || !token) return null
-  _redis = new Redis({ url, token })
+  const creds = resolveRedisRestEnv()
+  if (!creds) return null
+  _redis = new Redis({ url: creds.url, token: creds.token })
   return _redis
 }
 

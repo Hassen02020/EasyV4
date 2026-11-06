@@ -18,35 +18,25 @@
  * Un payload peut contenir des `statuses` (accusés de livraison/lecture)
  * au lieu de `messages` — ignoré silencieusement (200), ce n'est pas un
  * message entrant.
+ *
+ * WHATSAPP-CRM-01 : seul l'objet `whatsapp_business_account` est lu ; si
+ * WHATSAPP_PHONE_NUMBER_ID est configuré, un autre numéro est ignoré et
+ * tracé (W-03) ; boutons, réponses interactives et médias deviennent une
+ * ligne visible dans la conversation (W-06, lib/whatsapp/inbound.ts).
  */
 
 import { type NextRequest, NextResponse } from "next/server"
-import { withTenantContext } from "@/lib/db/tenant-context"
+import { withSystemContext, withTenantContext } from "@/lib/db/tenant-context"
+import { auditEvents } from "@/lib/db/schema"
 import { getDefaultAgencyId } from "@/lib/agencies/default-agency"
 import { normalizeWhatsAppPhone } from "@/lib/whatsapp/provider"
 import { verifyWhatsAppSignature } from "@/lib/whatsapp/signing"
+import {
+  extractWhatsAppInboundMessages,
+  type WhatsAppWebhookPayload,
+} from "@/lib/whatsapp/inbound"
 import { upsertConversationForInboundCore } from "@/lib/crm/inbox-core"
 import { notifyLeadCreated } from "@/lib/crm/lead-created-notify"
-
-interface MetaWebhookPayload {
-  object?: string
-  entry?: Array<{
-    changes?: Array<{
-      field?: string
-      value?: {
-        metadata?: { phone_number_id?: string }
-        contacts?: Array<{ profile?: { name?: string }; wa_id?: string }>
-        messages?: Array<{
-          from?: string
-          id?: string
-          timestamp?: string
-          type?: string
-          text?: { body?: string }
-        }>
-      }
-    }>
-  }>
-}
 
 export async function GET(request: NextRequest) {
   const verifyToken = process.env.WHATSAPP_VERIFY_TOKEN
@@ -83,7 +73,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Invalid signature" }, { status: 400 })
   }
 
-  let payload: MetaWebhookPayload
+  let payload: WhatsAppWebhookPayload
   try {
     payload = JSON.parse(rawBody.toString("utf8"))
   } catch {
@@ -96,27 +86,31 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "No agency configured" }, { status: 503 })
   }
 
-  const messages =
-    payload.entry
-      ?.flatMap((e) => e.changes ?? [])
-      .flatMap((c) => c.value?.messages ?? []) ?? []
-  const contactsByWaId = new Map<string, string | undefined>()
-  for (const change of payload.entry?.flatMap((e) => e.changes ?? []) ?? []) {
-    for (const contact of change.value?.contacts ?? []) {
-      if (contact.wa_id)
-        contactsByWaId.set(contact.wa_id, contact.profile?.name)
-    }
+  // WHATSAPP-CRM-01 (W-03, W-06) — lecture partagée et testée seule.
+  const expectedPhoneNumberId =
+    process.env.WHATSAPP_PHONE_NUMBER_ID?.trim() || null
+  const { messages, ignored } = extractWhatsAppInboundMessages(
+    payload,
+    expectedPhoneNumberId,
+  )
+  for (const item of ignored) {
+    if (item.reason !== "foreign_phone_number") continue
+    console.warn("[Webhook/WhatsApp] Notification d'un autre numéro ignorée")
+    await withSystemContext((tx) =>
+      tx.insert(auditEvents).values({
+        agencyId,
+        entityType: "whatsapp_inbound",
+        entityId: item.phoneNumberId ?? "inconnu",
+        action: "whatsapp.inbound_ignored",
+        diff: { reason: item.reason, phoneNumberId: item.phoneNumberId },
+      }),
+    ).catch((err) => {
+      console.error("[Webhook/WhatsApp] Trace « ignorée » impossible", err)
+    })
   }
 
   let processed = 0
   for (const message of messages) {
-    if (
-      message.type !== "text" ||
-      !message.text?.body ||
-      !message.from ||
-      !message.id
-    )
-      continue
     const phone = normalizeWhatsAppPhone(message.from)
     if (!phone) continue
 
@@ -132,9 +126,9 @@ export async function POST(request: NextRequest) {
             agencyId,
             channel: "whatsapp",
             contactPhone: phone,
-            contactName: contactsByWaId.get(message.from!) ?? null,
-            body: message.text!.body!,
-            externalMessageId: message.id!,
+            contactName: message.contactName,
+            body: message.body,
+            externalMessageId: message.id,
             sentAt,
           }),
       )
@@ -159,5 +153,5 @@ export async function POST(request: NextRequest) {
   // Toujours 200 dès que la signature est valide — Meta réessaie
   // agressivement un webhook en échec ; un message individuel en erreur
   // (déjà journalisé ci-dessus) ne doit jamais bloquer les autres.
-  return NextResponse.json({ ok: true, processed })
+  return NextResponse.json({ ok: true, processed, ignored: ignored.length })
 }

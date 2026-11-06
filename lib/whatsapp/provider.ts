@@ -23,6 +23,13 @@
  * `WHATSAPP_PROVIDER_NOT_CONFIGURED` — jamais un faux succès.
  */
 
+import { normalizePhoneRefCore } from "@/lib/crm/contact-core"
+import {
+  parseMetaGraphError,
+  type MetaGraphErrorInfo,
+} from "@/lib/meta-leadads/provider"
+import { metaGraphUrl } from "@/lib/meta/graph"
+
 export type WhatsAppProviderCode =
   | "WHATSAPP_PROVIDER_NOT_CONFIGURED"
   | "WHATSAPP_INVALID_PHONE"
@@ -56,6 +63,26 @@ export interface WhatsAppMessageResult {
   message?: string
   /** wamid — identifiant du message côté Meta. Absent si `ok: false`. */
   providerMessageId?: string
+  /**
+   * WHATSAPP-CRM-01 (W-04) — diagnostic Meta filtré (statut HTTP, code,
+   * sous-code, type, fbtrace_id). Jamais le message brut ni le jeton.
+   */
+  graph?: MetaGraphErrorInfo
+}
+
+/**
+ * WHATSAPP-CRM-01 (W-08) — un échec est-il temporaire (à relancer) ?
+ * Numéro invalide, configuration absente, refus 4xx de Meta (hors 429,
+ * limite de débit) : définitifs. Erreur réseau, 429, 5xx : temporaires.
+ */
+export function isRetryableWhatsAppFailure(
+  result: WhatsAppMessageResult,
+): boolean {
+  if (result.ok) return false
+  if (result.code !== "WHATSAPP_SEND_FAILED") return false
+  const status = result.graph?.status
+  if (status === undefined) return true
+  return status === 429 || status >= 500
 }
 
 /**
@@ -81,9 +108,18 @@ export interface WhatsAppProvider {
  * chiffres, indicatif pays inclus) — jamais d'envoi vers un numéro
  * manifestement mal formé.
  */
+/**
+ * WHATSAPP-CRM-01 (W-01) — numéro au format attendu par WhatsApp : chiffres
+ * seuls, indicatif pays inclus. Réutilise `normalizePhoneRefCore`
+ * (contact-core.ts) : un numéro tunisien saisi sans indicatif
+ * (« 98 140 514 ») ou avec 00216 devient 216XXXXXXXX. Un préfixe
+ * international « 00 » est retiré. Longueur hors 10–15 chiffres → null
+ * (aucun numéro fabriqué).
+ */
 export function normalizeWhatsAppPhone(raw: string): string | null {
-  const digits = raw.replace(/\D/g, "")
-  if (digits.length < 8 || digits.length > 15) return null
+  let digits = normalizePhoneRefCore(raw).replace(/\D/g, "")
+  if (digits.startsWith("00")) digits = digits.slice(2)
+  if (digits.length < 10 || digits.length > 15) return null
   return digits
 }
 
@@ -137,7 +173,9 @@ class MetaWhatsAppProvider implements WhatsAppProvider {
       return {
         ok: false,
         code: "WHATSAPP_INVALID_PHONE",
-        message: `Numéro invalide pour l'envoi WhatsApp : "${input.to}".`,
+        // W-02 : jamais le numéro saisi dans le message (il finit dans
+        // les traces d'audit).
+        message: "Numéro invalide pour l'envoi WhatsApp.",
       }
     }
 
@@ -173,7 +211,9 @@ class MetaWhatsAppProvider implements WhatsAppProvider {
       return {
         ok: false,
         code: "WHATSAPP_INVALID_PHONE",
-        message: `Numéro invalide pour l'envoi WhatsApp : "${input.to}".`,
+        // W-02 : jamais le numéro saisi dans le message (il finit dans
+        // les traces d'audit).
+        message: "Numéro invalide pour l'envoi WhatsApp.",
       }
     }
 
@@ -188,7 +228,11 @@ class MetaWhatsAppProvider implements WhatsAppProvider {
   private async postMessage(
     body: Record<string, unknown>,
   ): Promise<WhatsAppMessageResult> {
-    const url = `https://graph.facebook.com/${this.apiVersion}/${this.phoneNumberId}/messages`
+    // W-07 : une seule construction d'URL Graph (lib/meta/graph.ts).
+    const url = metaGraphUrl(
+      `${encodeURIComponent(this.phoneNumberId)}/messages`,
+      this.apiVersion,
+    )
 
     let response: Response
     try {
@@ -213,16 +257,20 @@ class MetaWhatsAppProvider implements WhatsAppProvider {
 
     const json = (await response.json().catch(() => null)) as {
       messages?: Array<{ id: string }>
-      error?: { message?: string; code?: number }
+      error?: unknown
     } | null
 
     if (!response.ok || !json?.messages?.[0]?.id) {
+      // W-04 : diagnostic filtré ; message générique (le message brut de
+      // Meta peut citer le destinataire).
+      const graph = parseMetaGraphError(response.status, json)
       return {
         ok: false,
         code: "WHATSAPP_SEND_FAILED",
-        message:
-          json?.error?.message ??
-          `Échec de l'envoi WhatsApp (HTTP ${response.status}).`,
+        message: `Échec de l'envoi WhatsApp (HTTP ${response.status}${
+          graph.code !== undefined ? `, code Meta ${graph.code}` : ""
+        }).`,
+        graph,
       }
     }
 
@@ -253,7 +301,8 @@ export function getWhatsAppProvider(): WhatsAppProvider {
     return new MetaWhatsAppProvider(
       process.env.WHATSAPP_ACCESS_TOKEN!,
       process.env.WHATSAPP_PHONE_NUMBER_ID!,
-      process.env.WHATSAPP_API_VERSION || "v21.0",
+      // Vide = version Meta commune (META_GRAPH_API_VERSION, v21.0 par défaut).
+      process.env.WHATSAPP_API_VERSION || "",
     )
   }
   return new NotConfiguredWhatsAppProvider()

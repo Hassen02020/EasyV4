@@ -46,7 +46,10 @@ export const sendWhatsAppConfirmation = inngest.createFunction(
         totalTnd: d.totalTnd,
       })
 
-      if (outcome.outcome === "failed") {
+      // WHATSAPP-CRM-01 (W-08) : seul un échec temporaire (réseau, 429,
+      // 5xx) est relancé ; un échec définitif (numéro invalide, refus 4xx)
+      // est déjà tracé et ne doit pas être retenté 3 fois.
+      if (outcome.outcome === "failed" && outcome.retryable) {
         // Échec réel (pas already_sent/skipped, déjà terminaux) → throw
         // pour déclencher le retry Inngest.
         throw new Error(

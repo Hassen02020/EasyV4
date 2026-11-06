@@ -10,6 +10,11 @@ export function metaGraphApiVersion(): string {
   return process.env.META_GRAPH_API_VERSION || DEFAULT_META_GRAPH_API_VERSION
 }
 
-export function metaGraphUrl(path: string): string {
-  return `https://graph.facebook.com/${metaGraphApiVersion()}/${path.replace(/^\//, "")}`
+/**
+ * `version` : surcharge facultative (ex. WHATSAPP_API_VERSION, conservée
+ * pour compatibilité — WHATSAPP-CRM-01, W-07). Sans elle, la version Meta
+ * commune s'applique.
+ */
+export function metaGraphUrl(path: string, version?: string): string {
+  return `https://graph.facebook.com/${version || metaGraphApiVersion()}/${path.replace(/^\//, "")}`
 }

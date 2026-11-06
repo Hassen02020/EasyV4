@@ -148,14 +148,14 @@
 
 ## Groupe 11 — Optionnel / Futur
 
-| Variable                     | État         | Note                                                   |
-| ---------------------------- | ------------ | ------------------------------------------------------ |
-| `DUFFEL_ACCESS_TOKEN`        | 🟢 OPTIONNEL | Vols Duffel réels — sans clé = Virtual Flight Supplier |
-| `SPS_MERCHANT_ID` + suite    | 🟢 OPTIONNEL | SPS Monétique (non activé)                             |
-| `STRIPE_SECRET_KEY` + suite  | 🟢 OPTIONNEL | Stripe (non activé)                                    |
-| `UPSTASH_REDIS_REST_URL`     | 🟢 OPTIONNEL | Rate limiting distribué — sans = in-memory             |
-| `SENTRY_DSN`                 | 🟢 OPTIONNEL | Observabilité — sans = captureError silencieux         |
-| `TWILIO_ACCOUNT_SID` + suite | 🟢 OPTIONNEL | SMS chauffeur — sans = stub                            |
+| Variable                     | État         | Note                                                                                                      |
+| ---------------------------- | ------------ | --------------------------------------------------------------------------------------------------------- |
+| `DUFFEL_ACCESS_TOKEN`        | 🟢 OPTIONNEL | Vols Duffel réels — sans clé = Virtual Flight Supplier                                                    |
+| `SPS_MERCHANT_ID` + suite    | 🟢 OPTIONNEL | SPS Monétique (non activé)                                                                                |
+| `STRIPE_SECRET_KEY` + suite  | 🟢 OPTIONNEL | Stripe (non activé)                                                                                       |
+| `UPSTASH_REDIS_REST_URL`     | 🔴 REQUIS    | + `_TOKEN` : sans Redis, verrou d'inventaire fail-closed → aucune réservation hôtel possible (2026-11-06) |
+| `SENTRY_DSN`                 | 🟢 OPTIONNEL | Observabilité — sans = captureError silencieux                                                            |
+| `TWILIO_ACCOUNT_SID` + suite | 🟢 OPTIONNEL | SMS chauffeur — sans = stub                                                                               |
 
 ---
 

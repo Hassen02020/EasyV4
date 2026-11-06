@@ -19,6 +19,7 @@
 
 import { type NextRequest, NextResponse } from "next/server"
 import { MyGoClient } from "@/lib/mygo/client"
+import { resolveRedisRestEnv } from "@/lib/cache/redis"
 
 export const dynamic = "force-dynamic"
 export const maxDuration = 60 // Vercel Pro: 60s max pour un cron
@@ -56,9 +57,12 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 })
   }
 
-  if (!process.env.UPSTASH_REDIS_REST_URL) {
+  if (!resolveRedisRestEnv()) {
     return NextResponse.json(
-      { error: "Redis non configuré — UPSTASH_REDIS_REST_URL manquant" },
+      {
+        error:
+          "Redis non configuré — UPSTASH_REDIS_REST_URL/_TOKEN ou KV_REST_API_URL/_TOKEN manquants",
+      },
       { status: 503 },
     )
   }

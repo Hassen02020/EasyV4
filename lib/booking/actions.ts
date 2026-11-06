@@ -794,13 +794,6 @@ export async function createReservationFromDraft(input: {
             salePriceTnd: agencyHotelPrice,
             commissionPercent: hotelMarginRule.commissionPercent,
             marginRuleId: hotelMarginRule.ruleId,
-            // COMMERCIAL-AGREEMENT-WIRING-01 : accord actif (vendeur, canal,
-            // module) > commissionPercent ; aucun accord = inchangé.
-            agreementContext: {
-              sellerAgencyId: agencyId,
-              channel: "b2b",
-              module: "hotel",
-            },
             economicEntitlements: [
               {
                 partyType: "external_supplier",

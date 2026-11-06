@@ -55,6 +55,12 @@
 import type { DrizzleTransaction } from "@/lib/db/client"
 import { economicEntitlements, reservationFinancials } from "@/lib/db/schema"
 import type { AppliedRate } from "./fx-policy"
+import {
+  AgreementFeeError,
+  computeAgreementFee,
+  resolveActiveAgreementRule,
+  type AgreementFeeContext,
+} from "./agreement-fee"
 
 /** Une ligne de droit économique (`economic_entitlements`) — §3.1 du modèle. */
 export interface EconomicEntitlementLineInput {
@@ -154,19 +160,104 @@ export interface RecordReservationFinancialsInput {
    * sites qui ne passent pas de politique FX (modules TND natifs).
    */
   appliedRate?: AppliedRate
+  /**
+   * COMMERCIAL-AGREEMENT-WIRING-01 — contexte de la vente pour retrouver un
+   * accord commercial ACTIF (lib/finance/agreement-fee.ts). Optionnel :
+   * absent, ou aucun accord applicable = comportement STRICTEMENT inchangé.
+   * Accord trouvé = priorité sur `commissionPercent` (option 1) : la part
+   * Easy2Book devient la ligne `platform_fee` (option 3, net × % ou fixe),
+   * prélevée sur la marge vendeur — le prix client ne change pas et la
+   * somme des droits reste égale à `salePriceTnd`. Exige que l'appelant
+   * fournisse `economicEntitlements` avec exactement une ligne vendeur
+   * `seller_margin` et une ligne Easy2Book `commission`.
+   */
+  agreementContext?: AgreementFeeContext
+}
+
+/**
+ * Remplace, dans les lignes de l'appelant, la commission option 1 par la
+ * part Easy2Book de l'accord (option 3) et ajuste la marge vendeur d'autant.
+ * Forme attendue stricte : sinon refus (jamais une écriture approximative).
+ */
+export function applyAgreementFeeToEntitlements(
+  lines: EconomicEntitlementLineInput[] | undefined,
+  fee: { amount: number; basis: string; agreementId: string; ruleId: string },
+  marginAmount: number,
+): EconomicEntitlementLineInput[] {
+  const isE2b = (l: EconomicEntitlementLineInput) =>
+    l.role === "easy2book" && l.qualification === "commission"
+  const isSeller = (l: EconomicEntitlementLineInput) =>
+    l.role === "seller" && l.qualification === "seller_margin"
+  const e2b = (lines ?? []).filter(isE2b)
+  const seller = (lines ?? []).filter(isSeller)
+  if (e2b.length !== 1 || seller.length !== 1) {
+    throw new AgreementFeeError(
+      "AGREEMENT_ENTITLEMENT_SHAPE",
+      `lignes attendues : 1 seller_margin + 1 commission Easy2Book (reçu ${seller.length} + ${e2b.length}).`,
+    )
+  }
+  const sellerAmount = Math.round((marginAmount - fee.amount) * 100) / 100
+  return lines!.map((l) =>
+    isE2b(l)
+      ? {
+          ...l,
+          qualification: "platform_fee" as const,
+          amount: fee.amount,
+          basis: fee.basis,
+          agreementId: fee.agreementId,
+          ruleId: fee.ruleId,
+        }
+      : isSeller(l)
+        ? {
+            ...l,
+            amount: sellerAmount,
+            basis: `marge vendeur nette des frais Easy2Book (accord ${fee.agreementId})`,
+          }
+        : l,
+  )
 }
 
 export async function recordReservationFinancials(
   input: RecordReservationFinancialsInput,
-): Promise<{ commissionAmount: number }> {
+): Promise<{ commissionAmount: number; agreementId: string | null }> {
   const { tx, reservationId, supplierPriceTnd, salePriceTnd } = input
   const marginAmount = salePriceTnd - supplierPriceTnd
   const marginPercent =
     supplierPriceTnd > 0 ? (marginAmount / supplierPriceTnd) * 100 : 0
 
-  const commissionRate = input.commissionPercent ?? 0
-  const commissionAmount =
+  let commissionRate = input.commissionPercent ?? 0
+  let commissionAmount =
     Math.round(marginAmount * (commissionRate / 100) * 100) / 100
+  let entitlementLines = input.economicEntitlements
+  let agreementId: string | null = null
+
+  // COMMERCIAL-AGREEMENT-WIRING-01 — accord actif > commissionPercent.
+  // Résolu DANS la transaction, avant toute écriture : un refus annule tout.
+  if (input.agreementContext) {
+    const rule = await resolveActiveAgreementRule(tx, input.agreementContext)
+    if (rule) {
+      const fee = computeAgreementFee(supplierPriceTnd, rule)
+      if (fee.amount > Math.round(marginAmount * 100) / 100) {
+        throw new AgreementFeeError(
+          "AGREEMENT_FEE_EXCEEDS_SELLER_MARGIN",
+          `frais ${fee.amount.toFixed(2)} > marge vendeur ${marginAmount.toFixed(2)} (réservation ${reservationId}).`,
+        )
+      }
+      entitlementLines = applyAgreementFeeToEntitlements(
+        input.economicEntitlements,
+        { ...fee, agreementId: rule.agreementId, ruleId: rule.ruleId },
+        marginAmount,
+      )
+      commissionAmount = fee.amount
+      // Taux équivalent sur la marge (≤ 100 % puisque frais ≤ marge), pour
+      // que commission_percent reste cohérent avec commission_amount.
+      commissionRate =
+        marginAmount > 0
+          ? Math.round((fee.amount / marginAmount) * 10000) / 100
+          : 0
+      agreementId = rule.agreementId
+    }
+  }
 
   await tx.insert(reservationFinancials).values({
     reservationId,
@@ -198,10 +289,10 @@ export async function recordReservationFinancials(
       : {}),
   })
 
-  if (input.economicEntitlements && input.economicEntitlements.length > 0) {
+  if (entitlementLines && entitlementLines.length > 0) {
     const now = new Date()
     await tx.insert(economicEntitlements).values(
-      input.economicEntitlements.map((line) => ({
+      entitlementLines.map((line) => ({
         reservationId,
         partyType: line.partyType,
         partyId: line.partyId,
@@ -219,5 +310,5 @@ export async function recordReservationFinancials(
     )
   }
 
-  return { commissionAmount }
+  return { commissionAmount, agreementId }
 }

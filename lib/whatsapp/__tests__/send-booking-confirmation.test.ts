@@ -204,6 +204,46 @@ test("sendBookingConfirmationWhatsApp : échec provider → code explicite, audi
   assert.equal(events[0].action, WHATSAPP_AUDIT_ACTIONS.failed)
 })
 
+test("WHATSAPP-CRM-01 (W-02, W-08) : trace d'échec sans numéro complet ni message brut ; échec définitif non relancé", async () => {
+  const { store, events } = makeFakeAuditStore()
+  const { provider } = makeFakeProvider({
+    ok: false,
+    code: "WHATSAPP_SEND_FAILED",
+    message: "Recipient 21698123456 not in allowed list",
+    graph: { status: 400, code: 131030 },
+  })
+  const outcome = await sendBookingConfirmationWhatsApp(BASE_INPUT, {
+    auditStore: store,
+    provider,
+    configured: true,
+  })
+  assert.equal(outcome.outcome, "failed")
+  if (outcome.outcome === "failed") assert.equal(outcome.retryable, false)
+  const diff = events[0].diff
+  assert.equal(diff.code, "WHATSAPP_SEND_FAILED")
+  assert.deepEqual(diff.graph, { status: 400, code: 131030 })
+  assert.equal(diff.retryable, false)
+  assert.equal("message" in diff, false)
+  const digits = BASE_INPUT.customerPhone.replace(/\D/g, "")
+  assert.doesNotMatch(JSON.stringify(diff), new RegExp(digits))
+  assert.doesNotMatch(JSON.stringify(diff), /21698123456/)
+})
+
+test("WHATSAPP-CRM-01 (W-08) : erreur temporaire (5xx) → relançable", async () => {
+  const { store } = makeFakeAuditStore()
+  const { provider } = makeFakeProvider({
+    ok: false,
+    code: "WHATSAPP_SEND_FAILED",
+    graph: { status: 503 },
+  })
+  const outcome = await sendBookingConfirmationWhatsApp(BASE_INPUT, {
+    auditStore: store,
+    provider,
+    configured: true,
+  })
+  assert.ok(outcome.outcome === "failed" && outcome.retryable)
+})
+
 /* -------------------------------------------------------------------------- */
 /* Garantie architecturale : Booking Core jamais affecté                      */
 /* -------------------------------------------------------------------------- */

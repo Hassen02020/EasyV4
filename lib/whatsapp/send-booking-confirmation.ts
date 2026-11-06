@@ -30,7 +30,10 @@ import { and, eq } from "drizzle-orm"
 import { withSystemContext } from "@/lib/db/tenant-context"
 import { auditEvents, notificationIdempotency } from "@/lib/db/schema"
 import { getWhatsAppProvider, type WhatsAppProvider } from "./provider"
-import { hasConfiguredWhatsAppProvider } from "./provider"
+import {
+  hasConfiguredWhatsAppProvider,
+  isRetryableWhatsAppFailure,
+} from "./provider"
 import { pgErrorCode } from "@/lib/db/pg-error"
 
 const ACTION_SENT = "notification.whatsapp.sent"
@@ -53,7 +56,13 @@ export type SendBookingConfirmationWhatsAppOutcome =
   | { outcome: "sent"; providerMessageId?: string }
   | { outcome: "already_sent" }
   | { outcome: "skipped"; reason: "NOT_CONFIGURED" | "NO_PHONE" }
-  | { outcome: "failed"; code: string; message: string }
+  | {
+      outcome: "failed"
+      code: string
+      message: string
+      /** WHATSAPP-CRM-01 (W-08) — false = échec définitif, ne pas relancer. */
+      retryable: boolean
+    }
 
 /**
  * Journal d'audit — interface minimale injectable pour les tests (pas de
@@ -187,9 +196,13 @@ export async function sendBookingConfirmationWhatsApp(
   })
 
   if (!result.ok) {
+    // W-02 : la trace ne contient que le code, le diagnostic Meta filtré
+    // et le numéro masqué — jamais le numéro complet ni le message brut.
+    const retryable = isRetryableWhatsAppFailure(result)
     await auditStore.recordAttempt(auditIdentity, ACTION_FAILED, {
       code: result.code,
-      message: result.message,
+      ...(result.graph ? { graph: result.graph } : {}),
+      retryable,
       phone: maskPhone(input.customerPhone),
       templateName,
     })
@@ -197,6 +210,7 @@ export async function sendBookingConfirmationWhatsApp(
       outcome: "failed",
       code: result.code ?? "UNKNOWN",
       message: result.message ?? "Échec inconnu.",
+      retryable,
     }
   }
 

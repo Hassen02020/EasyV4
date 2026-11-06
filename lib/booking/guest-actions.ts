@@ -748,6 +748,13 @@ async function runCreateGuestReservation(
             salePriceTnd: agencyPrice,
             commissionPercent: hotelMarginRule.commissionPercent,
             marginRuleId: hotelMarginRule.ruleId,
+            // COMMERCIAL-AGREEMENT-WIRING-01 : accord actif (vendeur, canal,
+            // module) > commissionPercent ; aucun accord = inchangé.
+            agreementContext: {
+              sellerAgencyId: agencyId,
+              channel: "b2c",
+              module: "hotel",
+            },
             economicEntitlements: [
               {
                 partyType: "external_supplier",

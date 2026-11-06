@@ -211,7 +211,7 @@
  *   rétroactif des lignes `NULL` existantes.
  */
 
-import { and, eq, sql } from "drizzle-orm"
+import { and, eq, inArray, isNull, sql } from "drizzle-orm"
 import type { DrizzleTransaction } from "@/lib/db/client"
 import {
   economicEntitlements,
@@ -270,14 +270,22 @@ export async function reverseCommissionOnCancellation(
   const [originalEntitlement] = await tx
     .select({
       id: economicEntitlements.id,
+      qualification: economicEntitlements.qualification,
       cancellationTreatment: economicEntitlements.cancellationTreatment,
     })
     .from(economicEntitlements)
     .where(
       and(
         eq(economicEntitlements.reservationId, reservationId),
-        eq(economicEntitlements.qualification, "commission"),
+        // COMMERCIAL-AGREEMENT-WIRING-01 : la part Easy2Book d'un accord
+        // (option 3) est qualifiée `platform_fee` ; option 1 = `commission`.
+        // Une réservation n'en porte qu'une (l'accord remplace l'option 1).
+        inArray(economicEntitlements.qualification, [
+          "commission",
+          "platform_fee",
+        ]),
         eq(economicEntitlements.partyType, "easy2book"),
+        isNull(economicEntitlements.compensatesId),
       ),
     )
     .limit(1)
@@ -392,7 +400,7 @@ export async function reverseCommissionOnCancellation(
         currency, basis, status, effective_at, compensates_id,
         cancellation_treatment
       ) VALUES (
-        ${reservationId}, 'easy2book', NULL, 'easy2book', 'commission',
+        ${reservationId}, 'easy2book', NULL, 'easy2book', ${originalEntitlement.qualification},
         '0.00', 'TND',
         ${`Reversement commission — annulation ${publicRef} (non_refundable — commission conservée)`},
         'pending', now(), ${originalEntitlement.id}, 'non_refundable'
@@ -493,7 +501,7 @@ export async function reverseCommissionOnCancellation(
       currency, basis, status, effective_at, compensates_id,
       cancellation_treatment
     ) VALUES (
-      ${reservationId}, 'easy2book', NULL, 'easy2book', 'commission',
+      ${reservationId}, 'easy2book', NULL, 'easy2book', ${originalEntitlement.qualification},
       ${negateDecimalString(creditEntry.amount)}, 'TND',
       ${`Reversement commission — annulation ${publicRef} (${treatment})`},
       'pending', now(), ${originalEntitlement.id}, ${treatment}

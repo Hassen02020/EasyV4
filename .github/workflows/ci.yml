@@ -328,6 +328,7 @@ jobs:
             lib/meta/__tests__/meta-page-route-live.test.ts \
             lib/hotels/__tests__/pricing-truth.test.ts \
             lib/finance/__tests__/agreement-fee-live.test.ts \
+            lib/db/__tests__/margin-rules-agreement-rls-live.test.ts \
             lib/admin/__tests__/b2c-clients-core-live.test.ts \
             lib/public/__tests__/site-admin-core-live.test.ts \
             lib/crm/__tests__/time-series-core-live.test.ts \

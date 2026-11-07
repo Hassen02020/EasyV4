@@ -201,7 +201,8 @@
     "paginationNextAria": "Page suivante",
     "paginationGoToPage": "Aller à la page {page}",
     "nightsCount": "{n, plural, one {# nuit} other {# nuits}}",
-    "selectDates": "Sélectionner les dates"
+    "selectDates": "Sélectionner les dates",
+    "paymentStatusVoided": "annulé — aucun règlement à effectuer"
   },
   "Home": {
     "heroKicker": "Réservation instantanée · 100% Tunisie",
@@ -622,7 +623,8 @@
     "sortResultsAria": "Trier les résultats",
     "kicker": "Hôtels Tunisie",
     "heroTitle": "Hôtels en Tunisie au meilleur prix",
-    "heroSubtitle": "Comparez les offres de centaines d'hôtels tunisiens. Réservez en quelques clics avec annulation gratuite."
+    "heroSubtitle": "Comparez les offres de centaines d'hôtels tunisiens. Réservez en quelques clics avec annulation gratuite.",
+    "cancellationFeesApply": "Frais d'annulation applicables (selon les conditions de l'hôtel)"
   },
   "HotelsMonde": {
     "kicker": "Hôtels Monde",
@@ -977,7 +979,6 @@
     "adultsCount": "{n, plural, one {# adulte} other {# adultes}}",
     "childrenCount": "{n, plural, one {# enfant} other {# enfants}}",
     "nightsCount": "{n, plural, one {# nuit} other {# nuits}}",
-    "freeCancellation48h": "Annulation gratuite jusqu'à 48 h avant",
     "freeCancellationAvailable": "Annulation gratuite",
     "freeCancellationUntilLabel": "Annulation gratuite avant le {date}",
     "immediateConfirmation": "Confirmation immédiate",
@@ -1089,7 +1090,9 @@
     "paymentTransferNotice": "Nos coordonnées bancaires vous seront envoyées par email. Votre billet sera émis dès réception du virement.",
     "paymentCashTitle": "Réglez en espèces en agence",
     "paymentCashNotice": "Présentez-vous dans nos locaux avec cette référence de réservation. Votre billet sera émis immédiatement après paiement.",
-    "mustAcceptPolicy": "Vous devez accepter la politique d'annulation pour continuer."
+    "mustAcceptPolicy": "Vous devez accepter la politique d'annulation pour continuer.",
+    "cancellationFeesApply": "Frais d'annulation applicables (selon les conditions de l'hôtel)",
+    "cancellationOnRequest": "Conditions d'annulation sur demande"
   },
   "Paiement": {
     "simulationEnvTitle": "Environnement de simulation",

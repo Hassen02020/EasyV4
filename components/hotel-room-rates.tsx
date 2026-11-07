@@ -10,7 +10,8 @@
  * corrigé Phase 30 dans components/hotel-listings.tsx::toCardShape).
  */
 import { useState } from "react"
-import { useTranslations } from "next-intl"
+import { useLocale, useTranslations } from "next-intl"
+import { formatFreeCancellationUntil } from "@/lib/mygo/cancellation"
 import {
   Check,
   Utensils,
@@ -37,8 +38,9 @@ export interface RoomOption {
   key: string
   name: string
   /** Jamais réduit à une seule date : une chambre non remboursable ou sans politique BEFORE_ARRIVAL à 0 frais ne doit jamais afficher "gratuite". */
-  cancellation: "FREE" | "NON_REFUNDABLE" | "UNKNOWN"
-  /** Uniquement rempli quand `cancellation === "FREE"`. */
+  /** CANCEL-POLICY-DISPLAY-01 — lib/mygo/cancellation.ts (interprétation unique). */
+  cancellation: "FREE" | "NON_REFUNDABLE" | "PENALTY" | "UNKNOWN"
+  /** ISO : début du premier palier payant (« gratuit avant le … »), uniquement si `FREE`. */
   freeCancellationDate?: string
   available: boolean
   price: number
@@ -83,6 +85,7 @@ export function HotelRoomRates({
 }: HotelRoomRatesProps) {
   const { format } = useCurrency()
   const t = useTranslations("Hotels")
+  const locale = useLocale()
   const [selectedRoom, setSelectedRoom] = useState<string | null>(null)
 
   const selectRoom = (key: string) => {
@@ -170,7 +173,11 @@ export function HotelRoomRates({
                       <ShieldCheck className="h-3.5 w-3.5 shrink-0" />
                       {room.freeCancellationDate
                         ? t("freeCancellationUntil", {
-                            date: room.freeCancellationDate,
+                            date:
+                              formatFreeCancellationUntil(
+                                room.freeCancellationDate,
+                                locale,
+                              ) ?? room.freeCancellationDate,
                           })
                         : t("freeCancellation")}
                     </>
@@ -178,6 +185,11 @@ export function HotelRoomRates({
                     <>
                       <ShieldOff className="h-3.5 w-3.5 shrink-0" />
                       {t("nonRefundable")}
+                    </>
+                  ) : room.cancellation === "PENALTY" ? (
+                    <>
+                      <ShieldOff className="h-3.5 w-3.5 shrink-0" />
+                      {t("cancellationFeesApply")}
                     </>
                   ) : (
                     <>

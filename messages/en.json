@@ -201,7 +201,8 @@
     "paginationNextAria": "Go to next page",
     "paginationGoToPage": "Go to page {page}",
     "nightsCount": "{n, plural, one {# night} other {# nights}}",
-    "selectDates": "Select dates"
+    "selectDates": "Select dates",
+    "paymentStatusVoided": "cancelled — no payment due"
   },
   "Home": {
     "heroKicker": "Instant booking · 100% Tunisia",
@@ -622,7 +623,8 @@
     "sortResultsAria": "Sort results",
     "kicker": "Hotels Tunisia",
     "heroTitle": "Hotels in Tunisia at the best price",
-    "heroSubtitle": "Compare offers from hundreds of Tunisian hotels. Book in a few clicks with free cancellation."
+    "heroSubtitle": "Compare offers from hundreds of Tunisian hotels. Book in a few clicks with free cancellation.",
+    "cancellationFeesApply": "Cancellation fees apply (according to the hotel's conditions)"
   },
   "HotelsMonde": {
     "kicker": "World Hotels",
@@ -977,7 +979,6 @@
     "adultsCount": "{n, plural, one {# adult} other {# adults}}",
     "childrenCount": "{n, plural, one {# child} other {# children}}",
     "nightsCount": "{n, plural, one {# night} other {# nights}}",
-    "freeCancellation48h": "Free cancellation up to 48h before",
     "freeCancellationAvailable": "Free cancellation",
     "freeCancellationUntilLabel": "Free cancellation before {date}",
     "immediateConfirmation": "Instant confirmation",
@@ -1089,7 +1090,9 @@
     "paymentTransferNotice": "Our bank details will be sent to you by email. Your ticket will be issued once the transfer is received.",
     "paymentCashTitle": "Pay in cash at our agency",
     "paymentCashNotice": "Visit our office with this booking reference. Your ticket will be issued immediately after payment.",
-    "mustAcceptPolicy": "You must accept the cancellation policy to continue."
+    "mustAcceptPolicy": "You must accept the cancellation policy to continue.",
+    "cancellationFeesApply": "Cancellation fees apply (according to the hotel's conditions)",
+    "cancellationOnRequest": "Cancellation conditions on request"
   },
   "Paiement": {
     "simulationEnvTitle": "Simulation environment",

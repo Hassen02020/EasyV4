@@ -1,5 +1,7 @@
 "use client"
 
+import type { DraftHotelCancellation } from "@/lib/booking/draft-cancellation"
+import { formatFreeCancellationUntil } from "@/lib/mygo/cancellation"
 import { useState, useTransition } from "react"
 import { Link, useRouter } from "@/i18n/navigation"
 import { toast } from "sonner"
@@ -45,10 +47,7 @@ export function CheckoutForm({
   walletBalanceTnd?: number
   totalTnd?: number
   /** Politique d'annulation hôtel depuis draft.metadata — affichée avec case à cocher obligatoire. */
-  hotelCancellation?: {
-    hasFreeCancellation: boolean
-    freeCancellationDate?: string
-  }
+  hotelCancellation?: DraftHotelCancellation
 }) {
   const t = useTranslations("Booking")
   const locale = useLocale()
@@ -109,21 +108,13 @@ export function CheckoutForm({
   const [policyAccepted, setPolicyAccepted] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const formattedCancellationDate = hotelCancellation?.freeCancellationDate
-    ? (() => {
-        try {
-          return new Date(
-            hotelCancellation.freeCancellationDate!,
-          ).toLocaleDateString(locale, {
-            day: "2-digit",
-            month: "long",
-            year: "numeric",
-          })
-        } catch {
-          return hotelCancellation.freeCancellationDate
-        }
-      })()
-    : null
+  // CANCEL-POLICY-DISPLAY-01 : date myGo au format ISO, formatée en heure
+  // de Tunis (lib/mygo/cancellation.ts) — l'ancien `new Date("dd-MM-yyyy")`
+  // produisait « Invalid Date ».
+  const formattedCancellationDate = formatFreeCancellationUntil(
+    hotelCancellation?.freeCancellationDate,
+    locale,
+  )
 
   function onAddToCart() {
     const payload = decodeDraft(token)
@@ -314,7 +305,11 @@ export function CheckoutForm({
                         date: formattedCancellationDate,
                       })
                     : t("freeCancellationAvailable")
-                  : t("nonRefundable")}
+                  : hotelCancellation.kind === "NON_REFUNDABLE"
+                    ? t("nonRefundable")
+                    : hotelCancellation.kind === "PENALTY"
+                      ? t("cancellationFeesApply")
+                      : t("cancellationOnRequest")}
               </p>
               <div className="flex items-start gap-2 border-t pt-3">
                 <Checkbox

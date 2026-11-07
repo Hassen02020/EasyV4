@@ -7,6 +7,7 @@ import {
   Tag,
   Check,
   ChevronLeft,
+  Info,
 } from "lucide-react"
 import { HeaderWrapper as Header } from "@/components/header-wrapper"
 import { Footer } from "@/components/footer"
@@ -19,6 +20,8 @@ import { computePriceBreakdown, formatMoney } from "@/lib/booking/pricing"
 import { resolveDraftHotelPrice } from "@/lib/booking/price-token"
 import { BookingSteps } from "@/components/booking/booking-steps"
 import { getIntlLocale } from "@/lib/i18n-date"
+import { readDraftHotelCancellation } from "@/lib/booking/draft-cancellation"
+import { formatFreeCancellationUntil } from "@/lib/mygo/cancellation"
 
 export const dynamic = "force-dynamic"
 
@@ -64,6 +67,24 @@ export default async function BookingStep1Page({
   // module hôtel, jamais `draft.unitPriceTnd` seul si le `priceToken` signé
   // ne se revérifie pas — on bloque l'affichage plutôt que de montrer un
   // montant non garanti dès cette première étape.
+  const hotelCancellation = readDraftHotelCancellation(draft)
+  const cancellationLabel = !hotelCancellation
+    ? null
+    : hotelCancellation.kind === "FREE"
+      ? hotelCancellation.freeCancellationDate
+        ? t("freeCancellationUntilLabel", {
+            date:
+              formatFreeCancellationUntil(
+                hotelCancellation.freeCancellationDate,
+                getIntlLocale(locale),
+              ) ?? hotelCancellation.freeCancellationDate,
+          })
+        : t("freeCancellationAvailable")
+      : hotelCancellation.kind === "NON_REFUNDABLE"
+        ? t("nonRefundable")
+        : hotelCancellation.kind === "PENALTY"
+          ? t("cancellationFeesApply")
+          : t("cancellationOnRequest")
   const resolvedPrice = resolveDraftHotelPrice(draft)
   if (draft.module === "hotel" && !resolvedPrice.verified) {
     return (
@@ -195,10 +216,19 @@ export default async function BookingStep1Page({
                   </dl>
                   <Separator />
                   <ul className="text-muted-foreground grid gap-2 text-sm sm:grid-cols-2">
-                    <li className="flex items-center gap-2">
-                      <Check className="size-4 text-emerald-600" />
-                      {t("freeCancellation48h")}
-                    </li>
+                    {/* CANCEL-POLICY-DISPLAY-01 : condition réelle de la chambre
+                        (lib/booking/draft-cancellation.ts), jamais un « 48 h »
+                        codé en dur. Rien n'est affiché hors module hôtel. */}
+                    {hotelCancellation && (
+                      <li className="flex items-center gap-2">
+                        {hotelCancellation.kind === "FREE" ? (
+                          <Check className="size-4 text-emerald-600" />
+                        ) : (
+                          <Info className="size-4 text-amber-600" />
+                        )}
+                        {cancellationLabel}
+                      </li>
+                    )}
                     <li className="flex items-center gap-2">
                       <Check className="size-4 text-emerald-600" />
                       {t("immediateConfirmation")}

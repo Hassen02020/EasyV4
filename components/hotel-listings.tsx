@@ -1,5 +1,9 @@
 "use client"
 
+import {
+  isFreeCancellation,
+  summarizeMyGoCancellation,
+} from "@/lib/mygo/cancellation"
 import { useEffect, useMemo, useState } from "react"
 import dynamic from "next/dynamic"
 import { Link, useRouter } from "@/i18n/navigation"
@@ -57,6 +61,8 @@ interface BookingData {
   /** Politique d'annulation de la chambre sélectionnée — transmis dans le brouillon pour affichage avant paiement. */
   hasFreeCancellation: boolean
   freeCancellationDate?: string
+  /** CANCEL-POLICY-DISPLAY-01 — état exact (lib/mygo/cancellation.ts). */
+  cancellationKind?: RoomOption["cancellation"]
 }
 
 // RoomOption réutilisé tel quel depuis components/hotel-room-rates.tsx —
@@ -167,14 +173,9 @@ export function toCardShape(
     .filter((r) => !r.room.stopReservation)
     .slice(0, 8)
     .map(({ room, boarding, groupIndex }) => {
-      // Même règle que lib/mygo/facets.ts::hasFreeCancellation et
-      // components/pro/pro-room-selector.tsx — une politique BEFORE_ARRIVAL
-      // ne veut dire "gratuite" que si ses frais sont réellement nuls.
-      const freePolicy = room.notRefundable
-        ? undefined
-        : room.cancellationPolicies.find(
-            (p) => p.nature === "BEFORE_ARRIVAL" && p.fees === 0,
-          )
+      // CANCEL-POLICY-DISPLAY-01 : interprétation UNIQUE des paliers myGo
+      // (lib/mygo/cancellation.ts), identique au filtre et au B2B.
+      const cancel = summarizeMyGoCancellation(room)
       return {
         id: room.id,
         // PHASE 36 — identité UI unique (voir doc de RoomOption.key) : myGo
@@ -188,12 +189,10 @@ export function toCardShape(
           roomGroupCount > 1
             ? `${room.name} • ${boarding.name} (Chambre ${groupIndex + 1})`
             : `${room.name} • ${boarding.name}`,
-        cancellation: (room.notRefundable
-          ? "NON_REFUNDABLE"
-          : freePolicy
-            ? "FREE"
-            : "UNKNOWN") as RoomOption["cancellation"],
-        freeCancellationDate: freePolicy?.fromDate,
+        cancellation: (isFreeCancellation(cancel)
+          ? "FREE"
+          : cancel.kind) as RoomOption["cancellation"],
+        freeCancellationDate: cancel.penaltyFrom,
         available: !room.stopReservation,
         price: Math.round(room.price),
         boardingId: boarding.id,
@@ -525,6 +524,7 @@ export function HotelListings({
       priceToken: room.priceToken,
       hasFreeCancellation: room.cancellation === "FREE",
       freeCancellationDate: room.freeCancellationDate,
+      cancellationKind: room.cancellation,
     })
   }
 

@@ -1,0 +1,34 @@
+-- 0149 — PROD-SCHEMA-DRIFT-01 : deux colonnes attendues par le code absentes
+-- de la production.
+--
+-- Constat (2026-11-07, test de réservation B2C réelle) : myGo confirme la
+-- chambre, puis la transaction Easy2Book échoue et la réservation myGo est
+-- aussitôt annulée par la compensation (message « Erreur interne lors de la
+-- création de la réservation »). Cause : `reservations.fiscal_snapshot`
+-- n'existe pas en production, alors que TOUS les parcours de réservation
+-- l'écrivent depuis TAX-RULES-SUPERADMIN-01 (commit 0a6bdd9e, 2026-10-22)
+-- et que la facturation le lit. Toute réservation, tous modules confondus,
+-- échoue donc en production depuis cette date.
+--
+-- Ces colonnes figuraient dans drizzle/0011_quiet_stark_industries.sql
+-- (instantané de schéma de 1 283 lignes) et drizzle/0020_hotel_offer_id.sql,
+-- jamais appliqués en production. On n'applique PAS ces fichiers : seules
+-- les deux colonnes manquantes sont ajoutées, à l'identique du schéma
+-- Drizzle (lib/db/schema.ts : `fiscalSnapshot: jsonb("fiscal_snapshot")`,
+-- `providerOfferId: varchar("provider_offer_id", { length: 128 })`).
+--
+-- Audit préalable production (lecture seule, 2026-11-07) : comparaison des
+-- 1 678 colonnes des 128 tables Drizzle avec information_schema → ces deux
+-- colonnes sont les SEULES manquantes.
+--
+-- Nullable, sans valeur par défaut : opération de métadonnées instantanée
+-- (aucune réécriture de table), aucune ligne existante modifiée.
+-- Idempotente (IF NOT EXISTS).
+--
+-- Retour arrière (à n'utiliser que si aucune ligne n'a encore été écrite
+-- dans ces colonnes) :
+--   ALTER TABLE reservations DROP COLUMN IF EXISTS fiscal_snapshot;
+--   ALTER TABLE reservation_hotel DROP COLUMN IF EXISTS provider_offer_id;
+
+ALTER TABLE reservations ADD COLUMN IF NOT EXISTS fiscal_snapshot jsonb;
+ALTER TABLE reservation_hotel ADD COLUMN IF NOT EXISTS provider_offer_id varchar(128);

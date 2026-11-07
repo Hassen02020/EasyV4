@@ -31,6 +31,7 @@ import { resolveHotelAgencyPricer } from "@/lib/hotels/commercial-engine"
 import { recordReservationFinancials } from "@/lib/finance/reservation-financials"
 import { recordReservationTransition } from "@/lib/admin/reservation-status-history"
 import { creditPlatformCommission } from "@/lib/finance/platform-commission"
+import { logger } from "@/lib/logger"
 import { acquireLock, releaseLock } from "@/lib/booking/inventory"
 import { sendEventReliable } from "@/lib/inngest/send-reliable"
 import { createServerSupabase } from "@/lib/supabase/server"
@@ -1008,6 +1009,11 @@ export async function createReservationFromDraft(input: {
     }
   } catch (err) {
     await releaseInventoryLock()
+    // PROD-SCHEMA-DRIFT-01 : tracer l'erreur d'origine (jusqu'ici avalée).
+    logger.error("[createReservationFromDraft] échec après confirmation myGo", {
+      myGoBookingId: myGoBooking?.bookingId ?? null,
+      err: err instanceof Error ? err.message : String(err),
+    })
     // --- Échec APRÈS confirmation myGo (écriture DB, débit wallet insuffisant…) ---
     // À ce stade la réservation existe réellement chez le fournisseur. Sans
     // compensation on se retrouverait avec "réservation myGo confirmée MAIS

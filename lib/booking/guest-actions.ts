@@ -67,6 +67,7 @@ import {
   getActiveFiscalRuleInTx,
 } from "@/lib/finance/fiscal-rules"
 import { confirmHotelWithProvider, nextPublicRef } from "./actions"
+import { logger } from "@/lib/logger"
 import { authoritativeUnitPrice } from "./hotel-provider-booking"
 import { getDefaultAgencyId } from "@/lib/agencies/default-agency"
 import { getMarginsForAgency } from "@/lib/pro/server-context"
@@ -1013,6 +1014,12 @@ async function runCreateGuestReservation(
       redirectUrl: result.redirectUrl,
     }
   } catch (err) {
+    // PROD-SCHEMA-DRIFT-01 : l'erreur d'origine était avalée (message client
+    // générique, aucun journal) — on la trace avant la compensation.
+    logger.error("[createGuestReservation] échec après confirmation myGo", {
+      myGoBookingId: myGoBooking.bookingId,
+      err: err instanceof Error ? err.message : String(err),
+    })
     let compensationNote = ""
     try {
       await (myGoAccess.client ?? getMyGoClient()).cancelBooking({

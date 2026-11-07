@@ -914,9 +914,15 @@ async function runCreateGuestReservation(
             // par le staff à la vérification (verifyManualPayment).
             method:
               paymentMethod === "bank_deposit" ? "transfer" : paymentMethod,
+            // T-3 (décision Direction 2026-11-07, option B) : la ligne
+            // prévue d'un règlement différé porte l'ACOMPTE réellement
+            // demandé au client (= reservations.depositAmount, affiché
+            // « Acompte demandé »), jamais le total étiqueté « acompte ».
+            // Le total dû reste reservations.tndAmount ; les encaissements
+            // réels (verifyManualPayment) créent leurs propres lignes.
             originalCurrency: "TND",
-            originalAmount: breakdown.totalTnd.toFixed(2),
-            tndAmount: breakdown.totalTnd.toFixed(2),
+            originalAmount: breakdown.depositTnd.toFixed(2),
+            tndAmount: breakdown.depositTnd.toFixed(2),
             kind: "deposit",
             status: "pending",
           })

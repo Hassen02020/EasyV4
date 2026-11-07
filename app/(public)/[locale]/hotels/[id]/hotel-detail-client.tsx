@@ -545,6 +545,7 @@ function HotelDetailContent({ id, agencyContact }: HotelDetailClientProps) {
           // (transparence tarifaire). Non utilisé pour la logique de réservation.
           hasFreeCancellation: room.cancellation === "FREE",
           freeCancellationDate: room.freeCancellationDate,
+          cancellationKind: room.cancellation,
         },
       },
     })

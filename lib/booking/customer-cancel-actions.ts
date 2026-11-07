@@ -37,6 +37,7 @@
  * surface de risque sans nécessité démontrée.
  */
 
+import { voidPendingPaymentsOnCancellation } from "@/lib/finance/payment-void"
 import { eq, and } from "drizzle-orm"
 import { withTenantContext } from "@/lib/db/tenant-context"
 import {
@@ -240,6 +241,13 @@ export async function cancelMyHotelReservation(
         from: locked.status as (typeof CANCELLABLE_STATUSES)[number],
         to: "cancelled",
         triggeredBy: user.id,
+        reason: "Annulation self-service client",
+      })
+
+      // T-1 : plus aucun règlement « en attente » sur une réservation annulée.
+      await voidPendingPaymentsOnCancellation(tx, {
+        reservationId,
+        actorUserId: user.id,
         reason: "Annulation self-service client",
       })
 
@@ -510,6 +518,13 @@ export async function cancelMyHotelMondeReservation(
         from: locked.status as (typeof CANCELLABLE_STATUSES)[number],
         to: "cancelled",
         triggeredBy: user.id,
+        reason: "Annulation self-service client Hôtel Monde",
+      })
+
+      // T-1 : plus aucun règlement « en attente » sur une réservation annulée.
+      await voidPendingPaymentsOnCancellation(tx, {
+        reservationId,
+        actorUserId: user.id,
         reason: "Annulation self-service client Hôtel Monde",
       })
 

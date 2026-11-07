@@ -251,6 +251,13 @@ export function BookingCard({
     authorized: t("paymentStatusAuthorized"),
     partial_refund: t("paymentStatusPartialRefund"),
   }
+  // T-1 : réservation annulée/expirée + règlement jamais encaissé (pending,
+  // ou annulé → `failed` par voidPendingPaymentsOnCancellation) → on affiche
+  // clairement qu'aucun règlement n'est attendu, jamais « en attente ».
+  const paymentVoided =
+    (booking.status === "cancelled" || booking.status === "expired") &&
+    (booking.payment?.status === "pending" ||
+      booking.payment?.status === "failed")
   const ModuleIcon = MODULE_ICONS[booking.module] ?? Briefcase
   const moduleLabel = MODULE_LABELS[booking.module] ?? booking.module
   const [confirming, setConfirming] = useState(false)
@@ -413,15 +420,19 @@ export function BookingCard({
                     {" — "}
                     <span
                       className={
-                        booking.payment.status === "captured"
-                          ? "text-emerald-600"
-                          : booking.payment.status === "refunded"
-                            ? "text-muted-foreground"
-                            : "text-amber-600"
+                        paymentVoided
+                          ? "text-muted-foreground"
+                          : booking.payment.status === "captured"
+                            ? "text-emerald-600"
+                            : booking.payment.status === "refunded"
+                              ? "text-muted-foreground"
+                              : "text-amber-600"
                       }
                     >
-                      {PAYMENT_STATUS_LABEL[booking.payment.status] ??
-                        booking.payment.status}
+                      {paymentVoided
+                        ? t("paymentStatusVoided")
+                        : (PAYMENT_STATUS_LABEL[booking.payment.status] ??
+                          booking.payment.status)}
                     </span>
                   </p>
                 </div>

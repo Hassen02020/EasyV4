@@ -44,6 +44,7 @@
  * annulée ne redeviendrait jamais réservable.
  */
 
+import { voidPendingPaymentsOnCancellation } from "@/lib/finance/payment-void"
 import { eq, and } from "drizzle-orm"
 import type { DrizzleTransaction } from "@/lib/db/client"
 import { withTenantContext, type TenantContext } from "@/lib/db/tenant-context"
@@ -262,6 +263,13 @@ export async function cancelPolicyReservationCore(
         from: locked.status as (typeof CANCELLABLE_STATUSES)[number],
         to: "cancelled",
         triggeredBy: actorUserId,
+        reason: "Annulation self-service client (policy engine)",
+      })
+
+      // T-1 : plus aucun règlement « en attente » sur une réservation annulée.
+      await voidPendingPaymentsOnCancellation(tx, {
+        reservationId,
+        actorUserId: actorUserId,
         reason: "Annulation self-service client (policy engine)",
       })
 

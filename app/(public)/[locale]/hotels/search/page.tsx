@@ -64,6 +64,7 @@ interface BookingData {
   priceToken?: string
   hasFreeCancellation: boolean
   freeCancellationDate?: string
+  cancellationKind?: string
 }
 
 function formatDateRange(
@@ -300,6 +301,7 @@ function HotelSearchContent() {
           // (transparence tarifaire). Non utilisé pour la logique de réservation.
           hasFreeCancellation: hotelData.hasFreeCancellation,
           freeCancellationDate: hotelData.freeCancellationDate,
+          cancellationKind: hotelData.cancellationKind,
         },
       },
     })

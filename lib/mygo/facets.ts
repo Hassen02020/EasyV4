@@ -16,6 +16,7 @@
  *  - `notRefundable` / `freeCancellation` / `available` counts
  */
 
+import { isFreeCancellation, summarizeMyGoCancellation } from "./cancellation"
 import type { HotelOfferDTO } from "./types"
 
 export interface HotelFacets {
@@ -131,21 +132,15 @@ export function filtersFromSearchParams(
 }
 
 /**
- * Vrai si l'offre a au moins une chambre annulable gratuitement (BEFORE_ARRIVAL).
- * Exportée (PHASE 30.2) — c'est la logique de référence pour "l'annulation
- * est-elle gratuite ?" réutilisée telle quelle par les cards B2C et B2B,
- * jamais une seconde implémentation susceptible de diverger.
+ * Vrai si l'offre a au moins une chambre annulable gratuitement MAINTENANT.
+ * CANCEL-POLICY-DISPLAY-01 : délègue à l'interprétation unique des paliers
+ * myGo (lib/mygo/cancellation.ts) — gratuit avant le premier palier payant.
+ * Réutilisée telle quelle par les cards B2C et B2B et par le filtre.
  */
 export function hasFreeCancellation(offer: HotelOfferDTO): boolean {
   return offer.boardings.some((b) =>
     b.pax.some((p) =>
-      p.rooms.some(
-        (r) =>
-          !r.notRefundable &&
-          r.cancellationPolicies.some(
-            (c) => c.nature === "BEFORE_ARRIVAL" && c.fees === 0,
-          ),
-      ),
+      p.rooms.some((r) => isFreeCancellation(summarizeMyGoCancellation(r))),
     ),
   )
 }

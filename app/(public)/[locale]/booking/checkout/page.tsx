@@ -1,3 +1,4 @@
+import { readDraftHotelCancellation } from "@/lib/booking/draft-cancellation"
 import { Link, redirect } from "@/i18n/navigation"
 import { getLocale, getTranslations } from "next-intl/server"
 import { ChevronLeft } from "lucide-react"
@@ -205,24 +206,7 @@ async function CheckoutContent({ searchParams }: { searchParams: SP }) {
                   campaignId={campaignId}
                   walletBalanceTnd={walletBalanceTnd}
                   totalTnd={breakdown.totalTnd}
-                  hotelCancellation={
-                    draft.module === "hotel" &&
-                    typeof (
-                      draft.metadata as Record<string, unknown> | undefined
-                    )?.hasFreeCancellation === "boolean"
-                      ? {
-                          hasFreeCancellation:
-                            (draft.metadata as Record<string, unknown>)
-                              .hasFreeCancellation === true,
-                          freeCancellationDate:
-                            typeof (draft.metadata as Record<string, unknown>)
-                              .freeCancellationDate === "string"
-                              ? ((draft.metadata as Record<string, unknown>)
-                                  .freeCancellationDate as string)
-                              : undefined,
-                        }
-                      : undefined
-                  }
+                  hotelCancellation={readDraftHotelCancellation(draft)}
                 />
               </Suspense>
             </div>

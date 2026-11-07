@@ -13,6 +13,7 @@
  * appelées en POST direct).
  */
 
+import { voidPendingPaymentsOnCancellation } from "@/lib/finance/payment-void"
 import { revalidatePath } from "next/cache"
 import { eq, and } from "drizzle-orm"
 import { z } from "zod"
@@ -272,6 +273,15 @@ export async function updateReservationStatus(
         triggeredBy: user.id,
         reason: `Changement de statut manuel (back-office) : ${previousStatus} → ${nextStatus}`,
       })
+
+      // T-1 : plus aucun règlement « en attente » sur une réservation annulée.
+      if (nextStatus === "cancelled") {
+        await voidPendingPaymentsOnCancellation(db, {
+          reservationId,
+          actorUserId: user.id,
+          reason: "Annulation réservation (back-office)",
+        })
+      }
 
       // --- Easy2Book Rewards (Phase 38D) — mêmes contrats que
       // lib/loyalty/rewards-core.ts (voir doc de tête du fichier) : earn

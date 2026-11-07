@@ -16,6 +16,11 @@ import { CheckCircle2, Loader2, ShieldCheck, XCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import type { HotelOfferDTO } from "@/lib/mygo/types"
+import {
+  formatFreeCancellationUntil,
+  isFreeCancellation,
+  summarizeMyGoCancellation,
+} from "@/lib/mygo/cancellation"
 
 interface RoomRow {
   boardingId: number
@@ -27,6 +32,8 @@ interface RoomRow {
   stopReservation: boolean
   notRefundable: boolean
   freeCancellation: boolean
+  /** ISO — « gratuit avant le … » (CANCEL-POLICY-DISPLAY-01). */
+  freeCancellationBefore?: string
 }
 
 function flattenRooms(offer: HotelOfferDTO): RoomRow[] {
@@ -43,9 +50,8 @@ function flattenRooms(offer: HotelOfferDTO): RoomRow[] {
           price: r.price,
           stopReservation: r.stopReservation,
           notRefundable: r.notRefundable,
-          freeCancellation: r.cancellationPolicies.some(
-            (c) => c.nature === "BEFORE_ARRIVAL" && c.fees === 0,
-          ),
+          freeCancellation: isFreeCancellation(summarizeMyGoCancellation(r)),
+          freeCancellationBefore: summarizeMyGoCancellation(r).penaltyFrom,
         })
       }
     }
@@ -175,7 +181,9 @@ export function ProRoomSelector({
                             className="border-sky-300 bg-sky-50 text-[10px] text-sky-700"
                           >
                             <ShieldCheck className="mr-1 h-3 w-3" />
-                            Annulation gratuite
+                            {row.freeCancellationBefore
+                              ? `Annulation gratuite avant le ${formatFreeCancellationUntil(row.freeCancellationBefore, "fr-FR")}`
+                              : "Annulation gratuite"}
                           </Badge>
                         )}
                         {row.notRefundable && (

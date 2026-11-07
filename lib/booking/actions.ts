@@ -1008,12 +1008,12 @@ export async function createReservationFromDraft(input: {
       guestAccessToken: result.guestAccessToken,
     }
   } catch (err) {
+    await releaseInventoryLock()
     // PROD-SCHEMA-DRIFT-01 : tracer l'erreur d'origine (jusqu'ici avalée).
     logger.error("[createReservationFromDraft] échec après confirmation myGo", {
       myGoBookingId: myGoBooking?.bookingId ?? null,
       err: err instanceof Error ? err.message : String(err),
     })
-    await releaseInventoryLock()
     // --- Échec APRÈS confirmation myGo (écriture DB, débit wallet insuffisant…) ---
     // À ce stade la réservation existe réellement chez le fournisseur. Sans
     // compensation on se retrouverait avec "réservation myGo confirmée MAIS

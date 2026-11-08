@@ -23,6 +23,7 @@ function makeDebt(
     reservationId: "r1",
     amount: "1000.00",
     reservationStatus: "confirmed",
+    compensated: "0.00",
     recognizedDebt: "1000.00",
     paidReal: "0.00",
     netDecaisse: "0.00",

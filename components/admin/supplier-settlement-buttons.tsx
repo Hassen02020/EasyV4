@@ -184,7 +184,10 @@ export function DeclareSettlementDialog({
                     </p>
                     <p className="text-muted-foreground text-xs">
                       Reste dû : <strong>{d.remaining} TND</strong> (dette
-                      reconnue {d.recognizedDebt} TND)
+                      reconnue {d.recognizedDebt} TND
+                      {Number(d.compensated) !== 0 &&
+                        `, dont compensation d'annulation ${d.compensated} TND`}
+                      )
                     </p>
                     {selected.has(d.entitlementId) && (
                       <div className="space-y-2 pt-1">

@@ -1,5 +1,6 @@
 "use server"
 
+import { recordSupplierIncident } from "@/lib/booking/supplier-incident"
 import { redirect } from "next/navigation"
 import { createHash } from "node:crypto"
 import { eq, and, sql } from "drizzle-orm"
@@ -118,6 +119,16 @@ export async function confirmHotelWithProvider(
       ok: false
       error: string
       kind: MyGoBookingErrorKind
+      /**
+       * SUPPLIER-INCIDENT-TRACE-01 : réservation fournisseur peut-être encore
+       * active (à tracer durablement par l'appelant, hors transaction).
+       */
+      incident?: {
+        kind: "booking_ambiguous" | "hotel_mismatch"
+        supplierBookingRef: string | null
+        hotelId: number | null
+        error?: unknown
+      }
     }
 > {
   if (draft.module !== "hotel") return { attempted: false }
@@ -142,6 +153,11 @@ export async function confirmHotelWithProvider(
         ok: false,
         error: describeMyGoBookingErrorForUser("AMBIGUOUS_SUPPLIER_STATE"),
         kind: "AMBIGUOUS_SUPPLIER_STATE",
+        incident: {
+          kind: "hotel_mismatch",
+          supplierBookingRef: String(booking.bookingId),
+          hotelId: providerMeta.hotelId ?? null,
+        },
       }
     }
     return { attempted: true, ok: true, booking, providerMeta }
@@ -169,6 +185,12 @@ export async function confirmHotelWithProvider(
       ok: false,
       error: describeMyGoBookingErrorForUser("AMBIGUOUS_SUPPLIER_STATE"),
       kind: "AMBIGUOUS_SUPPLIER_STATE",
+      incident: {
+        kind: "booking_ambiguous",
+        supplierBookingRef: null,
+        hotelId: providerMeta.hotelId ?? (Number(draft.offerId) || null),
+        error: err,
+      },
     }
   }
 }
@@ -465,6 +487,21 @@ export async function createReservationFromDraft(input: {
     myGoAccess,
   )
   if (providerConfirmation.attempted && !providerConfirmation.ok) {
+    if (providerConfirmation.incident) {
+      await recordSupplierIncident({
+        agencyId,
+        actorUserId: authUserId,
+        kind: providerConfirmation.incident.kind,
+        supplier: "mygo",
+        flow: "hotel_b2b",
+        step: "provider_confirmation",
+        supplierBookingRef: providerConfirmation.incident.supplierBookingRef,
+        hotelId: providerConfirmation.incident.hotelId,
+        checkIn: draft.startDate,
+        checkOut: draft.endDate ?? null,
+        error: providerConfirmation.incident.error,
+      })
+    }
     await releaseInventoryLock()
     return { ok: false, error: providerConfirmation.error }
   }
@@ -474,6 +511,22 @@ export async function createReservationFromDraft(input: {
   const providerMeta = providerConfirmation.attempted
     ? providerConfirmation.providerMeta
     : null
+  // SUPPLIER-INCIDENT-TRACE-01 : trace durable (hors transaction) d'une
+  // annulation de rattrapage myGo en échec — la réservation fournisseur peut
+  // rester active et être facturée sans réservation locale.
+  const traceCompensationFailure = (step: string, error: unknown) =>
+    recordSupplierIncident({
+      agencyId,
+      actorUserId: authUserId,
+      kind: "compensation_failed",
+      supplier: "mygo",
+      flow: "hotel_b2b",
+      step,
+      supplierBookingRef: myGoBooking ? String(myGoBooking.bookingId) : null,
+      checkIn: draft.startDate,
+      checkOut: draft.endDate ?? null,
+      error,
+    })
 
   // SÉCURITÉ (Phase 11, P0) : `draft` provient de `decodeDraft()`, un token
   // base64url NON SIGNÉ (voir lib/booking/draft-store.ts) — n'importe quel
@@ -561,8 +614,10 @@ export async function createReservationFromDraft(input: {
       await (myGoAccess.client ?? getMyGoClient()).cancelBooking({
         bookingId: myGoBooking.bookingId,
       })
-    } catch {
-      /* best effort — aucun débit ni réservation locale n'a eu lieu. */
+    } catch (cancelErr) {
+      /* best effort — aucun débit ni réservation locale n'a eu lieu, mais la
+       * réservation fournisseur peut rester active : trace durable. */
+      await traceCompensationFailure("price_drift", cancelErr)
     }
     await releaseInventoryLock()
     return {
@@ -947,9 +1002,9 @@ export async function createReservationFromDraft(input: {
           await (myGoAccess.client ?? getMyGoClient()).cancelBooking({
             bookingId: myGoBooking.bookingId,
           })
-        } catch {
-          /* best effort — un hold myGo redondant sans réservation locale associée
-           * n'a aucun impact financier/paiement côté Easy2Book. */
+        } catch (cancelErr) {
+          // Hold myGo redondant : tracé (SUPPLIER-INCIDENT-TRACE-01).
+          await traceCompensationFailure("idempotency_conflict", cancelErr)
         }
       }
       await releaseInventoryLock()
@@ -1030,8 +1085,9 @@ export async function createReservationFromDraft(input: {
         await (myGoAccess.client ?? getMyGoClient()).cancelBooking({
           bookingId: myGoBooking.bookingId,
         })
-      } catch {
+      } catch (cancelErr) {
         compensationNote = ` Réservation fournisseur ${myGoBooking.bookingId} potentiellement toujours active — contactez le support immédiatement avec cette référence.`
+        await traceCompensationFailure("transaction_failed", cancelErr)
       }
     }
 

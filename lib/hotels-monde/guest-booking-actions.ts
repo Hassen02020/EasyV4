@@ -34,6 +34,7 @@
  * dédiés.
  */
 
+import { recordSupplierIncident } from "@/lib/booking/supplier-incident"
 import { eq, and } from "drizzle-orm"
 import { withTenantContext } from "@/lib/db/tenant-context"
 import type { DrizzleTransaction } from "@/lib/db/client"
@@ -627,8 +628,21 @@ async function runCreateGuestWorldHotelBooking(
         checkIn: bookResult.checkIn,
         rooms: bookResult.rooms,
       })
-    } catch {
+    } catch (cancelErr) {
       compensationNote = ` Réservation fournisseur ${bookResult.confirmationNumber} potentiellement toujours active — contactez le support immédiatement avec cette référence.`
+      // SUPPLIER-INCIDENT-TRACE-01 : trace durable hors transaction annulée.
+      await recordSupplierIncident({
+        agencyId,
+        kind: "compensation_failed",
+        supplier: "hotel_monde",
+        flow: "hotel_monde_b2c",
+        step: "transaction_failed",
+        supplierBookingRef: String(bookResult.confirmationNumber),
+        hotelId: bookResult.offerId,
+        checkIn: bookResult.checkIn,
+        checkOut: bookResult.checkOut,
+        error: cancelErr,
+      })
     }
     await releaseInventoryLock()
     if (err instanceof BookingRejected) {

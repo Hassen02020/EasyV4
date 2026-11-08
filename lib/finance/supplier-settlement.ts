@@ -235,7 +235,9 @@ export interface SupplierDueEntitlement {
   /** Montant d'origine, immuable (jamais modifié rétroactivement). */
   amount: string
   reservationStatus: string
-  /** `amount(O) + Σ(corrections actives calculation_error/duplicate_entry)`. */
+  /** Σ des compensations (D-02a, lignes `compensates_id`, négatives ou nulles) — 2a. */
+  compensated: string
+  /** `amount(O) + compensated + Σ(corrections actives calculation_error/duplicate_entry)`. */
   recognizedDebt: string
   /** Σ jonctions actives `entry_kind='normal'` — argent réellement transféré au fournisseur. */
   paidReal: string
@@ -289,6 +291,7 @@ export async function listUnsettledSupplierDebts(
       reservation_id: string
       amount: string
       reservation_status: string
+      compensated: string
       recognized_debt: string
       paid_real: string
       net_decaisse: string
@@ -312,23 +315,37 @@ export async function listUnsettledSupplierDebts(
         FROM supplier_settlement_entries se
         JOIN supplier_settlements s ON s.id = se.settlement_id
         GROUP BY se.entitlement_id
+      ),
+      -- CANCEL-FINANCIAL-COHERENCE-01 étape 2a : compensations (lignes
+      -- compensates_id, montants négatifs, ajout seulement — D-02a)
+      -- regroupées par ligne d'origine.
+      comp AS (
+        SELECT compensates_id, SUM(amount) AS compensated
+        FROM economic_entitlements
+        WHERE compensates_id IS NOT NULL
+        GROUP BY compensates_id
       )
       SELECT
         ee.id AS entitlement_id, ee.reservation_id, ee.amount, r.status AS reservation_status,
-        (ee.amount + COALESCE(agg.recognized_adjustment, 0)) AS recognized_debt,
+        COALESCE(comp.compensated, 0)::numeric(14,2) AS compensated,
+        (ee.amount + COALESCE(comp.compensated, 0) + COALESCE(agg.recognized_adjustment, 0)) AS recognized_debt,
         COALESCE(agg.paid_real, 0)::numeric(14,2) AS paid_real,
         (COALESCE(agg.paid_real, 0) + COALESCE(agg.refunded, 0))::numeric(14,2) AS net_decaisse,
-        GREATEST(0, COALESCE(agg.paid_real, 0) - (ee.amount + COALESCE(agg.recognized_adjustment, 0)))::numeric(14,2) AS overpaid,
-        GREATEST(0, (ee.amount + COALESCE(agg.recognized_adjustment, 0)) - COALESCE(agg.paid_real, 0))::numeric(14,2) AS remaining
+        GREATEST(0, COALESCE(agg.paid_real, 0) - (ee.amount + COALESCE(comp.compensated, 0) + COALESCE(agg.recognized_adjustment, 0)))::numeric(14,2) AS overpaid,
+        GREATEST(0, (ee.amount + COALESCE(comp.compensated, 0) + COALESCE(agg.recognized_adjustment, 0)) - COALESCE(agg.paid_real, 0))::numeric(14,2) AS remaining
       FROM economic_entitlements ee
       JOIN reservations r ON r.id = ee.reservation_id
       LEFT JOIN agg ON agg.entitlement_id = ee.id
+      LEFT JOIN comp ON comp.compensates_id = ee.id
       WHERE ee.qualification = 'supplier_cost'
         AND ee.party_type = 'supplier_node'
         AND ee.party_id = ${supplierNodeId}::uuid
+        -- 2a : une ligne de compensation n'est jamais une dette autonome ;
+        -- elle réduit la dette de la ligne d'origine (comp, ci-dessus).
+        AND ee.compensates_id IS NULL
         AND (
-          GREATEST(0, COALESCE(agg.paid_real, 0) - (ee.amount + COALESCE(agg.recognized_adjustment, 0))) > 0
-          OR GREATEST(0, (ee.amount + COALESCE(agg.recognized_adjustment, 0)) - COALESCE(agg.paid_real, 0)) > 0
+          GREATEST(0, COALESCE(agg.paid_real, 0) - (ee.amount + COALESCE(comp.compensated, 0) + COALESCE(agg.recognized_adjustment, 0))) > 0
+          OR GREATEST(0, (ee.amount + COALESCE(comp.compensated, 0) + COALESCE(agg.recognized_adjustment, 0)) - COALESCE(agg.paid_real, 0)) > 0
         )
     `)
     return rows.map((r) => ({
@@ -336,6 +353,7 @@ export async function listUnsettledSupplierDebts(
       reservationId: r.reservation_id,
       amount: r.amount,
       reservationStatus: r.reservation_status,
+      compensated: r.compensated,
       recognizedDebt: r.recognized_debt,
       paidReal: r.paid_real,
       netDecaisse: r.net_decaisse,

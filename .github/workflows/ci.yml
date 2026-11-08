@@ -330,6 +330,7 @@ jobs:
             lib/finance/__tests__/agreement-fee-live.test.ts \
             lib/db/__tests__/margin-rules-agreement-rls-live.test.ts \
             lib/finance/__tests__/payment-void-live.test.ts \
+            lib/finance/__tests__/supplier-settlement-compensation-live.test.ts \
             lib/admin/__tests__/b2c-clients-core-live.test.ts \
             lib/public/__tests__/site-admin-core-live.test.ts \
             lib/crm/__tests__/time-series-core-live.test.ts \

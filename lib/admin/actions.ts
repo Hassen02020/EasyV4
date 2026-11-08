@@ -13,6 +13,7 @@
  * appelées en POST direct).
  */
 
+import { compensateEntitlementsOnCancellation } from "@/lib/finance/entitlement-compensation"
 import { voidPendingPaymentsOnCancellation } from "@/lib/finance/payment-void"
 import { revalidatePath } from "next/cache"
 import { eq, and } from "drizzle-orm"
@@ -393,6 +394,17 @@ export async function updateReservationStatus(
           reservationId,
           publicRef: row.publicRef,
           actorUserId: user.id,
+          freeCancellation: providerCancellationFee === 0,
+        })
+
+        // CANCEL-FINANCIAL-COHERENCE-01 étape 2b : compensation des droits par
+        // rôle (D-02a ; frais inconnus → trace « à traiter », D2b-1 = A).
+        await compensateEntitlementsOnCancellation(db, {
+          reservationId,
+          supplierFeeTnd: providerCancellationFee ?? null,
+          publicRef: row.publicRef,
+          actorUserId: user.id,
+          reason: "Annulation back-office",
         })
       }
 

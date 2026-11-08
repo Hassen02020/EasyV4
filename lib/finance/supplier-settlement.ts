@@ -343,6 +343,14 @@ export async function listUnsettledSupplierDebts(
         -- 2a : une ligne de compensation n'est jamais une dette autonome ;
         -- elle réduit la dette de la ligne d'origine (comp, ci-dessus).
         AND ee.compensates_id IS NULL
+        -- 2b (T4-D2 = B) : un droit encore 'pending' (réservation jamais
+        -- confirmée) n'est pas une dette. Il reste visible uniquement si de
+        -- l'argent réel a déjà été versé dessus (trop-perçu à récupérer).
+        AND (
+          ee.status <> 'pending'
+          OR COALESCE(agg.paid_real, 0) <> 0
+          OR COALESCE(agg.refunded, 0) <> 0
+        )
         AND (
           GREATEST(0, COALESCE(agg.paid_real, 0) - (ee.amount + COALESCE(comp.compensated, 0) + COALESCE(agg.recognized_adjustment, 0))) > 0
           OR GREATEST(0, (ee.amount + COALESCE(comp.compensated, 0) + COALESCE(agg.recognized_adjustment, 0)) - COALESCE(agg.paid_real, 0)) > 0

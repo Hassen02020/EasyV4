@@ -30,6 +30,7 @@
  * paiement, sauf transition explicite déjà existante).
  */
 
+import { compensateEntitlementsOnCancellation } from "@/lib/finance/entitlement-compensation"
 import { eq, and } from "drizzle-orm"
 import { z } from "zod"
 import { withTenantContext } from "@/lib/db/tenant-context"
@@ -195,6 +196,16 @@ export async function refundReservation(
           reservationId: reservation.id,
           publicRef: reservation.publicRef,
           actorUserId: user.id,
+        })
+
+        // CANCEL-FINANCIAL-COHERENCE-01 étape 2b : compensation des droits par
+        // rôle (D-02a ; frais inconnus → trace « à traiter », D2b-1 = A).
+        await compensateEntitlementsOnCancellation(tx, {
+          reservationId: reservation.id,
+          supplierFeeTnd: null,
+          publicRef: reservation.publicRef,
+          actorUserId: user.id,
+          reason: "Passage en remboursé (back-office)",
         })
 
         // Certification E2E — un remboursement TOTAL libère la capacité

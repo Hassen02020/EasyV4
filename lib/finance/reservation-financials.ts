@@ -30,8 +30,10 @@
  * product-booking-actions.ts`) fournit `economicEntitlements` pour
  * l'instant — les 8 autres modules restent sans ce paramètre (ECON-WIRING-01,
  * chantier séparé, pas encore GO'd) et ne changent donc pas de comportement.
- * Statut initial toujours `earned` (aucune transition
- * earned → settleable/settled implémentée ici, cf. décision de scope).
+ * Statut initial (CANCEL-FINANCIAL-COHERENCE-01 étape 2b, D-01c) : `earned`
+ * si la réservation est déjà confirmée, sinon `pending` — passage à `earned`
+ * à la confirmation (recordReservationTransition → mark_entitlements_earned,
+ * 0151). Aucune transition earned → settleable/settled ici.
  *
  * CURRENCY-DIM-01 (plomberie uniquement, 2026-10) : `reservation_financials`
  * a toujours eu les colonnes `supplier_currency`/`sale_currency`/
@@ -53,7 +55,12 @@
  */
 
 import type { DrizzleTransaction } from "@/lib/db/client"
-import { economicEntitlements, reservationFinancials } from "@/lib/db/schema"
+import { eq } from "drizzle-orm"
+import {
+  economicEntitlements,
+  reservationFinancials,
+  reservations,
+} from "@/lib/db/schema"
 import type { AppliedRate } from "./fx-policy"
 import {
   AgreementFeeError,
@@ -291,6 +298,18 @@ export async function recordReservationFinancials(
 
   if (entitlementLines && entitlementLines.length > 0) {
     const now = new Date()
+    // CANCEL-FINANCIAL-COHERENCE-01 étape 2b (D-01c, T4-D2 = B) : un droit
+    // n'est « gagné » qu'une fois la réservation confirmée. Réservation pas
+    // encore confirmée → 'pending' ; le passage à 'earned' se fait au point
+    // de confirmation unique (recordReservationTransition → 0151).
+    const [res] = await tx
+      .select({ status: reservations.status })
+      .from(reservations)
+      .where(eq(reservations.id, reservationId))
+    const entitlementStatus =
+      res && (res.status === "confirmed" || res.status === "completed")
+        ? ("earned" as const)
+        : ("pending" as const)
     await tx.insert(economicEntitlements).values(
       entitlementLines.map((line) => ({
         reservationId,
@@ -303,7 +322,7 @@ export async function recordReservationFinancials(
         basis: line.basis,
         agreementId: line.agreementId ?? null,
         ruleId: line.ruleId ?? null,
-        status: "earned" as const,
+        status: entitlementStatus,
         effectiveAt: now,
         cancellationTreatment: line.cancellationTreatment ?? null,
       })),

@@ -21,6 +21,7 @@ import { REFUND_ALLOWED_ROLES } from "@/lib/finance/refund-logic"
 import { isAdminReservationVoucherEligible } from "@/lib/pro/voucher-eligibility"
 import { FulfillFlightButton } from "@/components/admin/fulfill-flight-button"
 import { ConfirmManualFlightButton } from "@/components/admin/confirm-manual-flight-button"
+import { SupplierStatusButton } from "@/components/admin/supplier-status-button"
 
 export const dynamic = "force-dynamic"
 
@@ -94,6 +95,12 @@ export default async function AdminReservationDetailPage({
   )
     ? "transfer"
     : "cash"
+  // SUPPLIER-STATUS-CHECK-01 : consultation en lecture seule de l'état chez
+  // myGo, super_admin uniquement (contrôle réel côté serveur).
+  const canCheckSupplierStatus =
+    isSuperAdmin &&
+    detail.module === "hotel" &&
+    /^\d+$/.test(detail.moduleDetail?.providerBookingId ?? "")
   const voucherHref = isAdminReservationVoucherEligible(
     detail.module,
     detail.status,
@@ -121,6 +128,9 @@ export default async function AdminReservationDetailPage({
               defaultMethod={defaultManualMethod}
               remainingTnd={detail.paymentSummary.remainingTnd}
             />
+          ) : null}
+          {canCheckSupplierStatus ? (
+            <SupplierStatusButton reservationId={detail.id} />
           ) : null}
           {canRefund ? (
             <RefundButton

@@ -23,6 +23,7 @@ import {
   isTransitionAllowed,
   type ReservationStatus,
 } from "./reservation-status"
+import { sql } from "drizzle-orm"
 import type { DrizzleTransaction } from "@/lib/db/client"
 
 type TransitionLabel = (typeof reservationTransition.enumValues)[number]
@@ -109,4 +110,13 @@ export async function recordReservationTransition(
     reason: input.reason,
     metadata: input.metadata,
   })
+  // CANCEL-FINANCIAL-COHERENCE-01 étape 2b (D-01c, T4-D2 = B) : point de
+  // confirmation UNIQUE — les droits économiques 'pending' de la réservation
+  // deviennent 'earned' dans la MÊME transaction (fonction SECURITY DEFINER
+  // 0151 : app_runtime n'a pas UPDATE sur economic_entitlements).
+  if (input.to === "confirmed") {
+    await tx.execute(
+      sql`SELECT mark_entitlements_earned(${input.reservationId}::uuid)`,
+    )
+  }
 }

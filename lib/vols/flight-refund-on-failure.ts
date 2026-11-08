@@ -9,6 +9,7 @@
  * Ne propage jamais d'exception : un échec est loggé, jamais fatal au flux appelant.
  */
 
+import { compensateEntitlementsOnCancellation } from "@/lib/finance/entitlement-compensation"
 import { eq } from "drizzle-orm"
 import { withSystemContext } from "@/lib/db/tenant-context"
 import { reservations } from "@/lib/db/schema"
@@ -68,6 +69,16 @@ export async function autoRefundOnFlightFailure({
           reservationId,
           publicRef: row.publicRef,
           actorUserId,
+        })
+
+        // CANCEL-FINANCIAL-COHERENCE-01 étape 2b : compensation des droits par
+        // rôle (D-02a ; frais inconnus → trace « à traiter », D2b-1 = A).
+        await compensateEntitlementsOnCancellation(tx, {
+          reservationId,
+          supplierFeeTnd: null,
+          publicRef: row.publicRef,
+          actorUserId,
+          reason: "Remboursement vol après échec émission",
         })
       }
 

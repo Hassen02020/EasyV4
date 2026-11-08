@@ -37,6 +37,7 @@
  * surface de risque sans nécessité démontrée.
  */
 
+import { compensateEntitlementsOnCancellation } from "@/lib/finance/entitlement-compensation"
 import { voidPendingPaymentsOnCancellation } from "@/lib/finance/payment-void"
 import { eq, and } from "drizzle-orm"
 import { withTenantContext } from "@/lib/db/tenant-context"
@@ -292,6 +293,17 @@ export async function cancelMyHotelReservation(
         reservationId,
         publicRef: preCheck.publicRef,
         actorUserId: user.id,
+        freeCancellation: feeTnd === 0,
+      })
+
+      // CANCEL-FINANCIAL-COHERENCE-01 étape 2b : compensation des droits par
+      // rôle (D-02a) — frais réels renvoyés par myGo.
+      await compensateEntitlementsOnCancellation(tx, {
+        reservationId,
+        supplierFeeTnd: feeTnd,
+        publicRef: preCheck.publicRef,
+        actorUserId: user.id,
+        reason: "Annulation client hôtel",
       })
 
       await tx.insert(auditEvents).values({
@@ -561,6 +573,16 @@ export async function cancelMyHotelMondeReservation(
         reservationId,
         publicRef: preCheck.publicRef,
         actorUserId: user.id,
+      })
+
+      // CANCEL-FINANCIAL-COHERENCE-01 étape 2b : Hôtels Monde sans fournisseur
+      // réel → frais réellement retenus inconnus → trace « à traiter » (D2b-1 = A).
+      await compensateEntitlementsOnCancellation(tx, {
+        reservationId,
+        supplierFeeTnd: null,
+        publicRef: preCheck.publicRef,
+        actorUserId: user.id,
+        reason: "Annulation client Hôtel Monde",
       })
 
       await tx.insert(auditEvents).values({

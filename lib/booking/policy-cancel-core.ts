@@ -44,6 +44,7 @@
  * annulée ne redeviendrait jamais réservable.
  */
 
+import { compensateEntitlementsOnCancellation } from "@/lib/finance/entitlement-compensation"
 import { voidPendingPaymentsOnCancellation } from "@/lib/finance/payment-void"
 import { eq, and } from "drizzle-orm"
 import type { DrizzleTransaction } from "@/lib/db/client"
@@ -251,6 +252,18 @@ export async function cancelPolicyReservationCore(
         reservationId,
         publicRef: preCheck.publicRef,
         actorUserId,
+        freeCancellation: tndAmount - (outcome.creditableTnd ?? 0) <= 0.001,
+      })
+
+      // CANCEL-FINANCIAL-COHERENCE-01 étape 2b : compensation des droits par
+      // rôle (D-02a ; frais inconnus → trace « à traiter », D2b-1 = A).
+      await compensateEntitlementsOnCancellation(tx, {
+        reservationId,
+        supplierFeeTnd:
+          tndAmount - (outcome.creditableTnd ?? 0) <= 0.001 ? 0 : null,
+        publicRef: preCheck.publicRef,
+        actorUserId,
+        reason: "Annulation selon politique (omra/package/activité)",
       })
 
       await tx
@@ -269,7 +282,7 @@ export async function cancelPolicyReservationCore(
       // T-1 : plus aucun règlement « en attente » sur une réservation annulée.
       await voidPendingPaymentsOnCancellation(tx, {
         reservationId,
-        actorUserId: actorUserId,
+        actorUserId,
         reason: "Annulation self-service client (policy engine)",
       })
 

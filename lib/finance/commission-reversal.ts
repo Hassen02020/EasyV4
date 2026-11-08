@@ -249,6 +249,14 @@ export async function reverseCommissionOnCancellation(
     reservationId: string
     publicRef: string
     actorUserId: string | null
+    /**
+     * CANCEL-FINANCIAL-COHERENCE-01 étape 2b (T4-D1 = B) : annulation dont
+     * les frais fournisseur sont CONNUS et NULS → la part Easy2Book est
+     * aussi rendue (`full_reversal`), même si la ligne porte
+     * `non_refundable` (cette règle ne vaut que pour les annulations avec
+     * frais). Absent = traitement stocké sur la ligne (comportement inchangé).
+     */
+    freeCancellation?: boolean
   },
 ): Promise<void> {
   const { reservationId, publicRef } = params
@@ -306,7 +314,9 @@ export async function reverseCommissionOnCancellation(
   // TODO CANCEL-COMMISSION-POLICY-01 : Direction doit confirmer par module
   // avant qu'un writer ne renseigne ce champ à la création. Absent/inconnu →
   // reversement sauté, jamais une politique choisie par ce code.
-  const rawTreatment = originalEntitlement.cancellationTreatment
+  const rawTreatment = params.freeCancellation
+    ? "full_reversal"
+    : originalEntitlement.cancellationTreatment
   if (
     rawTreatment === null ||
     !KNOWN_TREATMENTS.includes(rawTreatment as CancellationTreatment)

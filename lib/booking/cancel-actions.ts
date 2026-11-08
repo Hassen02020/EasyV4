@@ -25,6 +25,7 @@
  * fournisseur réelle.
  */
 
+import { compensateEntitlementsOnCancellation } from "@/lib/finance/entitlement-compensation"
 import { voidPendingPaymentsOnCancellation } from "@/lib/finance/payment-void"
 import { eq, sql } from "drizzle-orm"
 import { withTenantContext } from "@/lib/db/tenant-context"
@@ -238,6 +239,17 @@ export async function cancelHotelReservation(
           reservationId,
           publicRef: preCheck.publicRef,
           actorUserId: user.id,
+          freeCancellation: feeTnd === 0,
+        })
+
+        // CANCEL-FINANCIAL-COHERENCE-01 étape 2b : compensation des droits par
+        // rôle (D-02a ; frais inconnus → trace « à traiter », D2b-1 = A).
+        await compensateEntitlementsOnCancellation(tx, {
+          reservationId,
+          supplierFeeTnd: feeTnd,
+          publicRef: preCheck.publicRef,
+          actorUserId: user.id,
+          reason: "Annulation partenaire B2B hôtel",
         })
 
         await tx

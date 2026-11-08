@@ -261,7 +261,17 @@ Error("FISCAL_RULE_NOT_FOUND")` si aucune règle active
 >
 > **Incident distinct ouvert (constaté 2026-11-08, lecture des erreurs Vercel)** : `/api/cron/purge-audit` échoue depuis le 2026-09-20 (`ERR_INVALID_ARG_TYPE` : une date est passée à la requête au lieu d'une chaîne) — les traces d'audit ne sont plus purgées. Non corrigé ; fiche séparée à auditer.
 >
-> **Prochaines fiches, dans l'ordre décidé par le propriétaire (2026-11-08)** : (1) **F-3** — `mark_econ_commission_settled` ignore `platform_fee`, à corriger avant le premier accord Network ; (2) **purge-audit** ; (3) reprise de l'**audit fournisseurs, étape 5**. Aucune exécution sans GO.
+> **Déploiement de la fusion documentaire #344 vérifié** : `dpl_5wZtdumVX2Taz5KxkZQVAGXNEumu`, `state=READY`, `target=production`, SHA `0db26bc8` = merge de #344.
+>
+> **F-3 (SETTLE-PLATFORM-FEE-01) — CLOS techniquement (2026-11-08), PR #345, merge `e4b2ed9a`** :
+>
+> - Défaut : `mark_econ_commission_settled` (0093/0105) ne marquait que `qualification = 'commission'`. La part Easy2Book d'un accord (`platform_fee` avec `agreement_id`, PR #334), créditée au portefeuille dans la catégorie `commission`, était réglée par le lot mais restait « non réglée » côté droits économiques (ex. Network 500 TND, net 400, accord 2 % → 8 TND réglés, 8 TND encore « dus »).
+> - Correctif : **migration 0152** (`CREATE OR REPLACE`, même signature, SECURITY DEFINER, mêmes droits) — marque aussi `platform_fee` avec `agreement_id` et sa contre-écriture d'annulation ; jamais le frais bancaire de change des vols (`platform_fee` négatif sans accord), jamais un autre bénéficiaire qu'Easy2Book, jamais une réservation hors lot. Aucun code TypeScript modifié.
+> - Preuves : test réel PostgreSQL `settle-platform-fee-live.test.ts` **rouge sur main avant correction** (3 échecs), 7/7 après ; 5 mutations détectées ; suites voisines 164/164 ; CI de la PR verte (`financial-e2e` 473/473, 0 ignoré). Déploiement production `dpl_c72LpgzWBmGGtigdLiWhJE4ZDmjS`, `state=READY`, `target=production`, SHA `e4b2ed9a` = HEAD(`main`).
+> - **Migration 0152 appliquée en production** (`20261108133738`, GO séparé, après la fusion). Avant : ancien critère, 0 lot de règlement, 0 ligne `platform_fee`, 0 accord actif, 3 droits. Après : nouveau critère présent, SECURITY DEFINER, `search_path=public`, EXECUTE pour `app_runtime`/`service_role` uniquement (pas `anon`/`authenticated`), données inchangées (3 lignes `earned`, aucune marquée réglée). Retour arrière : réappliquer la définition de 0105.
+> - **NOT VERIFIED** : le nouveau critère n'a pas encore servi sur un vrai règlement en production (premier accord Network actif + règlement des commissions).
+>
+> **Prochaines fiches, dans l'ordre décidé par le propriétaire (2026-11-08)** : ~~(1) F-3~~ (clos ci-dessus) ; (2) **purge-audit** ; (3) reprise de l'**audit fournisseurs, étape 5**. Aucune exécution sans GO.
 >
 > **Ouvert (2026-11-01)** : (a) siège social incohérent — mentions légales « Avenue 28 Mars, Siliana » vs page de suppression « 28 avenue de Bizerte » (à comparer au document RNE officiel avant toute correction — aucune adresse modifiée) ; (b) conservation des factures 1 an : décision de la direction, durée légale tunisienne des pièces comptables à confirmer avec le comptable ; (c) aucun outil d'anonymisation : demandes de suppression traitées manuellement ; (d) politique de confidentialité EN/AR encore en texte de remplissage ; (e) un message Messenger en échec répond 200 (pas de relivraison Meta) — fiche corrective séparée décidée ; (f) `contact-history-core.test.ts` (nettoyage superuser) : correctif en PR #330 (tests seulement).
 >

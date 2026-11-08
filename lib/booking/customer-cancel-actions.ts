@@ -304,7 +304,9 @@ export async function cancelMyHotelReservation(
           publicRef: preCheck.publicRef,
           bookingId,
           feeTnd,
-          refundTnd,
+          // T-2 : remboursement RÉELLEMENT effectué (0 si rien n'avait été
+          // encaissé), jamais le montant théorique « total − frais ».
+          refundTnd: effectiveRefundTnd,
           actor: "customer",
         },
       })

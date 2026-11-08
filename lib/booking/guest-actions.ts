@@ -43,6 +43,7 @@
  * mode de paiement choisi.
  */
 
+import { recordSupplierIncident } from "@/lib/booking/supplier-incident"
 import { eq, and } from "drizzle-orm"
 import { withTenantContext } from "@/lib/db/tenant-context"
 import {
@@ -357,6 +358,20 @@ async function runCreateGuestReservation(
     myGoAccess,
   )
   if (providerConfirmation.attempted && !providerConfirmation.ok) {
+    if (providerConfirmation.incident) {
+      await recordSupplierIncident({
+        agencyId,
+        kind: providerConfirmation.incident.kind,
+        supplier: "mygo",
+        flow: "hotel_b2c",
+        step: "provider_confirmation",
+        supplierBookingRef: providerConfirmation.incident.supplierBookingRef,
+        hotelId: providerConfirmation.incident.hotelId,
+        checkIn: draft.startDate,
+        checkOut: draft.endDate ?? null,
+        error: providerConfirmation.incident.error,
+      })
+    }
     await releaseInventoryLock()
     return { ok: false, error: providerConfirmation.error }
   }
@@ -374,6 +389,21 @@ async function runCreateGuestReservation(
         "Cette réservation ne peut pas être confirmée : aucun prix vérifié par le fournisseur n'est disponible pour cette offre.",
     }
   }
+  // SUPPLIER-INCIDENT-TRACE-01 : trace durable (hors transaction) d'une
+  // annulation de rattrapage myGo en échec — la réservation fournisseur peut
+  // rester active et être facturée sans réservation locale.
+  const traceCompensationFailure = (step: string, error: unknown) =>
+    recordSupplierIncident({
+      agencyId,
+      kind: "compensation_failed",
+      supplier: "mygo",
+      flow: "hotel_b2c",
+      step,
+      supplierBookingRef: String(myGoBooking.bookingId),
+      checkIn: draft.startDate,
+      checkOut: draft.endDate ?? null,
+      error,
+    })
 
   // Marge OTA appliquée exactement comme pour toute agence : le client
   // final paie le prix affiché par Easy2Book, jamais le prix net fournisseur.
@@ -424,9 +454,10 @@ async function runCreateGuestReservation(
       await (myGoAccess.client ?? getMyGoClient()).cancelBooking({
         bookingId: myGoBooking.bookingId,
       })
-    } catch {
-      /* best effort — un hold myGo redondant sans réservation locale associée
-       * n'a aucun impact financier/paiement côté Easy2Book. */
+    } catch (cancelErr) {
+      /* best effort — SUPPLIER-INCIDENT-TRACE-01 : la réservation myGo peut
+       * rester active (et être facturée) : trace durable. */
+      await traceCompensationFailure("price_drift", cancelErr)
     }
     await releaseInventoryLock()
     return {
@@ -522,10 +553,18 @@ async function runCreateGuestReservation(
         customerPhone: traveler.phone,
       },
       // PHASE 27.2 — même compte tenant que celui qui a créé le hold.
-      () =>
-        (myGoAccess.client ?? getMyGoClient()).cancelBooking({
-          bookingId: myGoBooking.bookingId,
-        }),
+      async () => {
+        try {
+          await (myGoAccess.client ?? getMyGoClient()).cancelBooking({
+            bookingId: myGoBooking.bookingId,
+          })
+        } catch (cancelErr) {
+          // SUPPLIER-INCIDENT-TRACE-01 : trace durable, puis on relance pour
+          // conserver le comportement existant d'attemptCardPayment.
+          await traceCompensationFailure("card_payment_failed", cancelErr)
+          throw cancelErr
+        }
+      },
     )
     if (!paymentResult.ok) {
       // Compensation fournisseur déjà déclenchée par attemptCardPayment
@@ -953,9 +992,10 @@ async function runCreateGuestReservation(
         await (myGoAccess.client ?? getMyGoClient()).cancelBooking({
           bookingId: myGoBooking.bookingId,
         })
-      } catch {
-        /* best effort — un hold myGo redondant sans réservation locale associée
-         * n'a aucun impact financier/paiement côté Easy2Book. */
+      } catch (cancelErr) {
+        /* best effort — SUPPLIER-INCIDENT-TRACE-01 : la réservation myGo peut
+         * rester active (et être facturée) : trace durable. */
+        await traceCompensationFailure("idempotency_conflict", cancelErr)
       }
       // Cette tentative n'a créé aucune réservation (l'autre a gagné) —
       // libère notre verrou sans reservationId (statut "released", pas
@@ -1031,8 +1071,9 @@ async function runCreateGuestReservation(
       await (myGoAccess.client ?? getMyGoClient()).cancelBooking({
         bookingId: myGoBooking.bookingId,
       })
-    } catch {
+    } catch (cancelErr) {
       compensationNote = ` Réservation fournisseur ${myGoBooking.bookingId} potentiellement toujours active — contactez le support immédiatement avec cette référence.`
+      await traceCompensationFailure("transaction_failed", cancelErr)
     }
     // Transaction annulée (ROLLBACK) — aucune réservation locale créée par
     // CETTE tentative, quel que soit le chemin d'erreur ci-dessous.

@@ -138,12 +138,20 @@ async function newAgency() {
   return a!.id
 }
 
-test("live : la trace survit à l'annulation de la transaction de réservation", async (t) => {
+test("live : la trace survit au ROLLBACK de la transaction de réservation (ligne témoin annulée, trace conservée)", async (t) => {
   if (!dbAvailable) return void t.skip("Postgres local indisponible.")
   const agencyId = await newAgency()
   const ref = `MYGO-${randomUUID().slice(0, 8)}`
+  const witness = `WITNESS-${randomUUID().slice(0, 8)}`
   await assert.rejects(
-    withSystemContext(async () => {
+    withSystemContext(async (outer) => {
+      // Écriture DANS la transaction de réservation : doit disparaître.
+      await outer.insert(auditEvents).values({
+        agencyId,
+        entityType: "reservation",
+        entityId: witness,
+        action: "reservation.test_witness",
+      })
       const ok = await recordSupplierIncident({
         agencyId,
         kind: "compensation_failed",
@@ -161,6 +169,17 @@ test("live : la trace survit à l'annulation de la transaction de réservation",
     }),
     /annulée/,
   )
+  const witnessRows = await withSystemContext((tx) =>
+    tx
+      .select({ id: auditEvents.id })
+      .from(auditEvents)
+      .where(eq(auditEvents.entityId, witness)),
+  )
+  assert.equal(
+    witnessRows.length,
+    0,
+    "la transaction englobante a bien été annulée",
+  )
   const rows = await withSystemContext((tx) =>
     tx
       .select()
@@ -172,7 +191,7 @@ test("live : la trace survit à l'annulation de la transaction de réservation",
         ),
       ),
   )
-  assert.equal(rows.length, 1)
+  assert.equal(rows.length, 1, "la trace d'incident a survécu au rollback")
   assert.equal(rows[0]!.action, "supplier.compensation_failed")
   assert.equal(rows[0]!.agencyId, agencyId)
   const diff = rows[0]!.diff as Record<string, unknown>
@@ -180,6 +199,48 @@ test("live : la trace survit à l'annulation de la transaction de réservation",
   assert.equal(diff.step, "transaction_failed")
   assert.equal(diff.error, "cancel refusé")
 })
+
+for (const kind of [
+  "booking_ambiguous",
+  "compensation_failed",
+  "hotel_mismatch",
+] as const) {
+  test(`live : cas ${kind} persisté avec son code d'audit après rollback`, async (t) => {
+    if (!dbAvailable) return void t.skip("Postgres local indisponible.")
+    const agencyId = await newAgency()
+    const ref =
+      kind === "booking_ambiguous" ? null : `REF-${randomUUID().slice(0, 8)}`
+    await assert.rejects(
+      withSystemContext(async () => {
+        await recordSupplierIncident({
+          agencyId,
+          kind,
+          supplier: "mygo",
+          flow: "hotel_b2b",
+          step: "provider_confirmation",
+          supplierBookingRef: ref,
+          hotelId: 789,
+          checkIn: "2026-12-26",
+        })
+        throw new Error("rollback")
+      }),
+    )
+    const rows = await withSystemContext((tx) =>
+      tx
+        .select()
+        .from(auditEvents)
+        .where(
+          and(
+            eq(auditEvents.agencyId, agencyId),
+            eq(auditEvents.action, SUPPLIER_INCIDENT_ACTIONS[kind]),
+          ),
+        ),
+    )
+    assert.equal(rows.length, 1)
+    assert.equal(rows[0]!.entityType, SUPPLIER_INCIDENT_ENTITY_TYPE)
+    if (ref) assert.equal(rows[0]!.entityId, ref)
+  })
+}
 
 test("live : référence inconnue → identifiant de trace explicite, jamais vide", async (t) => {
   if (!dbAvailable) return void t.skip("Postgres local indisponible.")
@@ -220,6 +281,16 @@ test("live : échec d'écriture (agence inexistante) → false, jamais d'excepti
     supplierBookingRef: "WH-X",
   })
   assert.equal(ok, false)
+  // Identifiant d'agence invalide (erreur du pilote) : toujours false, jamais d'exception.
+  const ok2 = await recordSupplierIncident({
+    agencyId: "pas-un-uuid",
+    kind: "hotel_mismatch",
+    supplier: "mygo",
+    flow: "hotel_b2c",
+    step: "provider_confirmation",
+    supplierBookingRef: "X",
+  })
+  assert.equal(ok2, false)
 })
 
 // ─── Câblage ──────────────────────────────────────────────────────────────
@@ -282,4 +353,58 @@ test("aucune annulation de rattrapage n'avale encore son erreur sans trace", () 
     )
     assert.equal(bare, null, `${p} : catch sans trace après une annulation`)
   }
+})
+
+test("une réservation réussie ne trace jamais : chaque écriture est dans un catch d'annulation ou sous providerConfirmation.incident", () => {
+  for (const p of [
+    "lib/booking/guest-actions.ts",
+    "lib/booking/actions.ts",
+    "lib/hotels-monde/guest-booking-actions.ts",
+  ]) {
+    const src = read(p)
+    const re = /traceCompensationFailure\("|recordSupplierIncident\(\{/g
+    let m: RegExpExecArray | null
+    let checked = 0
+    while ((m = re.exec(src))) {
+      const before = src.slice(Math.max(0, m.index - 400), m.index)
+      // Définition de la fonction locale : pas un point d'appel.
+      if (/const traceCompensationFailure = \([^)]*\) =>\s*$/.test(before))
+        continue
+      assert.ok(
+        /catch \(cancelErr(: unknown)?\) \{[\s\S]*$/.test(before) ||
+          /if \(providerConfirmation\.incident\) \{\s*(await\s+)?$/.test(before),
+        `${p} : écriture de trace hors d'un cas d'échec (index ${m.index})`,
+      )
+      checked++
+    }
+    assert.ok(checked > 0, `${p} : aucun point de trace trouvé`)
+  }
+})
+
+test("l'erreur initiale n'est jamais masquée : message client conservé, erreur d'annulation relancée après la trace", () => {
+  const guest = read("lib/booking/guest-actions.ts")
+  // Hold carte : la trace (qui ne lève jamais) précède la relance de l'erreur d'origine.
+  assert.match(
+    guest,
+    /await traceCompensationFailure\("card_payment_failed", cancelErr\)\s*throw cancelErr/,
+  )
+  // Échec de transaction : le message « potentiellement toujours active » est posé AVANT la trace.
+  for (const p of ["lib/booking/guest-actions.ts", "lib/booking/actions.ts"]) {
+    assert.match(
+      read(p),
+      /compensationNote = ` Réservation fournisseur \$\{myGoBooking\.bookingId\} potentiellement toujours active[^`]*`\s*await traceCompensationFailure\("transaction_failed", cancelErr\)/,
+      p,
+    )
+  }
+  assert.match(
+    read("lib/hotels-monde/guest-booking-actions.ts"),
+    /compensationNote = ` Réservation fournisseur \$\{bookResult\.confirmationNumber\} potentiellement toujours active[^`]*`[\s\S]{0,120}?await recordSupplierIncident\(/,
+  )
+  // La fonction de trace attrape toute erreur d'écriture (aucun throw hors du try).
+  const helper = read("lib/booking/supplier-incident.ts")
+  assert.match(
+    helper,
+    /try \{\s*await withSystemContext[\s\S]*?return true\s*\} catch \(err\) \{[\s\S]*?return false/,
+  )
+  assert.doesNotMatch(helper, /\bthrow\b/)
 })

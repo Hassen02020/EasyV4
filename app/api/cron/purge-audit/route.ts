@@ -1,29 +1,36 @@
 /**
  * GET|POST /api/cron/purge-audit
  *
- * Supprime les audit_events de plus de 30 jours.
- * Protégé par CRON_SECRET (header Authorization: Bearer <token>).
+ * AUDIT-RETENTION-01, étape 1 (2026-11-08) — PURGE DÉSACTIVÉE.
  *
- * GET : Vercel Cron invoque toujours la route configurée par une requête
- * GET (jamais POST) — sans ce handler, ce cron était listé dans
- * vercel.json mais recevait un 405 à chaque déclenchement automatique et
- * ne s'exécutait donc jamais en production. POST reste disponible pour un
- * déclenchement manuel/externe (cron-job.org, etc.).
+ * Cette route supprimait sans distinction toute ligne `audit_events` de plus
+ * de 30 jours. Elle plantait en production depuis le 2026-09-20 (une `Date`
+ * passée brute au pilote dans `sql\`${cutoff}\`` → ERR_INVALID_ARG_TYPE), donc
+ * n'a jamais rien supprimé. Corriger seulement ce plantage aurait détruit des
+ * traces encore utilisées au-delà de 30 jours :
+ *  - historique d'une réservation affiché au back-office
+ *    (lib/booking/reservation-detail.ts) ;
+ *  - verrous anti-doublon (marqueur d'email de vol, index unique des
+ *    notifications réussies, clé d'écart du rapprochement des paiements) ;
+ *  - traces financières (`payment.voided`, `entitlements.to_compensate` —
+ *    compensation à traiter manuellement) ;
+ *  - aucune durée de conservation n'a été décidée par la Direction.
  *
- * Usage manuel :
- *   curl -X POST https://<host>/api/cron/purge-audit \
- *        -H "Authorization: Bearer $CRON_SECRET"
- *
- * Config Vercel Cron (plan Pro requis) :
- *   vercel.json → { "crons": [{ "path": "/api/cron/purge-audit", "schedule": "0 3 * * *" }] }
+ * Fermer le trou d'abord : la route reste protégée par CRON_SECRET et répond
+ * désormais « purge désactivée » sans jamais rien supprimer — le cron
+ * quotidien (vercel.json, 03:00) ne plante plus. Étape 2, sur décision
+ * Direction (durée de conservation D1, familles exclues D2) et GO séparé :
+ * purge limitée aux familles autorisées ; la date limite devra alors être
+ * passée directement à `lt(auditEvents.createdAt, cutoff)` (objet Date, colonne
+ * timestamp), jamais via `sql\`${cutoff}\``.
  */
 
 import { NextResponse } from "next/server"
-import { withSystemContext } from "@/lib/db/tenant-context"
-import { auditEvents } from "@/lib/db/schema"
-import { lt, sql } from "drizzle-orm"
 
 export const dynamic = "force-dynamic"
+
+export const PURGE_DISABLED_REASON =
+  "Purge désactivée en attendant la politique de conservation des traces d'audit (AUDIT-RETENTION-01)."
 
 async function handlePurge(request: Request) {
   const auth = request.headers.get("authorization")
@@ -32,31 +39,12 @@ async function handlePurge(request: Request) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 })
   }
 
-  if (!process.env.DATABASE_URL) {
-    return NextResponse.json({ error: "db_unavailable" }, { status: 503 })
-  }
-
-  try {
-    const cutoff = new Date(Date.now() - 1000 * 60 * 60 * 24 * 30) // 30j
-    const result = await withSystemContext((tx) =>
-      tx
-        .delete(auditEvents)
-        .where(lt(auditEvents.createdAt, sql`${cutoff}`))
-        .returning({ id: auditEvents.id }),
-    )
-
-    return NextResponse.json({
-      ok: true,
-      deleted: result.length,
-      cutoff: cutoff.toISOString(),
-    })
-  } catch (err) {
-    console.error("purge-audit failed:", err)
-    return NextResponse.json(
-      { error: "purge_failed", message: String(err) },
-      { status: 500 },
-    )
-  }
+  return NextResponse.json({
+    ok: true,
+    disabled: true,
+    deleted: 0,
+    reason: PURGE_DISABLED_REASON,
+  })
 }
 
 export async function GET(request: Request) {

@@ -76,7 +76,7 @@ test("audit_events : app_runtime a SELECT/INSERT/DELETE (purge réelle à 30j) m
   assert.equal(
     grants.has("DELETE"),
     true,
-    "DELETE doit rester accordé — app/api/cron/purge-audit/route.ts en dépend réellement",
+    "DELETE reste accordé — purge-audit le réutilisera à l'étape 2 d'AUDIT-RETENTION-01 (purge désactivée à l'étape 1, droit inchangé)",
   )
   assert.equal(grants.has("UPDATE"), false)
   assert.equal(grants.has("TRUNCATE"), false)

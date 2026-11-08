@@ -372,7 +372,9 @@ test("une réservation réussie ne trace jamais : chaque écriture est dans un c
         continue
       assert.ok(
         /catch \(cancelErr(: unknown)?\) \{[\s\S]*$/.test(before) ||
-          /if \(providerConfirmation\.incident\) \{\s*(await\s+)?$/.test(before),
+          /if \(providerConfirmation\.incident\) \{\s*(await\s+)?$/.test(
+            before,
+          ),
         `${p} : écriture de trace hors d'un cas d'échec (index ${m.index})`,
       )
       checked++

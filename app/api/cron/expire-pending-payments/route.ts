@@ -16,6 +16,9 @@ import { NextRequest, NextResponse } from "next/server"
 import { lt, and, eq, isNotNull, inArray } from "drizzle-orm"
 import { withSystemContext } from "@/lib/db/tenant-context"
 import { reservations, payments } from "@/lib/db/schema"
+import { cancelSupplierBookingsForExpired } from "@/lib/booking/expiry-supplier-cancel"
+import { resolveMyGoAccessForTenant } from "@/lib/hotel-suppliers/tenant/live-resolution"
+import { getMyGoClient } from "@/lib/mygo/client"
 
 export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
@@ -86,10 +89,29 @@ export async function GET(req: NextRequest) {
     return { expired: expiredRows, paymentsFailed: failedPayments.length }
   })
 
+  // EXPIRY-SUPPLIER-CANCEL-01 : APRÈS la validation de l'expiration (la
+  // transaction ci-dessus est committée), libérer la chambre chez myGo pour
+  // les réservations hôtel qui viennent d'expirer. Un échec fournisseur ne
+  // revient jamais sur l'expiration : il est tracé durablement.
+  const supplier = await cancelSupplierBookingsForExpired(
+    expired.map((r) => r.id),
+    async (agencyId) => {
+      // Même résolution de compte que le parcours invité qui a créé la
+      // réservation (seul parcours qui pose payment_expires_at).
+      const access = await resolveMyGoAccessForTenant({
+        agencyId,
+        userId: "",
+        isSuperAdmin: true,
+      })
+      return access.client ?? getMyGoClient()
+    },
+  )
+
   return NextResponse.json({
     ok: true,
     expired: expired.length,
     paymentsFailed,
+    supplierCancellation: supplier,
     refs: expired.map((r) => r.publicRef),
     timestamp: new Date().toISOString(),
   })

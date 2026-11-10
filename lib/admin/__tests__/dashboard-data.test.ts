@@ -28,7 +28,8 @@ test("loadDashboardData renvoie EMPTY si DATABASE_URL absent", async () => {
       "00000000-0000-0000-0000-000000000001",
     )
     assert.equal(data.available, false)
-    assert.equal(data.stats.monthlyRevenueTnd, 0)
+    assert.equal(data.stats.monthlyCollectedTnd, 0)
+    assert.equal(data.stats.monthlyConfirmedSalesTnd, 0)
     assert.equal(data.stats.reservationsToday, 0)
     assert.equal(data.stats.apiErrors24h, 0)
     assert.equal(data.stats.activeCustomers, 0)

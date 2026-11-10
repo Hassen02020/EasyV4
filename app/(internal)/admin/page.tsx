@@ -168,11 +168,19 @@ export default async function AdminDashboard() {
   const totalByModule = byModule.reduce((acc, row) => acc + row.count, 0) || 1
 
   const statCards = [
+    // DASHBOARD-REVENUE-TRUTH-01 : jamais de réservation annulée, expirée
+    // ou non payée dans ces deux montants.
     {
-      title: "Chiffre d'Affaires",
-      value: formatTnd(stats.monthlyRevenueTnd),
+      title: "Encaissé du mois",
+      value: formatTnd(stats.monthlyCollectedTnd),
       icon: DollarSign,
-      description: "Ce mois (TND)",
+      description: "Paiements reçus, nets des remboursements (TND)",
+    },
+    {
+      title: "Ventes confirmées du mois",
+      value: formatTnd(stats.monthlyConfirmedSalesTnd),
+      icon: DollarSign,
+      description: "Réservations confirmées ou terminées (TND)",
     },
     {
       title: "Réservations Aujourd'hui",
@@ -227,7 +235,7 @@ export default async function AdminDashboard() {
         </div>
       ) : null}
 
-      <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
         {statCards.map((stat, idx) => (
           <Card
             key={stat.title}

@@ -6,12 +6,25 @@
  * crasher à cause d'une requête, il doit montrer des valeurs neutres.
  */
 
-import { and, count, desc, eq, gte, sql } from "drizzle-orm"
+import { and, count, desc, eq, gte, inArray, sql } from "drizzle-orm"
 import { withTenantContext } from "@/lib/db/tenant-context"
-import { reservations, customers, auditEvents } from "@/lib/db/schema"
+import { reservations, customers, auditEvents, payments } from "@/lib/db/schema"
 
+/**
+ * DASHBOARD-REVENUE-TRUTH-01 (2026-11-10, décision propriétaire : option C).
+ * L'ancien « Chiffre d'Affaires » additionnait le montant de TOUTES les
+ * réservations créées dans le mois, annulées/expirées/jamais payées
+ * comprises (novembre : 103,21 TND = une réservation annulée non payée).
+ * Remplacé par deux indicateurs distincts :
+ *  - monthlyCollectedTnd : argent réellement reçu ce mois (paiements
+ *    captured / partial_refund, nets des remboursements) — même calcul que
+ *    la page Comptabilité (lib/admin/accounting-data.ts) ;
+ *  - monthlyConfirmedSalesTnd : montant des réservations confirmées ou
+ *    terminées créées ce mois.
+ */
 export type DashboardStats = {
-  monthlyRevenueTnd: number
+  monthlyCollectedTnd: number
+  monthlyConfirmedSalesTnd: number
   reservationsToday: number
   apiErrors24h: number
   activeCustomers: number
@@ -52,7 +65,8 @@ export type DashboardData = {
 const EMPTY: DashboardData = {
   available: false,
   stats: {
-    monthlyRevenueTnd: 0,
+    monthlyCollectedTnd: 0,
+    monthlyConfirmedSalesTnd: 0,
     reservationsToday: 0,
     apiErrors24h: 0,
     activeCustomers: 0,
@@ -78,7 +92,8 @@ export async function loadDashboardData(
     const last24h = new Date(Date.now() - 24 * 60 * 60 * 1000)
 
     const [
-      monthlyRevenueRow,
+      monthlyCollectedRow,
+      monthlyConfirmedRow,
       todayCountRow,
       errorsCountRow,
       customersCountRow,
@@ -91,12 +106,25 @@ export async function loadDashboardData(
         Promise.all([
           db
             .select({
+              totalTnd: sql<string>`COALESCE(SUM(${payments.tndAmount} - ${payments.refundedAmount}), '0')`,
+            })
+            .from(payments)
+            .where(
+              and(
+                eq(payments.agencyId, agencyId),
+                inArray(payments.status, ["captured", "partial_refund"]),
+                gte(payments.capturedAt, startOfMonth),
+              ),
+            ),
+          db
+            .select({
               totalTnd: sql<string>`COALESCE(SUM(${reservations.tndAmount}), '0')`,
             })
             .from(reservations)
             .where(
               and(
                 eq(reservations.agencyId, agencyId),
+                inArray(reservations.status, ["confirmed", "completed"]),
                 gte(reservations.createdAt, startOfMonth),
               ),
             ),
@@ -177,7 +205,8 @@ export async function loadDashboardData(
     return {
       available: true,
       stats: {
-        monthlyRevenueTnd: Number(monthlyRevenueRow[0]?.totalTnd ?? 0),
+        monthlyCollectedTnd: Number(monthlyCollectedRow[0]?.totalTnd ?? 0),
+        monthlyConfirmedSalesTnd: Number(monthlyConfirmedRow[0]?.totalTnd ?? 0),
         reservationsToday: Number(todayCountRow[0]?.value ?? 0),
         apiErrors24h: Number(errorsCountRow[0]?.value ?? 0),
         activeCustomers: Number(customersCountRow[0]?.value ?? 0),

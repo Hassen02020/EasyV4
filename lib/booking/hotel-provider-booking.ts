@@ -293,6 +293,37 @@ const MYGO_WALL_CLOCK_RE =
   /^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})(?::(\d{2}))?$/
 
 /**
+ * MYGO-DATE-FORMAT-01 — format réel de BookingList en production :
+ * "dd/MM/yyyy HH:mm", heure de Tunis (UTC+1, sans heure d'été). Constat
+ * D2 (2 réservations comparées base / extranet : écart d'une heure).
+ */
+const MYGO_TUNIS_RE =
+  /^(\d{2})[/-](\d{2})[/-](\d{4})[ T](\d{2}):(\d{2})(?::(\d{2}))?$/
+const TUNIS_OFFSET_MS = 3_600_000
+
+function validUtc(
+  y: number,
+  mo: number,
+  d: number,
+  h: number,
+  mi: number,
+  s: number,
+): number | null {
+  const t = Date.UTC(y, mo - 1, d, h, mi, s)
+  const x = new Date(t)
+  if (
+    x.getUTCFullYear() !== y ||
+    x.getUTCMonth() !== mo - 1 ||
+    x.getUTCDate() !== d ||
+    x.getUTCHours() !== h ||
+    x.getUTCMinutes() !== mi ||
+    x.getUTCSeconds() !== s
+  )
+    return null
+  return t
+}
+
+/**
  * Parse le format de date myGo "YYYY-MM-DD HH24:MI" en timestamp ms. `null` si invalide.
  *
  * Une date myGo n'a pas de fuseau. `Date.parse()` la lisait dans le fuseau
@@ -303,6 +334,18 @@ const MYGO_WALL_CLOCK_RE =
  * question ouverte, hors de ce correctif.
  */
 export function parseMyGoTimestamp(value: string): number | null {
+  const tn = MYGO_TUNIS_RE.exec(value.trim())
+  if (tn) {
+    const t = validUtc(
+      Number(tn[3]),
+      Number(tn[2]),
+      Number(tn[1]),
+      Number(tn[4]),
+      Number(tn[5]),
+      Number(tn[6] ?? 0),
+    )
+    return t == null ? null : t - TUNIS_OFFSET_MS
+  }
   const m = MYGO_WALL_CLOCK_RE.exec(value.trim())
   if (m) {
     const [year, month, day, hour, minute, second] = [

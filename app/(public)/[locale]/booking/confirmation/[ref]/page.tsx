@@ -3,6 +3,8 @@ import { notFound } from "next/navigation"
 import { getLocale, getTranslations } from "next-intl/server"
 import {
   CheckCircle2,
+  Clock,
+  XCircle,
   Mail,
   Calendar,
   User,
@@ -24,6 +26,7 @@ import { BookingSteps } from "@/components/booking/booking-steps"
 import { ConfirmationStatusBadge } from "@/components/booking/confirmation-status-badge"
 import { voucherHrefForModule } from "@/lib/pro/voucher-eligibility"
 import { getIntlLocale } from "@/lib/i18n-date"
+import { confirmationHeadline } from "@/lib/booking/confirmation-headline"
 
 export const dynamic = "force-dynamic"
 
@@ -90,6 +93,20 @@ export default async function ConfirmationPage({
     paymentMethod?: string | null
   } | null
 
+  const headline = confirmationHeadline(row.status)
+  const HeadlineIcon =
+    headline.kind === "confirmed"
+      ? CheckCircle2
+      : headline.kind === "cancelled"
+        ? XCircle
+        : Clock
+  const headlineColor =
+    headline.kind === "confirmed"
+      ? "text-success"
+      : headline.kind === "cancelled"
+        ? "text-destructive"
+        : "text-muted-foreground"
+
   const voucherHref =
     row.status === "confirmed" || row.status === "completed"
       ? voucherHrefForModule(row.module, row.publicRef, token, locale)
@@ -102,10 +119,16 @@ export default async function ConfirmationPage({
         <div className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8">
           <BookingSteps current={4} module={row.module} />
           <Card className="mt-8 overflow-hidden">
-            <div className="from-success/15 via-success/5 bg-gradient-to-br to-transparent p-8 text-center">
-              <CheckCircle2 className="text-success mx-auto size-14" />
+            <div
+              className={`bg-gradient-to-br to-transparent p-8 text-center ${
+                headline.kind === "confirmed"
+                  ? "from-success/15 via-success/5"
+                  : "from-muted via-muted/40"
+              }`}
+            >
+              <HeadlineIcon className={`${headlineColor} mx-auto size-14`} />
               <h1 className="mt-3 text-2xl font-bold sm:text-3xl">
-                {t("confirmedTitle")}
+                {t(headline.titleKey)}
               </h1>
               <p className="text-muted-foreground mt-1">
                 {t("referenceLabel")}&nbsp;

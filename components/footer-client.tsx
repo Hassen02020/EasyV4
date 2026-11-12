@@ -105,7 +105,11 @@ export function FooterClient({
     {
       icon: trustBadgeIcons[0],
       title: t("paiementSecurise"),
-      description: "SPS / Monétique Tunisie",
+      // FOOTER-TRUST-BADGES-01 : plus de nom de prestataire en dur — la
+      // mention « SPS / Monétique Tunisie » n'était pas vérifiée (le paiement
+      // en ligne du code passe par un autre prestataire). À rétablir
+      // uniquement avec le prestataire confirmé par la Direction.
+      description: null,
     },
     {
       icon: trustBadgeIcons[1],
@@ -115,7 +119,9 @@ export function FooterClient({
     {
       icon: trustBadgeIcons[2],
       title: t("disponibiliteReelle"),
-      description: "APIGDS",
+      // FOOTER-TRUST-BADGES-01 : « APIGDS » retiré — aucune intégration de ce
+      // nom n'existe dans le projet.
+      description: null,
     },
     {
       icon: trustBadgeIcons[3],
@@ -139,9 +145,11 @@ export function FooterClient({
                   <p className="text-foreground text-sm font-semibold">
                     {badge.title}
                   </p>
-                  <p className="text-muted-foreground text-xs">
-                    {badge.description}
-                  </p>
+                  {badge.description ? (
+                    <p className="text-muted-foreground text-xs">
+                      {badge.description}
+                    </p>
+                  ) : null}
                 </div>
               </div>
             )

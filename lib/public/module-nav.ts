@@ -116,3 +116,17 @@ export function getVisiblePublicModules(
     enabled.some((module) => module.moduleSlug === tab.id),
   )
 }
+
+/**
+ * OMRA-HOME-VISUAL-01 — image du bloc Omra de la page d'accueil : le visuel
+ * du module Omra géré depuis l'administration (« Site public »), le même que
+ * la page /omra. Aucune image de repli : sans visuel ou module désactivé, le
+ * bloc reste en texte seul.
+ */
+export function pickOmraHomeImage(
+  modules: readonly PublicModuleVisual[],
+): string | null {
+  const visual = modules.find((m) => m.moduleSlug === "omraty" && m.enabled)
+  const url = visual?.heroImageUrl?.trim()
+  return url ? url : null
+}

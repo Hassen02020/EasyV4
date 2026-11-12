@@ -7,6 +7,7 @@ import { FeaturedDestinationsSection } from "@/components/featured-destinations-
 import { DevelopmentProjectsSection } from "@/components/development-projects-section"
 import { MarketSignalsSection } from "@/components/market-signals-section"
 import { Footer } from "@/components/footer"
+import { pickOmraHomeImage } from "@/lib/public/module-nav"
 import {
   getPublicModuleVisuals,
   getPublicSiteConfig,
@@ -73,7 +74,7 @@ export default async function Home() {
         <Suspense fallback={<div className="bg-muted/40 h-64 animate-pulse" />}>
           <FlashOffers />
         </Suspense>
-        <OmratySection />
+        <OmratySection imageUrl={pickOmraHomeImage(modules)} />
         <Suspense fallback={<div className="bg-muted/40 h-64 animate-pulse" />}>
           <FeaturedDestinationsSection />
         </Suspense>

@@ -440,3 +440,45 @@ test("bookingConfirmationMatchesExpectedHotel: champ absent d'un côté → true
   const meta = extractHotelProviderMetadata(baseDraft.metadata)!
   assert.equal(bookingConfirmationMatchesExpectedHotel({}, meta), true)
 })
+
+// MYGO-DATE-FORMAT-01 — format réel de production : "dd/MM/yyyy HH:mm", heure de Tunis.
+test("parseMyGoTimestamp: format production dd/MM/yyyy HH:mm lu en heure de Tunis (UTC+1)", () => {
+  assert.equal(
+    new Date(parseMyGoTimestamp("20/09/2026 18:07")!).toISOString(),
+    "2026-09-20T17:07:00.000Z",
+  )
+  // Passage de minuit : 00:30 Tunis = 23:30 UTC la veille.
+  assert.equal(
+    new Date(parseMyGoTimestamp("01/01/2027 00:30")!).toISOString(),
+    "2026-12-31T23:30:00.000Z",
+  )
+})
+
+test("parseMyGoTimestamp: dd/MM/yyyy impossible ou incomplet → null ; format UTC inchangé", () => {
+  assert.equal(parseMyGoTimestamp("31/02/2026 10:00"), null)
+  assert.equal(parseMyGoTimestamp("20/09/2026 25:00"), null)
+  assert.equal(parseMyGoTimestamp("20/09/2026"), null)
+  assert.equal(
+    new Date(parseMyGoTimestamp("2026-08-20 10:15")!).toISOString(),
+    "2026-08-20T10:15:00.000Z",
+  )
+})
+
+test("reconcileAmbiguousBooking: candidat au format production (heure de Tunis) → adopté", () => {
+  // NOW = 10:20 UTC ; 11:18 à Tunis = 10:18 UTC, 2 min avant.
+  const match = reconcileAmbiguousBooking(
+    [
+      {
+        bookingId: 500999,
+        hotelId: 646,
+        checkIn: "2026-09-10",
+        checkOut: "2026-09-13",
+        state: "Validated",
+        createdAt: "20/08/2026 11:18",
+      },
+    ],
+    { hotelId: 646, checkIn: "2026-09-10", checkOut: "2026-09-13" },
+    NOW,
+  )
+  assert.equal(match?.bookingId, 500999)
+})

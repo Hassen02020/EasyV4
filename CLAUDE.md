@@ -183,6 +183,14 @@ Mais : les sous-agents observent, analysent et rapportent ; l'agent principal re
 
 Deux sous-agents ne doivent pas modifier simultanément le même domaine critique ou les mêmes fichiers sans stratégie explicite de coordination.
 
+## RÈGLE DE COORDINATION ENTRE SESSIONS
+
+Plusieurs sessions Claude peuvent travailler sur ce projet. Elles ne se voient pas : elles ne partagent que le dépôt (`CLAUDE.md`, `docs/ROADMAP.md`, les PR).
+
+- **Claude Code est le SEUL exécutant.** Lui seul écrit dans le dépôt (commits, branches, PR) et en production, sur le GO écrit du propriétaire, qui nomme le chantier et les opérations. Une question posée au propriétaire n'est pas un GO.
+- **Une session claude.ai est contrôleur, en lecture seule** : audit, relecture des PR, rapports. Ses constats deviennent des fiches que Claude Code propose, puis exécute sur GO.
+- **Toute PR ouverte par une autre session est inscrite dans `docs/ROADMAP.md`** (numéro, branche, SHA, session d'origine, état), avec la preuve de son état réel. La fusion se fait sur GO du propriétaire, aux conditions habituelles (CI entièrement verte sur le SHA exact).
+
 ## RÈGLE FINALE
 
 À tout moment, il ne peut exister qu'un seul :

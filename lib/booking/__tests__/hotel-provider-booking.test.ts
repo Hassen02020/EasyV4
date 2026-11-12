@@ -284,6 +284,23 @@ test("parseMyGoTimestamp: chaîne invalide → null", () => {
   assert.equal(parseMyGoTimestamp("not-a-date"), null)
 })
 
+test("parseMyGoTimestamp: même instant quel que soit le fuseau de la machine", () => {
+  // Une date myGo sans fuseau est lue en UTC, jamais dans le fuseau du serveur.
+  assert.equal(
+    parseMyGoTimestamp("2026-08-20 10:18"),
+    Date.UTC(2026, 7, 20, 10, 18, 0),
+  )
+  assert.equal(
+    parseMyGoTimestamp("2026-08-20T10:18:30"),
+    Date.UTC(2026, 7, 20, 10, 18, 30),
+  )
+})
+
+test("parseMyGoTimestamp: date inexistante → null (jamais décalée)", () => {
+  assert.equal(parseMyGoTimestamp("2026-02-30 10:00"), null)
+  assert.equal(parseMyGoTimestamp("2026-08-20 25:00"), null)
+})
+
 const NOW = new Date("2026-08-20T10:20:00Z").getTime()
 
 test("reconcileAmbiguousBooking: aucun candidat → null (pas de réservation trouvée)", () => {

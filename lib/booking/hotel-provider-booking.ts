@@ -289,8 +289,46 @@ export interface BookingReconciliationCandidate {
   createdAt?: string
 }
 
-/** Parse le format de date myGo "YYYY-MM-DD HH24:MI" en timestamp ms. `null` si invalide. */
+const MYGO_WALL_CLOCK_RE =
+  /^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})(?::(\d{2}))?$/
+
+/**
+ * Parse le format de date myGo "YYYY-MM-DD HH24:MI" en timestamp ms. `null` si invalide.
+ *
+ * Une date myGo n'a pas de fuseau. `Date.parse()` la lisait dans le fuseau
+ * de la machine : le résultat changeait selon le serveur (et le test
+ * échouait hors UTC). Elle est désormais lue explicitement en UTC — même
+ * résultat qu'avant sur un serveur en UTC (production), identique partout
+ * ailleurs. Le fuseau réel des dates myGo (heure de Tunis ?) reste une
+ * question ouverte, hors de ce correctif.
+ */
 export function parseMyGoTimestamp(value: string): number | null {
+  const m = MYGO_WALL_CLOCK_RE.exec(value.trim())
+  if (m) {
+    const [year, month, day, hour, minute, second] = [
+      Number(m[1]),
+      Number(m[2]),
+      Number(m[3]),
+      Number(m[4]),
+      Number(m[5]),
+      Number(m[6] ?? 0),
+    ]
+    const t = Date.UTC(year, month - 1, day, hour, minute, second)
+    const d = new Date(t)
+    // Refuse les dates inexistantes (30 février, 25 h…) au lieu de les décaler.
+    if (
+      d.getUTCFullYear() !== year ||
+      d.getUTCMonth() !== month - 1 ||
+      d.getUTCDate() !== day ||
+      d.getUTCHours() !== hour ||
+      d.getUTCMinutes() !== minute ||
+      d.getUTCSeconds() !== second
+    ) {
+      return null
+    }
+    return t
+  }
+  // Autres formes (fuseau explicite, date seule) : comportement inchangé.
   const normalized = value.includes("T") ? value : value.replace(" ", "T")
   const t = Date.parse(normalized)
   return Number.isFinite(t) ? t : null

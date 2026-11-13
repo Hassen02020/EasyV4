@@ -3,7 +3,9 @@ import { getLocale, getTranslations } from "next-intl/server"
 import { ChevronLeft } from "lucide-react"
 import { HeaderWrapper as Header } from "@/components/header-wrapper"
 import { Footer } from "@/components/footer"
-import { decodeDraft } from "@/lib/booking/draft-store"
+import { decodeDraft, draftOnlyToken } from "@/lib/booking/draft-store"
+import { resolveTraveler } from "@/lib/booking/resolve-traveler"
+import { isTravelerRef } from "@/lib/booking/traveler-cookie"
 import { BookingSteps } from "@/components/booking/booking-steps"
 import dynamicImport from "next/dynamic"
 
@@ -28,6 +30,11 @@ export default async function TravelersStepPage({
     return null
   }
   const t = await getTranslations("Booking")
+  // DRAFT-PII-URL-01 : préremplissage depuis le cookie (ou l'ancien ?d= lu),
+  // et tous les liens repartent d'un token SANS voyageur.
+  const ref = typeof sp.t === "string" && isTravelerRef(sp.t) ? sp.t : undefined
+  const resolved = await resolveTraveler(payload, ref)
+  const cleanToken = draftOnlyToken(payload)
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -35,7 +42,7 @@ export default async function TravelersStepPage({
       <main className="bg-muted/30 flex-1 py-8">
         <div className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8">
           <Link
-            href={`/booking?d=${encodeURIComponent(token ?? "")}`}
+            href={`/booking?d=${encodeURIComponent(cleanToken)}`}
             className="text-muted-foreground hover:text-foreground mb-4 inline-flex items-center text-sm"
           >
             <ChevronLeft className="size-4" />
@@ -49,7 +56,11 @@ export default async function TravelersStepPage({
           </p>
           <BookingSteps current={2} />
           <div className="mt-8">
-            <TravelersForm token={token!} initial={payload.traveler} />
+            <TravelersForm
+              token={cleanToken}
+              initial={resolved?.traveler}
+              travelerRef={ref}
+            />
           </div>
         </div>
       </main>

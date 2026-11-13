@@ -521,3 +521,55 @@ test("reconcileAmbiguousBooking: un candidat rattaché + un libre → le libre e
   )
   assert.equal(m?.bookingId, 2)
 })
+
+// MYGO-RECONCILE-WINDOW-01 (D3) — borne haute : maintenant + 2 h.
+test("reconcileAmbiguousBooking: candidat créé dans le futur — +90 min accepté, +3 h rejeté", () => {
+  const exp = { hotelId: 646, checkIn: "2026-09-10", checkOut: "2026-09-13" }
+  const at = (iso: string) => ({
+    bookingId: 1,
+    hotelId: 646,
+    checkIn: "2026-09-10",
+    checkOut: "2026-09-13",
+    state: "Validated",
+    createdAt: iso,
+  })
+  // NOW = 2026-08-20 10:20 UTC
+  assert.equal(
+    reconcileAmbiguousBooking([at("2026-08-20 11:50")], exp, NOW)?.bookingId,
+    1,
+  )
+  assert.equal(
+    reconcileAmbiguousBooking([at("2026-08-20 13:21")], exp, NOW),
+    null,
+  )
+  // Format de production (heure de Tunis) : 12:15 Tunis = 11:15 UTC (+55 min) accepté.
+  assert.equal(
+    reconcileAmbiguousBooking([at("20/08/2026 12:15")], exp, NOW)?.bookingId,
+    1,
+  )
+  // 15:30 Tunis = 14:30 UTC (+4 h 10) rejeté.
+  assert.equal(
+    reconcileAmbiguousBooking([at("20/08/2026 15:30")], exp, NOW),
+    null,
+  )
+})
+
+test("reconcileAmbiguousBooking: la borne basse (10 min) reste inchangée", () => {
+  const exp = { hotelId: 646, checkIn: "2026-09-10", checkOut: "2026-09-13" }
+  const c = (iso: string) => ({
+    bookingId: 1,
+    hotelId: 646,
+    checkIn: "2026-09-10",
+    checkOut: "2026-09-13",
+    state: "Validated",
+    createdAt: iso,
+  })
+  assert.equal(
+    reconcileAmbiguousBooking([c("2026-08-20 10:11")], exp, NOW)?.bookingId,
+    1,
+  )
+  assert.equal(
+    reconcileAmbiguousBooking([c("2026-08-20 10:09")], exp, NOW),
+    null,
+  )
+})

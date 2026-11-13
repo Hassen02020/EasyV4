@@ -2,10 +2,9 @@
  * Stockage du brouillon de réservation : encode/décode dans un token
  * base64url passé en query string `?d=`.
  *
- * DRAFT-PII-URL-01 : le token ne porte JAMAIS le voyageur (données
- * personnelles) — il vit dans un cookie chiffré (traveler-cookie.ts). Le champ
- * `traveler` n'est conservé que pour LIRE les anciens liens (jusqu'au
- * 2026-12-01, voir LEGACY_TRAVELER_IN_URL_UNTIL).
+ * DRAFT-PII-URL-01/02 : le token ne porte JAMAIS le voyageur (données
+ * personnelles) — il vit dans un cookie chiffré (traveler-cookie.ts). Un
+ * ancien lien dont le token contient un voyageur est lu SANS ce voyageur.
  *
  * Avantages : 100 % stateless, reload-safe, URL partageable, pas de stockage
  * server-side, compatible Server Components + Edge Runtime.
@@ -15,11 +14,10 @@
  * en BDD ; cela suffit pour notre tunnel hôtel/vol/séjour.
  */
 
-import type { BookingDraft, TravelerInput } from "./schemas"
+import type { BookingDraft } from "./schemas"
 
 export type DraftPayload = {
   draft: BookingDraft
-  traveler?: TravelerInput
 }
 
 function b64urlEncode(buf: Uint8Array | string): string {
@@ -65,7 +63,8 @@ export function decodeDraft(
     const json = b64urlDecode(token)
     const parsed = JSON.parse(json) as DraftPayload
     if (!parsed || typeof parsed !== "object" || !parsed.draft) return null
-    return parsed
+    // DRAFT-PII-URL-02 : jamais de voyageur lu dans l'URL (ancien format ignoré).
+    return { draft: parsed.draft }
   } catch {
     return null
   }

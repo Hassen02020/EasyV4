@@ -1,4 +1,20 @@
 import { test, expect } from "@playwright/test"
+import {
+  newTravelerRef,
+  sealTraveler,
+  travelerCookieName,
+} from "../lib/booking/traveler-cookie"
+
+const TRAVELER_REF = newTravelerRef()
+const TRAVELER = {
+  civility: "M" as const,
+  firstName: "Sami",
+  lastName: "Test",
+  email: "sami-mobile-test@example.com",
+  phone: "+216 98 123 456",
+  civicIdType: "cin" as const,
+  civicId: "12345678",
+}
 
 /**
  * PHASE21.3 Step 9 — overflow check pour les états checkout/paiement qui
@@ -10,15 +26,16 @@ import { test, expect } from "@playwright/test"
 
 const DRAFT_ONLY =
   "eyJkcmFmdCI6eyJtb2R1bGUiOiJob3RlbCIsIm9mZmVySWQiOiI1MDAwMDEtMS0xIiwib2ZmZXJMYWJlbCI6IkjDtHRlbCBUZXN0IE1vYmlsZSDigJQgQ2hhbWJyZSBEb3VibGUiLCJzdGFydERhdGUiOiIyMDI2LTA5LTEwIiwiZW5kRGF0ZSI6IjIwMjYtMDktMTMiLCJhZHVsdHMiOjIsImNoaWxkcmVuIjowLCJ1bml0UHJpY2VUbmQiOjI1MCwiY3VycmVuY3kiOiJUTkQiLCJtZXRhZGF0YSI6eyJob3RlbElkIjo1MDAwMDEsImNpdHlJZCI6MSwiYm9hcmRpbmdJZCI6MSwicm9vbUlkIjoxLCJteUdvVG9rZW4iOiJkdW1teS10b2tlbiJ9fX0"
-const WITH_TRAVELER =
-  "eyJkcmFmdCI6eyJtb2R1bGUiOiJob3RlbCIsIm9mZmVySWQiOiI1MDAwMDEtMS0xIiwib2ZmZXJMYWJlbCI6IkjDtHRlbCBUZXN0IE1vYmlsZSDigJQgQ2hhbWJyZSBEb3VibGUiLCJzdGFydERhdGUiOiIyMDI2LTA5LTEwIiwiZW5kRGF0ZSI6IjIwMjYtMDktMTMiLCJhZHVsdHMiOjIsImNoaWxkcmVuIjowLCJ1bml0UHJpY2VUbmQiOjI1MCwiY3VycmVuY3kiOiJUTkQiLCJtZXRhZGF0YSI6eyJob3RlbElkIjo1MDAwMDEsImNpdHlJZCI6MSwiYm9hcmRpbmdJZCI6MSwicm9vbUlkIjoxLCJteUdvVG9rZW4iOiJkdW1teS10b2tlbiJ9fSwidHJhdmVsZXIiOnsiY2l2aWxpdHkiOiJNIiwiZmlyc3ROYW1lIjoiU2FtaSIsImxhc3ROYW1lIjoiVGVzdCIsImVtYWlsIjoic2FtaS1tb2JpbGUtdGVzdEBleGFtcGxlLmNvbSIsInBob25lIjoiKzIxNiA5OCAxMjMgNDU2IiwiY2l2aWNJZFR5cGUiOiJjaW4iLCJjaXZpY0lkIjoiMTIzNDU2NzgifX0"
 
 const PAGES = [
   { name: "booking-step1-summary", url: `/booking?d=${DRAFT_ONLY}` },
   { name: "booking-travelers", url: `/booking/travelers?d=${DRAFT_ONLY}` },
   {
+    // DRAFT-PII-URL-02 : le voyageur n'est plus dans l'URL — cookie chiffré
+    // posé avant la navigation (même clé dérivée de PRICE_TOKEN_SECRET).
     name: "booking-checkout-payment",
-    url: `/booking/checkout?d=${WITH_TRAVELER}`,
+    url: `/booking/checkout?d=${DRAFT_ONLY}&t=${TRAVELER_REF}`,
+    withTravelerCookie: true,
   },
 ]
 
@@ -26,7 +43,19 @@ for (const width of [320, 375, 390, 414, 768]) {
   test.describe(`Checkout mobile — overflow @ ${width}px`, () => {
     test.use({ viewport: { width, height: 844 } })
     for (const p of PAGES) {
-      test(`${p.name} has no horizontal overflow`, async ({ page }) => {
+      test(`${p.name} has no horizontal overflow`, async ({
+        page,
+        context,
+      }) => {
+        if ("withTravelerCookie" in p && p.withTravelerCookie) {
+          await context.addCookies([
+            {
+              name: travelerCookieName(TRAVELER_REF),
+              value: sealTraveler(TRAVELER_REF, TRAVELER),
+              url: process.env.PLAYWRIGHT_BASE_URL ?? "http://localhost:3000",
+            },
+          ])
+        }
         await page.goto(p.url, { waitUntil: "networkidle" })
         const overflow = await page.evaluate(() => ({
           scrollWidth: document.documentElement.scrollWidth,

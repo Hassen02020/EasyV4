@@ -7,7 +7,9 @@ import { Footer } from "@/components/footer"
 import { Card, CardContent } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
 import { Badge } from "@/components/ui/badge"
-import { decodeDraft } from "@/lib/booking/draft-store"
+import { decodeDraft, draftOnlyToken } from "@/lib/booking/draft-store"
+import { resolveTraveler } from "@/lib/booking/resolve-traveler"
+import { isTravelerRef } from "@/lib/booking/traveler-cookie"
 import { computePriceBreakdown, formatMoney } from "@/lib/booking/pricing"
 import { resolveDraftHotelPrice } from "@/lib/booking/price-token"
 import { resolveLinkedAuthUserId } from "@/lib/booking/customer-identity"
@@ -42,12 +44,29 @@ async function CheckoutContent({ searchParams }: { searchParams: SP }) {
   const t = await getTranslations("Booking")
   const tc = await getTranslations("Common")
 
-  if (!payload || !payload.traveler) {
+  if (!payload) {
     redirect({ href: "/", locale })
     return null
   }
+  // DRAFT-PII-URL-01 : voyageur depuis le cookie chiffré du brouillon (`t`),
+  // ou ancien ?d= lu jusqu'au 2026-12-01. Jamais réécrit dans une URL.
+  const travelerRef =
+    typeof searchParams.t === "string" && isTravelerRef(searchParams.t)
+      ? searchParams.t
+      : undefined
+  const cleanToken = draftOnlyToken(payload)
+  const resolved = await resolveTraveler(payload, travelerRef)
+  if (!resolved) {
+    // Cookie absent, expiré ou falsifié : on redemande les informations.
+    redirect({
+      href: `/booking/travelers?d=${encodeURIComponent(cleanToken)}`,
+      locale,
+    })
+    return null
+  }
 
-  const { draft, traveler } = payload
+  const { draft } = payload
+  const { traveler } = resolved
 
   const MODULE_LABEL: Record<string, string> = {
     hotel: t("moduleLabelHotel"),
@@ -126,7 +145,7 @@ async function CheckoutContent({ searchParams }: { searchParams: SP }) {
       <main className="bg-muted/30 flex-1 py-8">
         <div className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
           <Link
-            href={`/booking/travelers?d=${encodeURIComponent(token ?? "")}`}
+            href={`/booking/travelers?d=${encodeURIComponent(cleanToken)}${travelerRef ? `&t=${encodeURIComponent(travelerRef)}` : ""}`}
             className="text-muted-foreground hover:text-foreground mb-4 inline-flex items-center text-sm"
           >
             <ChevronLeft className="size-4" />
@@ -203,6 +222,7 @@ async function CheckoutContent({ searchParams }: { searchParams: SP }) {
               >
                 <CheckoutForm
                   token={token!}
+                  travelerRef={travelerRef}
                   campaignId={campaignId}
                   walletBalanceTnd={walletBalanceTnd}
                   totalTnd={breakdown.totalTnd}

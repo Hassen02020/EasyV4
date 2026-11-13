@@ -15,7 +15,11 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
-import { decodeDraft, encodeDraft } from "@/lib/booking/draft-store"
+import {
+  decodeDraft,
+  draftOnlyToken,
+  encodeDraft,
+} from "@/lib/booking/draft-store"
 import { computePriceBreakdown, formatMoney } from "@/lib/booking/pricing"
 import { resolveDraftHotelPrice } from "@/lib/booking/price-token"
 import { BookingSteps } from "@/components/booking/booking-steps"
@@ -274,7 +278,7 @@ export default async function BookingStep1Page({
                   </div>
                   <Button asChild className="w-full" size="lg">
                     <Link
-                      href={`/booking/travelers?d=${encodeURIComponent(token2 ?? "")}`}
+                      href={`/booking/travelers?d=${encodeURIComponent(draftOnlyToken(payload))}${typeof sp.t === "string" ? `&t=${encodeURIComponent(sp.t)}` : ""}`}
                     >
                       {t("continueButton")}
                       <ArrowRight className="ml-2 size-4" />

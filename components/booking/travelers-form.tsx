@@ -6,7 +6,8 @@ import {
   travelerSchemaWithIdRule,
   type TravelerInput,
 } from "@/lib/booking/schemas"
-import { decodeDraft, encodeDraft } from "@/lib/booking/draft-store"
+import { decodeDraft, draftOnlyToken } from "@/lib/booking/draft-store"
+import { saveTravelerAction } from "@/lib/booking/traveler-cookie-actions"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -24,9 +25,12 @@ type FieldErrors = Partial<Record<keyof TravelerInput, string>>
 export function TravelersForm({
   token,
   initial,
+  travelerRef,
 }: {
   token: string
   initial?: TravelerInput
+  /** Référence opaque du brouillon voyageur (cookie), si déjà créée. */
+  travelerRef?: string
 }) {
   const router = useRouter()
   const [pending, startTransition] = useTransition()
@@ -70,12 +74,18 @@ export function TravelersForm({
       router.push("/")
       return
     }
-    const newToken = encodeDraft({
-      draft: payload.draft,
-      traveler: parsed.data,
-    })
-    startTransition(() => {
-      router.push(`/booking/checkout?d=${encodeURIComponent(newToken)}`)
+    // DRAFT-PII-URL-01 : le voyageur part dans un cookie HttpOnly chiffré
+    // (action serveur), jamais dans l'URL.
+    const draftToken = draftOnlyToken(payload)
+    startTransition(async () => {
+      const saved = await saveTravelerAction(parsed.data, travelerRef)
+      if (!saved.ok) {
+        setErrors({ firstName: saved.error })
+        return
+      }
+      router.push(
+        `/booking/checkout?d=${encodeURIComponent(draftToken)}&t=${encodeURIComponent(saved.ref)}`,
+      )
     })
   }
 

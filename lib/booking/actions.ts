@@ -26,6 +26,8 @@ import {
   getActiveFiscalRuleInTx,
 } from "@/lib/finance/fiscal-rules"
 import { decodeDraft } from "./draft-store"
+import { resolveTraveler } from "./resolve-traveler"
+import { checkoutIdempotencyKey } from "./traveler-cookie"
 import { debitPartnerCredit } from "@/lib/pro/booking-actions"
 import { getMarginsForAgency } from "@/lib/pro/server-context"
 import { resolveHotelAgencyPricer } from "@/lib/hotels/commercial-engine"
@@ -1151,9 +1153,23 @@ export async function submitCheckoutAction(
     return { ok: false, error: "Brouillon manquant" }
   }
   const payload = decodeDraft(token)
-  if (!payload || !payload.traveler) {
+  if (!payload) {
     return { ok: false, error: "Brouillon invalide ou incomplet" }
   }
+  // DRAFT-PII-URL-01 : voyageur depuis le cookie chiffré du brouillon (`t`),
+  // sinon ancien ?d= lu jusqu'au 2026-12-01 (clé d'idempotence d'origine).
+  const resolvedTraveler = await resolveTraveler(
+    payload,
+    String(formData.get("t") ?? ""),
+  )
+  if (!resolvedTraveler) {
+    return {
+      ok: false,
+      error:
+        "Informations voyageur introuvables ou expirées — merci de les saisir à nouveau.",
+    }
+  }
+  const traveler = resolvedTraveler.traveler
   const paymentMethod = String(formData.get("paymentMethod") ?? "card")
 
   const supabase = await createServerSupabase()
@@ -1165,13 +1181,18 @@ export async function submitCheckoutAction(
   if (partnerProfile) {
     const result = await createReservationFromDraft({
       draft: payload.draft,
-      traveler: payload.traveler,
+      traveler,
       // Stable pour une soumission identique (même brouillon) — un
       // double-clic/retry réseau reproduit la même clé et ne recrée pas une
       // deuxième réservation (voir findReservationByCheckoutIdempotencyKey).
       // Pas de paymentMethod ici : le B2B débite toujours le wallet agence,
       // aucun choix utilisateur ne varie entre deux tentatives du même brouillon.
-      idempotencyKey: createHash("sha256").update(`${token}:b2b`).digest("hex"),
+      idempotencyKey: checkoutIdempotencyKey({
+        token,
+        traveler,
+        mode: "b2b",
+        legacyTokenHasTraveler: resolvedTraveler.legacy,
+      }),
     })
     if (!result.ok) {
       return { ok: false, error: result.error }
@@ -1187,7 +1208,7 @@ export async function submitCheckoutAction(
   const { createGuestReservationFromDraft } = await import("./guest-actions")
   const result = await createGuestReservationFromDraft({
     draft: payload.draft,
-    traveler: payload.traveler,
+    traveler,
     paymentMethod:
       paymentMethod === "transfer" ||
       paymentMethod === "bank_deposit" ||
@@ -1199,9 +1220,12 @@ export async function submitCheckoutAction(
     // Stable pour une soumission identique (même brouillon, même mode de
     // paiement) — un double-clic/retry réseau reproduit la même clé et ne
     // recrée pas une deuxième réservation (voir withGuestIdempotency).
-    idempotencyKey: createHash("sha256")
-      .update(`${token}:${paymentMethod}`)
-      .digest("hex"),
+    idempotencyKey: checkoutIdempotencyKey({
+      token,
+      traveler,
+      mode: paymentMethod,
+      legacyTokenHasTraveler: resolvedTraveler.legacy,
+    }),
     campaignId,
   })
   if (!result.ok) {

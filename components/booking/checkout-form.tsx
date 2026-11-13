@@ -22,6 +22,7 @@ import {
 } from "lucide-react"
 import { submitCheckoutAction } from "@/lib/booking/actions"
 import { resolveDraftPriceAction } from "@/lib/booking/price-token-actions"
+import { readTravelerAction } from "@/lib/booking/traveler-cookie-actions"
 import { checkoutSchema } from "@/lib/booking/schemas"
 import { decodeDraft } from "@/lib/booking/draft-store"
 import { useCart } from "@/lib/cart/use-cart"
@@ -36,12 +37,15 @@ type Method =
 
 export function CheckoutForm({
   token,
+  travelerRef,
   campaignId,
   walletBalanceTnd = 0,
   totalTnd = 0,
   hotelCancellation,
 }: {
   token: string
+  /** DRAFT-PII-URL-01 — référence opaque du cookie voyageur de ce brouillon. */
+  travelerRef?: string
   /** CAMPAIGN-LINK-01 — indice optionnel depuis ?campaign=<uuid> dans l'URL. */
   campaignId?: string
   walletBalanceTnd?: number
@@ -118,11 +122,11 @@ export function CheckoutForm({
 
   function onAddToCart() {
     const payload = decodeDraft(token)
-    if (!payload?.traveler) {
+    if (!payload) {
       toast.error(t("missingTravelerInfo"))
       return
     }
-    const { draft, traveler } = payload
+    const { draft } = payload
     // Bug connu corrigé : ce bouton construisait une `CartLineHotel` avec
     // `module: "hotel"` codé en dur quel que soit `draft.module` (le
     // brouillon générique de ce tunnel — voir bootstrapDraftFromParams()
@@ -150,6 +154,11 @@ export function CheckoutForm({
       const resolved = await resolveDraftPriceAction(token)
       if (!resolved.verified) {
         toast.error(t("priceNotVerifiedToast"))
+        return
+      }
+      const traveler = await readTravelerAction(travelerRef, token)
+      if (!traveler) {
+        toast.error(t("missingTravelerInfo"))
         return
       }
       const priceTnd =
@@ -193,6 +202,7 @@ export function CheckoutForm({
     }
     const fd = new FormData()
     fd.set("draft", token)
+    if (travelerRef) fd.set("t", travelerRef)
     fd.set("paymentMethod", method)
     if (campaignId) fd.set("campaignId", campaignId)
     startTransition(async () => {

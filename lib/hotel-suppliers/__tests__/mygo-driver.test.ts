@@ -511,7 +511,7 @@ test("MyGoDriver.reconcileBooking : une seule réservation correspondante récen
         },
       ] as unknown as Awaited<ReturnType<MyGoClient["listBookings"]>>,
   })
-  const driver = new MyGoDriver(client, TEST_CONFIG)
+  const driver = new MyGoDriver(client, TEST_CONFIG, async () => new Set())
 
   const result = await driver.reconcileBooking({
     supplier: "mygo",
@@ -529,7 +529,7 @@ test("MyGoDriver.reconcileBooking : une seule réservation correspondante récen
 
 test("MyGoDriver.reconcileBooking : aucune réservation correspondante -> NOT_FOUND (Phase 27.2)", async () => {
   const client = mockClient({ listBookings: async () => [] })
-  const driver = new MyGoDriver(client, TEST_CONFIG)
+  const driver = new MyGoDriver(client, TEST_CONFIG, async () => new Set())
 
   const result = await driver.reconcileBooking({
     supplier: "mygo",
@@ -557,6 +557,52 @@ test("MyGoDriver.reconcileBooking : BookingList elle-même inaccessible -> STILL
   })
 
   assert.equal(result.outcome, "STILL_AMBIGUOUS")
+})
+
+const RECENT_LISTING = () =>
+  mockClient({
+    listBookings: async () =>
+      [
+        {
+          Id: 777,
+          Hotel: { Id: 555 },
+          CheckIn: "2026-09-10",
+          CheckOut: "2026-09-13",
+          State: "Validated",
+          Created: new Date().toISOString(),
+          Currency: "TND",
+          TotalPrice: 1838.7,
+          Rooms: [],
+        },
+      ] as unknown as Awaited<ReturnType<MyGoClient["listBookings"]>>,
+  })
+const RECONCILE_REQ = {
+  supplier: "mygo" as const,
+  supplierHotelCode: "555",
+  checkIn: "2026-09-10",
+  checkOut: "2026-09-13",
+}
+
+test("MYGO-RECONCILE-GUARD-01 : réservation myGo déjà rattachée à un autre client -> NOT_FOUND, jamais adoptée", async () => {
+  const driver = new MyGoDriver(
+    RECENT_LISTING(),
+    TEST_CONFIG,
+    async (ids) => new Set(ids.filter((i) => i === 777)),
+  )
+  assert.equal(
+    (await driver.reconcileBooking(RECONCILE_REQ)).outcome,
+    "NOT_FOUND",
+  )
+})
+
+test("MYGO-RECONCILE-GUARD-01 : lecture des rattachements en échec -> STILL_AMBIGUOUS, jamais d'adoption", async () => {
+  const driver = new MyGoDriver(RECENT_LISTING(), TEST_CONFIG, async () => {
+    throw new Error("db indisponible")
+  })
+  assert.equal(
+    (await driver.reconcileBooking(RECONCILE_REQ)).outcome,
+    "STILL_AMBIGUOUS",
+  )
 })
 
 test("MyGoDriver.cancel : mappe fee/currency/bookingId correctement vers SupplierCancellationResult", async () => {

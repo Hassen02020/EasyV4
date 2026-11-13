@@ -50,6 +50,7 @@ import {
  * une seconde qui pourrait diverger avec le temps. `lib/booking/hotel-provider-booking.ts`
  * ne dépend elle-même que de lib/mygo/** — aucun cycle réel introduit.
  */
+import { findLinkedMyGoBookingIds } from "@/lib/booking/linked-supplier-bookings"
 import {
   classifyMyGoBookingError,
   isAmbiguousBookingError,
@@ -70,6 +71,13 @@ export class MyGoDriver implements HotelSupplierDriver {
   constructor(
     private readonly client: MyGoClient = getMyGoClient(),
     private readonly configOverride?: MyGoConfig,
+    /**
+     * MYGO-RECONCILE-GUARD-01 — identifiants myGo déjà rattachés à une
+     * réservation locale (jamais adoptés). Injectable pour les tests.
+     */
+    private readonly findLinkedBookingIds: (
+      ids: ReadonlyArray<number>,
+    ) => Promise<Set<number>> = findLinkedMyGoBookingIds,
   ) {}
 
   getConfigStatus(): "CONFIGURED" | "NOT_CONFIGURED" {
@@ -342,6 +350,8 @@ export class MyGoDriver implements HotelSupplierDriver {
         fromDate: request.checkIn,
         toDate: request.checkIn,
       })
+      // MYGO-RECONCILE-GUARD-01 : jamais la réservation d'un autre client.
+      const linked = await this.findLinkedBookingIds(list.map((b) => b.Id))
       const match = reconcileAmbiguousBooking(
         list.map((b) => ({
           bookingId: b.Id,
@@ -354,6 +364,7 @@ export class MyGoDriver implements HotelSupplierDriver {
         { hotelId, checkIn: request.checkIn, checkOut: request.checkOut },
         Date.now(),
         request.windowMinutes,
+        linked,
       )
       if (!match) return { outcome: "NOT_FOUND" }
       const full = list.find((b) => b.Id === match.bookingId)

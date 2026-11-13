@@ -394,9 +394,16 @@ export function reconcileAmbiguousBooking(
   expected: { hotelId: number; checkIn: string; checkOut: string },
   nowMs: number,
   windowMinutes = 10,
+  /**
+   * MYGO-RECONCILE-GUARD-01 — identifiants myGo déjà rattachés à une
+   * réservation locale : jamais adoptés (voir linked-supplier-bookings.ts).
+   */
+  excludeBookingIds: ReadonlySet<number> = new Set(),
 ): BookingReconciliationCandidate | null {
   const cutoff = nowMs - windowMinutes * 60_000
   const matches = candidates.filter((c) => {
+    if (c.bookingId != null && excludeBookingIds.has(Number(c.bookingId)))
+      return false
     if (c.hotelId !== expected.hotelId) return false
     if (c.checkIn !== expected.checkIn) return false
     if (c.checkOut !== expected.checkOut) return false

@@ -27,6 +27,7 @@ import {
 } from "@/lib/finance/fiscal-rules"
 import { decodeDraft } from "./draft-store"
 import { resolveTraveler } from "./resolve-traveler"
+import { findLinkedMyGoBookingIds } from "./linked-supplier-bookings"
 import { checkoutIdempotencyKey } from "./traveler-cookie"
 import { debitPartnerCredit } from "@/lib/pro/booking-actions"
 import { getMarginsForAgency } from "@/lib/pro/server-context"
@@ -221,6 +222,8 @@ async function tryReconcileAmbiguousBooking(
       fromDate: draft.startDate,
       toDate: draft.startDate,
     })
+    // MYGO-RECONCILE-GUARD-01 : jamais la réservation d'un autre client.
+    const linked = await findLinkedMyGoBookingIds(list.map((b) => b.Id))
     const match = reconcileAmbiguousBooking(
       list.map((b) => ({
         bookingId: b.Id,
@@ -236,6 +239,8 @@ async function tryReconcileAmbiguousBooking(
         checkOut: draft.endDate ?? draft.startDate,
       },
       Date.now(),
+      undefined,
+      linked,
     )
     if (!match) return null
     const full = list.find((b) => b.Id === match.bookingId)

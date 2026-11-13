@@ -482,3 +482,42 @@ test("reconcileAmbiguousBooking: candidat au format production (heure de Tunis) 
   )
   assert.equal(match?.bookingId, 500999)
 })
+
+// MYGO-RECONCILE-GUARD-01 — jamais la réservation myGo d'un autre client.
+test("reconcileAmbiguousBooking: candidat déjà rattaché à une autre réservation → exclu (null)", () => {
+  const cand = {
+    bookingId: 918273,
+    hotelId: 646,
+    checkIn: "2026-09-10",
+    checkOut: "2026-09-13",
+    state: "Validated",
+    createdAt: "2026-08-20 10:18",
+  }
+  const exp = { hotelId: 646, checkIn: "2026-09-10", checkOut: "2026-09-13" }
+  assert.equal(reconcileAmbiguousBooking([cand], exp, NOW)?.bookingId, 918273)
+  assert.equal(
+    reconcileAmbiguousBooking([cand], exp, NOW, 10, new Set([918273])),
+    null,
+  )
+})
+
+test("reconcileAmbiguousBooking: un candidat rattaché + un libre → le libre est adopté", () => {
+  const base = {
+    hotelId: 646,
+    checkIn: "2026-09-10",
+    checkOut: "2026-09-13",
+    state: "Validated",
+    createdAt: "2026-08-20 10:18",
+  }
+  const m = reconcileAmbiguousBooking(
+    [
+      { ...base, bookingId: 1 },
+      { ...base, bookingId: 2 },
+    ],
+    { hotelId: 646, checkIn: "2026-09-10", checkOut: "2026-09-13" },
+    NOW,
+    10,
+    new Set([1]),
+  )
+  assert.equal(m?.bookingId, 2)
+})

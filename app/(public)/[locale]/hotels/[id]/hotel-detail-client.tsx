@@ -157,7 +157,9 @@ function HotelDetailContent({ id, agencyContact }: HotelDetailClientProps) {
             message?: string
             error?: string
           }
-          throw new Error(body.message ?? body.error ?? `HTTP ${r.status}`)
+          // HOTEL-ERROR-MESSAGE-01 : seul le code stable est conservé ; jamais
+          // de texte serveur affiché au client.
+          throw new Error(body.error ?? `HTTP ${r.status}`)
         }
         return r.json() as Promise<HotelDetailsDTO>
       })
@@ -223,7 +225,9 @@ function HotelDetailContent({ id, agencyContact }: HotelDetailClientProps) {
             message?: string
             error?: string
           }
-          throw new Error(body.message ?? body.error ?? `HTTP ${r.status}`)
+          // HOTEL-ERROR-MESSAGE-01 : seul le code stable est conservé ; jamais
+          // de texte serveur affiché au client.
+          throw new Error(body.error ?? `HTTP ${r.status}`)
         }
         return r.json() as Promise<HotelSearchResultDTO>
       })
@@ -560,7 +564,9 @@ function HotelDetailContent({ id, agencyContact }: HotelDetailClientProps) {
         <Header />
         <main className="mx-auto max-w-5xl px-4 py-12">
           <div className="border-destructive/40 bg-destructive/5 text-destructive rounded-lg border p-6 text-sm">
-            {t("loadError", { error: state.error ?? t("notFound") })}
+            {t("loadError", {
+              error: state.error ? t("apiErrorUnavailable") : t("notFound"),
+            })}
           </div>
           {/* PHASE 30.4 — audit : ce lien renvoyait toujours vers l'accueil,
               même quand la recherche d'origine (destination/dates/
@@ -687,7 +693,7 @@ function HotelDetailContent({ id, agencyContact }: HotelDetailClientProps) {
               ) : roomsEffectiveStatus === "error" ? (
                 <div className="border-destructive/40 bg-destructive/5 text-destructive rounded-lg border p-4 text-sm">
                   {t("unableToLoadRates", {
-                    error: roomsState.error ?? t("unknownError"),
+                    error: t("apiErrorUnavailable"),
                   })}
                 </div>
               ) : (

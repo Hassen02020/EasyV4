@@ -1,6 +1,16 @@
 import { test, expect } from "@playwright/test"
 import fr from "../messages/fr.json"
 import {
+  newTravelerRef,
+  sealTraveler,
+  travelerCookieName,
+} from "../lib/booking/traveler-cookie"
+import {
+  waitForRoute,
+  type Fetcher,
+  type RouteProbe,
+} from "./support/wait-for-route"
+import {
   EXPIRED_AGE_MS,
   TEST_TRAVELER,
   addTravelerCookie,
@@ -15,13 +25,59 @@ import {
  * paiement s'affiche, pas le bloc « prix non vérifié ».
  */
 
-// Serveur de dev froid (CI) : première compilation de chaque route avant les
-// assertions, pour ne pas confondre lenteur de compilation et comportement.
+// Serveur de dev froid (CI) : attente BORNÉE d'une vraie condition de
+// disponibilité (HTTP 200 + contenu propre à chaque route), jamais un GET dont
+// le statut serait ignoré. Un 404/500 persistant, une autre page ou une panne
+// réseau font ÉCHOUER la suite avec le dernier statut / la dernière erreur.
 test.beforeAll(async ({ request }) => {
-  for (const path of ["/fr/booking/checkout", "/fr/booking/travelers"]) {
-    await request.get(path, { timeout: 120_000, failOnStatusCode: false })
+  const fetcher: Fetcher = async (path) => {
+    // failOnStatusCode:false sert uniquement à LIRE le statut : tout statut
+    // différent de 200 est traité comme « non disponible » par waitForRoute.
+    const res = await request.get(path, {
+      maxRedirects: 0,
+      timeout: 30_000,
+      failOnStatusCode: false,
+      headers: path.includes("&t=" + WARMUP_REF)
+        ? { cookie: WARMUP_COOKIE }
+        : {},
+    })
+    return { status: res.status(), body: await res.text() }
   }
+  const draft = draftToken(true)
+  const probes: RouteProbe[] = [
+    {
+      label: "saisie voyageur",
+      path: `/fr/booking/travelers?d=${draft}`,
+      check: ({ body }) =>
+        body.includes('<html lang="fr"') &&
+        body.includes(fr.Booking.travelerDetailsTitle)
+          ? null
+          : "route inattendue (page ou titre voyageur absent)",
+    },
+    {
+      label:
+        "paiement sans cookie (redirection attendue vers la saisie voyageur)",
+      path: `/fr/booking/checkout?d=${draft}&t=AAAAAAAAAAAAAAAAAAAAAA`,
+      check: ({ body }) =>
+        body.includes("NEXT_REDIRECT;replace;/fr/booking/travelers")
+          ? null
+          : "route inattendue (redirection vers /booking/travelers absente)",
+    },
+    {
+      label: "paiement avec cookie valide (récapitulatif voyageur attendu)",
+      path: `/fr/booking/checkout?d=${draft}&t=${WARMUP_REF}`,
+      check: ({ body }) =>
+        body.includes(TEST_TRAVELER.email)
+          ? null
+          : "route inattendue (récapitulatif voyageur absent : cookie refusé ou page différente)",
+    },
+  ]
+  for (const probe of probes) await waitForRoute(fetcher, probe)
 })
+
+// Cookie de l'échauffement (référence propre, jamais réutilisée par les tests).
+const WARMUP_REF = newTravelerRef()
+const WARMUP_COOKIE = `${travelerCookieName(WARMUP_REF)}=${sealTraveler(WARMUP_REF, TEST_TRAVELER)}`
 
 const PII = [
   TEST_TRAVELER.email,

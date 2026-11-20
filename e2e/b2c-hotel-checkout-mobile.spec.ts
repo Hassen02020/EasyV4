@@ -1,20 +1,5 @@
 import { test, expect } from "@playwright/test"
-import {
-  newTravelerRef,
-  sealTraveler,
-  travelerCookieName,
-} from "../lib/booking/traveler-cookie"
-
-const TRAVELER_REF = newTravelerRef()
-const TRAVELER = {
-  civility: "M" as const,
-  firstName: "Sami",
-  lastName: "Test",
-  email: "sami-mobile-test@example.com",
-  phone: "+216 98 123 456",
-  civicIdType: "cin" as const,
-  civicId: "12345678",
-}
+import { addTravelerCookie, draftToken } from "./support/checkout-draft"
 
 /**
  * PHASE21.3 Step 9 — overflow check pour les états checkout/paiement qui
@@ -24,19 +9,15 @@ const TRAVELER = {
  * sans dépendre d'un vrai parcours recherche→sélection.
  */
 
-const DRAFT_ONLY =
-  "eyJkcmFmdCI6eyJtb2R1bGUiOiJob3RlbCIsIm9mZmVySWQiOiI1MDAwMDEtMS0xIiwib2ZmZXJMYWJlbCI6IkjDtHRlbCBUZXN0IE1vYmlsZSDigJQgQ2hhbWJyZSBEb3VibGUiLCJzdGFydERhdGUiOiIyMDI2LTA5LTEwIiwiZW5kRGF0ZSI6IjIwMjYtMDktMTMiLCJhZHVsdHMiOjIsImNoaWxkcmVuIjowLCJ1bml0UHJpY2VUbmQiOjI1MCwiY3VycmVuY3kiOiJUTkQiLCJtZXRhZGF0YSI6eyJob3RlbElkIjo1MDAwMDEsImNpdHlJZCI6MSwiYm9hcmRpbmdJZCI6MSwicm9vbUlkIjoxLCJteUdvVG9rZW4iOiJkdW1teS10b2tlbiJ9fX0"
+// DRAFT-PII-URL-02 : brouillon SIGNÉ (priceToken valide) — la page de paiement
+// affichée est la vraie, pas le bloc « prix non vérifié » — et voyageur dans un
+// cookie chiffré, jamais dans l'URL.
+const DRAFT = draftToken(true)
 
 const PAGES = [
-  { name: "booking-step1-summary", url: `/booking?d=${DRAFT_ONLY}` },
-  { name: "booking-travelers", url: `/booking/travelers?d=${DRAFT_ONLY}` },
-  {
-    // DRAFT-PII-URL-02 : le voyageur n'est plus dans l'URL — cookie chiffré
-    // posé avant la navigation (même clé dérivée de PRICE_TOKEN_SECRET).
-    name: "booking-checkout-payment",
-    url: `/booking/checkout?d=${DRAFT_ONLY}&t=${TRAVELER_REF}`,
-    withTravelerCookie: true,
-  },
+  { name: "booking-step1-summary", url: `/booking?d=${DRAFT}` },
+  { name: "booking-travelers", url: `/booking/travelers?d=${DRAFT}` },
+  { name: "booking-checkout-payment", url: "", withTravelerCookie: true },
 ]
 
 for (const width of [320, 375, 390, 414, 768]) {
@@ -47,23 +28,27 @@ for (const width of [320, 375, 390, 414, 768]) {
         page,
         context,
       }) => {
+        let url = p.url
         if ("withTravelerCookie" in p && p.withTravelerCookie) {
-          await context.addCookies([
-            {
-              name: travelerCookieName(TRAVELER_REF),
-              value: sealTraveler(TRAVELER_REF, TRAVELER),
-              url: process.env.PLAYWRIGHT_BASE_URL ?? "http://localhost:3000",
-            },
-          ])
+          const ref = await addTravelerCookie(context)
+          url = `/booking/checkout?d=${DRAFT}&t=${ref}`
         }
-        await page.goto(p.url, { waitUntil: "networkidle" })
+        await page.goto(url, { waitUntil: "networkidle" })
+        // Le test doit atteindre la PAGE visée : une redirection (cookie refusé,
+        // brouillon rejeté) ne doit pas passer pour un « pas de débordement ».
+        const expectedPath = p.name.startsWith("booking-checkout")
+          ? "/booking/checkout"
+          : p.name.startsWith("booking-travelers")
+            ? "/booking/travelers"
+            : "/booking"
+        expect(page.url()).toContain(expectedPath)
         const overflow = await page.evaluate(() => ({
           scrollWidth: document.documentElement.scrollWidth,
           clientWidth: document.documentElement.clientWidth,
         }))
         expect(
           overflow.scrollWidth,
-          `scrollWidth=${overflow.scrollWidth} clientWidth=${overflow.clientWidth} on ${p.url}`,
+          `scrollWidth=${overflow.scrollWidth} clientWidth=${overflow.clientWidth} on ${url}`,
         ).toBeLessThanOrEqual(overflow.clientWidth + 1)
       })
     }

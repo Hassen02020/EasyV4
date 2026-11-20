@@ -252,3 +252,91 @@ test("sortie : aucun log/journal ne reçoit le voyageur (actions serveur du cook
   assert.match(src, /sameSite: "lax"/)
   assert.match(src, /TRAVELER_COOKIE_MAX/)
 })
+
+// ---- idempotence : rejeu et génération des clés (DRAFT-PII-URL-02) -----------
+
+const keyOf = (
+  over: Partial<{ token: string; traveler: TravelerInput; mode: string }> = {},
+) =>
+  checkoutIdempotencyKey({
+    token: draftOnlyToken({ draft }),
+    traveler: A,
+    mode: "card",
+    ...over,
+  })
+
+test("rejeu : 100 appels identiques → une seule clé, 64 hexadécimaux", () => {
+  const keys = new Set(Array.from({ length: 100 }, () => keyOf()))
+  assert.equal(keys.size, 1)
+  assert.match([...keys][0]!, /^[0-9a-f]{64}$/)
+})
+
+test("génération : chaque champ du voyageur modifie la clé", () => {
+  const base = keyOf()
+  const changes: Partial<TravelerInput>[] = [
+    { civility: "Mme" },
+    { firstName: "Autre" },
+    { lastName: "Autre" },
+    { email: "autre@example.com" },
+    { phone: "+216 99 000 000" },
+    { civicIdType: "passport", civicId: "P1234567" },
+    { civicId: "87654321" },
+    { birthDate: "1990-01-01" },
+    { nationality: "TN" },
+  ]
+  for (const c of changes) {
+    assert.notEqual(
+      keyOf({ traveler: { ...A, ...c } }),
+      base,
+      JSON.stringify(c),
+    )
+  }
+})
+
+test("génération : brouillon, mode de paiement et mode B2B donnent des clés distinctes", () => {
+  const base = keyOf()
+  assert.notEqual(
+    keyOf({ token: draftOnlyToken({ draft: { ...draft, adults: 3 } }) }),
+    base,
+  )
+  const modes = [
+    "card",
+    "cash",
+    "transfer",
+    "bank_deposit",
+    "wallet",
+    "at_hotel",
+    "b2b",
+  ]
+  assert.equal(new Set(modes.map((m) => keyOf({ mode: m }))).size, modes.length)
+})
+
+test("génération : 2000 clients distincts → 2000 clés distinctes (aucune collision)", () => {
+  const keys = new Set<string>()
+  for (let i = 0; i < 2000; i++) {
+    keys.add(
+      keyOf({
+        traveler: {
+          ...A,
+          email: `client${i}@example.com`,
+          civicId: String(10_000_000 + i),
+        },
+      }),
+    )
+  }
+  assert.equal(keys.size, 2000)
+})
+
+test("clé HMAC : dépend du secret serveur (ce n'est pas un hachage public)", () => {
+  const before = process.env.PRICE_TOKEN_SECRET
+  try {
+    process.env.PRICE_TOKEN_SECRET = "secret-de-test-A".padEnd(40, "a")
+    const a = keyOf()
+    process.env.PRICE_TOKEN_SECRET = "secret-de-test-B".padEnd(40, "b")
+    const b = keyOf()
+    assert.notEqual(a, b)
+  } finally {
+    if (before === undefined) delete process.env.PRICE_TOKEN_SECRET
+    else process.env.PRICE_TOKEN_SECRET = before
+  }
+})

@@ -542,9 +542,13 @@ jobs:
           SQL
       - name: Install Playwright chromium
         run: pnpm exec playwright install chromium --with-deps
+      # DRAFT-PII-URL-02 : le même job couvre aussi le voyageur hors URL (cookie
+      # chiffré) et le test mobile du paiement (priceToken valide, cookie posé).
       - name: Guest booking E2E (MYGO_MODE=virtual, pnpm dev)
         run: |
           pnpm exec playwright test \
             e2e/b2c-hotel-guest-create-live.spec.ts \
+            e2e/b2c-hotel-checkout-mobile.spec.ts \
+            e2e/draft-pii-url-cookie.spec.ts \
             --project chromium \
             --config playwright.config.dev.ts

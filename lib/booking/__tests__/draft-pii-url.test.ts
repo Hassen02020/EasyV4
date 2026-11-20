@@ -10,7 +10,6 @@ import { readFileSync, readdirSync, statSync } from "node:fs"
 import { join } from "node:path"
 import type { TravelerInput } from "../schemas"
 import {
-  LEGACY_TRAVELER_IN_URL_UNTIL,
   TRAVELER_COOKIE_MAX,
   TRAVELER_COOKIE_TTL_MS,
   canonicalTraveler,
@@ -21,7 +20,7 @@ import {
   sealTraveler,
   travelerCookieName,
 } from "../traveler-cookie"
-import { decodeDraft, draftOnlyToken, encodeDraft } from "../draft-store"
+import { decodeDraft, draftOnlyToken } from "../draft-store"
 import { resolveTraveler } from "../resolve-traveler"
 
 const A: TravelerInput = {
@@ -121,13 +120,11 @@ test("idempotence : deux clients différents → clés différentes", () => {
     token,
     traveler: A,
     mode: "at_hotel",
-    legacyTokenHasTraveler: false,
   })
   const kB = checkoutIdempotencyKey({
     token,
     traveler: B,
     mode: "at_hotel",
-    legacyTokenHasTraveler: false,
   })
   assert.notEqual(kA, kB)
 })
@@ -139,7 +136,6 @@ test("idempotence : même client, même soumission → même clé ; mode ou brou
       token: tok,
       traveler: t,
       mode,
-      legacyTokenHasTraveler: false,
     })
   assert.equal(k(A, "card"), k({ ...A }, "card"))
   // L'ordre des clés du voyageur ne change pas la clé.
@@ -160,7 +156,6 @@ test("idempotence : HMAC (pas un sha256 simple du contenu)", () => {
     token,
     traveler: A,
     mode: "card",
-    legacyTokenHasTraveler: false,
   })
   const plain = createHash("sha256")
     .update(`${token}\n${canonicalTraveler(A)}\ncard`)
@@ -169,89 +164,40 @@ test("idempotence : HMAC (pas un sha256 simple du contenu)", () => {
   assert.match(key, /^[0-9a-f]{64}$/)
 })
 
-test("migration : ancien ?d= avec voyageur → clé IDENTIQUE à l'ancienne formule (aucun doublon)", () => {
-  // Valeurs figées calculées avec la formule d'origine :
-  // sha256(`${token}:b2b`) et sha256(`${token}:${paymentMethod}`).
-  const legacyToken = encodeDraft({ draft, traveler: A })
-  const before = (mode: string) =>
-    createHash("sha256").update(`${legacyToken}:${mode}`).digest("hex")
-  for (const mode of ["b2b", "card", "cash", "at_hotel"]) {
-    assert.equal(
-      checkoutIdempotencyKey({
-        token: legacyToken,
-        traveler: A,
-        mode,
-        legacyTokenHasTraveler: true,
-      }),
-      before(mode),
-    )
-  }
-  assert.equal(
-    createHash("sha256").update("TOKEN-X:b2b").digest("hex"),
-    "cef38138513654d454d47a124fdf003c389c7133ce7730d73d62448b93587fbc",
-  )
-  assert.equal(
-    checkoutIdempotencyKey({
-      token: "TOKEN-X",
-      traveler: A,
-      mode: "b2b",
-      legacyTokenHasTraveler: true,
-    }),
-    "cef38138513654d454d47a124fdf003c389c7133ce7730d73d62448b93587fbc",
-  )
-  // Deux clients en ancien format restent distincts (le token porte le voyageur).
-  assert.notEqual(
-    checkoutIdempotencyKey({
-      token: encodeDraft({ draft, traveler: A }),
-      traveler: A,
-      mode: "card",
-      legacyTokenHasTraveler: true,
-    }),
-    checkoutIdempotencyKey({
-      token: encodeDraft({ draft, traveler: B }),
-      traveler: B,
-      mode: "card",
-      legacyTokenHasTraveler: true,
-    }),
-  )
-})
+// ---- ancien ?d= (DRAFT-PII-URL-02 : lecture supprimée) ----------------------
 
-// ---- ancien ?d= -----------------------------------------------------------
+const legacyToken = (traveler: TravelerInput) =>
+  Buffer.from(JSON.stringify({ draft, traveler })).toString("base64url")
 
-test("ancien ?d= lu : draftOnlyToken ne recopie jamais le voyageur", () => {
-  const legacy = decodeDraft(encodeDraft({ draft, traveler: A }))!
-  assert.ok(legacy.traveler)
-  const clean = draftOnlyToken(legacy)
-  assert.equal(decodeDraft(clean)?.traveler, undefined)
+test("ancien ?d= avec voyageur : lu SANS voyageur, jamais réécrit", () => {
+  const read = decodeDraft(legacyToken(A))!
+  assert.deepEqual(Object.keys(read), ["draft"])
+  assert.equal((read as { traveler?: unknown }).traveler, undefined)
+  const clean = draftOnlyToken(read)
   const asText = Buffer.from(clean, "base64url").toString("utf8")
   for (const clear of ["12345678", "sami@example.com", "Sami", "civicId"])
     assert.ok(!asText.includes(clear), clear)
 })
 
-test("ancien ?d= : lu avant la date de fin, ignoré après", async () => {
-  const legacy = decodeDraft(encodeDraft({ draft, traveler: A }))!
-  const before = await resolveTraveler(
-    legacy,
-    undefined,
-    LEGACY_TRAVELER_IN_URL_UNTIL - 1,
-  )
-  assert.deepEqual(before, { traveler: A, legacy: true })
-  assert.equal(
-    await resolveTraveler(legacy, undefined, LEGACY_TRAVELER_IN_URL_UNTIL),
-    null,
-  )
-  assert.equal(
-    await resolveTraveler(
-      { draft },
-      undefined,
-      LEGACY_TRAVELER_IN_URL_UNTIL - 1,
-    ),
-    null,
-  )
-  assert.equal(
-    new Date(LEGACY_TRAVELER_IN_URL_UNTIL).toISOString(),
-    "2026-12-01T00:00:00.000Z",
-  )
+test("ancien ?d= avec voyageur : aucun voyageur résolu (le client ressaisit)", async () => {
+  const read = decodeDraft(legacyToken(A))
+  assert.equal(await resolveTraveler(read, undefined), null)
+  assert.equal(await resolveTraveler(read, "pas-une-ref"), null)
+})
+
+test("plus aucune trace du chemin legacy dans le code applicatif", () => {
+  const offenders: string[] = []
+  for (const dir of ["app", "components", "lib"]) {
+    for (const f of sources(dir)) {
+      if (
+        /legacyTokenHasTraveler|LEGACY_TRAVELER_IN_URL_UNTIL/.test(
+          readFileSync(f, "utf8"),
+        )
+      )
+        offenders.push(f)
+    }
+  }
+  assert.deepEqual(offenders, [])
 })
 
 // ---- grep de sortie : aucun voyageur dans une URL ---------------------------
@@ -305,4 +251,92 @@ test("sortie : aucun log/journal ne reçoit le voyageur (actions serveur du cook
   assert.match(src, /httpOnly: true/)
   assert.match(src, /sameSite: "lax"/)
   assert.match(src, /TRAVELER_COOKIE_MAX/)
+})
+
+// ---- idempotence : rejeu et génération des clés (DRAFT-PII-URL-02) -----------
+
+const keyOf = (
+  over: Partial<{ token: string; traveler: TravelerInput; mode: string }> = {},
+) =>
+  checkoutIdempotencyKey({
+    token: draftOnlyToken({ draft }),
+    traveler: A,
+    mode: "card",
+    ...over,
+  })
+
+test("rejeu : 100 appels identiques → une seule clé, 64 hexadécimaux", () => {
+  const keys = new Set(Array.from({ length: 100 }, () => keyOf()))
+  assert.equal(keys.size, 1)
+  assert.match([...keys][0]!, /^[0-9a-f]{64}$/)
+})
+
+test("génération : chaque champ du voyageur modifie la clé", () => {
+  const base = keyOf()
+  const changes: Partial<TravelerInput>[] = [
+    { civility: "Mme" },
+    { firstName: "Autre" },
+    { lastName: "Autre" },
+    { email: "autre@example.com" },
+    { phone: "+216 99 000 000" },
+    { civicIdType: "passport", civicId: "P1234567" },
+    { civicId: "87654321" },
+    { birthDate: "1990-01-01" },
+    { nationality: "TN" },
+  ]
+  for (const c of changes) {
+    assert.notEqual(
+      keyOf({ traveler: { ...A, ...c } }),
+      base,
+      JSON.stringify(c),
+    )
+  }
+})
+
+test("génération : brouillon, mode de paiement et mode B2B donnent des clés distinctes", () => {
+  const base = keyOf()
+  assert.notEqual(
+    keyOf({ token: draftOnlyToken({ draft: { ...draft, adults: 3 } }) }),
+    base,
+  )
+  const modes = [
+    "card",
+    "cash",
+    "transfer",
+    "bank_deposit",
+    "wallet",
+    "at_hotel",
+    "b2b",
+  ]
+  assert.equal(new Set(modes.map((m) => keyOf({ mode: m }))).size, modes.length)
+})
+
+test("génération : 2000 clients distincts → 2000 clés distinctes (aucune collision)", () => {
+  const keys = new Set<string>()
+  for (let i = 0; i < 2000; i++) {
+    keys.add(
+      keyOf({
+        traveler: {
+          ...A,
+          email: `client${i}@example.com`,
+          civicId: String(10_000_000 + i),
+        },
+      }),
+    )
+  }
+  assert.equal(keys.size, 2000)
+})
+
+test("clé HMAC : dépend du secret serveur (ce n'est pas un hachage public)", () => {
+  const before = process.env.PRICE_TOKEN_SECRET
+  try {
+    process.env.PRICE_TOKEN_SECRET = "secret-de-test-A".padEnd(40, "a")
+    const a = keyOf()
+    process.env.PRICE_TOKEN_SECRET = "secret-de-test-B".padEnd(40, "b")
+    const b = keyOf()
+    assert.notEqual(a, b)
+  } finally {
+    if (before === undefined) delete process.env.PRICE_TOKEN_SECRET
+    else process.env.PRICE_TOKEN_SECRET = before
+  }
 })

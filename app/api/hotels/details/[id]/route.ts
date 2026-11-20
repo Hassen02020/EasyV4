@@ -6,8 +6,8 @@
  */
 
 import { NextRequest, NextResponse } from "next/server"
+import { hotelErrorResponse } from "@/lib/api/hotel-error-response"
 import { getMyGoClient, mapHotelDetails } from "@/lib/mygo"
-import { MyGoAuthError, MyGoError } from "@/lib/mygo"
 import { requirePartnerSession } from "@/lib/api/auth-guard"
 
 export const revalidate = 86400
@@ -37,23 +37,6 @@ export async function GET(
 }
 
 function mapErrorToResponse(err: unknown): NextResponse {
-  if (err instanceof MyGoAuthError) {
-    return NextResponse.json(
-      { error: "auth_failed", message: "myGo credentials invalid" },
-      { status: 502 },
-    )
-  }
-  if (err instanceof MyGoError) {
-    return NextResponse.json(
-      { error: err.kind, message: err.message },
-      { status: 502 },
-    )
-  }
-  return NextResponse.json(
-    {
-      error: "internal",
-      message: err instanceof Error ? err.message : "unknown",
-    },
-    { status: 500 },
-  )
+  // HOTEL-ERROR-MESSAGE-01 : jamais de texte technique dans la réponse publique.
+  return hotelErrorResponse(err, "/api/hotels/details")
 }

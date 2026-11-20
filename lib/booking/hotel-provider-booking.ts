@@ -389,6 +389,15 @@ export function parseMyGoTimestamp(value: string): number | null {
  * lecture seule (BookingList, documenté par myGo) — pas une clé
  * d'idempotence inventée : myGo n'en documente pas.
  */
+/**
+ * MYGO-RECONCILE-WINDOW-01 (D3) — marge haute : une réservation « créée » plus
+ * de 2 h dans le futur est incohérente (date aberrante) et n'est jamais
+ * adoptée. 2 h et non 0 : le fuseau de `Created` (heure de Tunis, UTC+1) ne
+ * repose que sur 2 échantillons ; un décalage d'une heure ne doit pas faire
+ * rejeter un vrai candidat.
+ */
+export const RECONCILE_FUTURE_MARGIN_MS = 2 * 60 * 60 * 1000
+
 export function reconcileAmbiguousBooking(
   candidates: BookingReconciliationCandidate[],
   expected: { hotelId: number; checkIn: string; checkOut: string },
@@ -411,6 +420,7 @@ export function reconcileAmbiguousBooking(
     if (!c.createdAt) return false
     const created = parseMyGoTimestamp(c.createdAt)
     if (created == null || created < cutoff) return false
+    if (created > nowMs + RECONCILE_FUTURE_MARGIN_MS) return false
     return true
   })
   return matches.length === 1 ? matches[0]! : null

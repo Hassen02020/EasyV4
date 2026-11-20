@@ -37,6 +37,14 @@ import { resolveCheckoutPromoCore } from "@/lib/crm/promo-checkout-core"
 import { applyPromoDiscountCore } from "@/lib/finance/promo-discount-core"
 import { priceDrifted } from "@/lib/booking/pricing"
 import { buildTransferPickupAt } from "@/lib/transfers/pickup-at"
+import {
+  DUPLICATE_CONTENT_WINDOW_MS,
+  decideReplay,
+  fingerprintIdentity,
+  fingerprintRequest,
+  getAttemptTokenMode,
+  verifyAttemptToken,
+} from "@/lib/booking/attempt-token"
 
 /* -------------------------------------------------------------------------- */
 /* Types                                                                      */
@@ -74,6 +82,16 @@ export interface GuestTransferBookingInput {
    * la garde saute silencieusement.
    */
   expectedTotalTnd?: number
+  /**
+   * GUEST-IDEMPOTENCY-01 — jeton de tentative émis par le serveur
+   * (`issueGuestAttemptToken`). Ignoré en mode `off` (défaut).
+   */
+  attemptToken?: string
+  /**
+   * D9 « avertir » — le client confirme vouloir créer une seconde
+   * réservation au contenu identique (après avertissement DUPLICATE_CONTENT).
+   */
+  acknowledgeDuplicate?: boolean
 }
 
 export type CreateGuestTransferBookingResult =
@@ -166,18 +184,256 @@ export async function createGuestTransferBooking(
     }
   }
 
-  return withGuestIdempotency(
-    idempotencyKey,
-    () =>
-      runCreateGuestTransferBooking(
-        input,
-        agencyId,
-        idempotencyKey,
-        linkedAuthUserId,
-      ),
-    undefined,
-    () => findTransferReservationByIdempotencyKey(agencyId, idempotencyKey),
+  const mode = getAttemptTokenMode()
+
+  // M0 — comportement historique, strictement inchangé.
+  if (mode === "off") {
+    return withGuestIdempotency(
+      idempotencyKey,
+      () =>
+        runCreateGuestTransferBooking(
+          input,
+          agencyId,
+          idempotencyKey,
+          linkedAuthUserId,
+          null,
+        ),
+      undefined,
+      () => findTransferReservationByIdempotencyKey(agencyId, idempotencyKey),
+    )
+  }
+
+  // GUEST-IDEMPOTENCY-01 — empreintes d'identité (D15 : e-mail + téléphone),
+  // de requête complète (rejeu d'un jeton) et de contenu (contrôle niveau 2).
+  const identityFp = fingerprintIdentity("transfer", agencyId, {
+    email: input.customer.email,
+    phone: input.customer.phone,
+  })
+  const core = [
+    input.fromZoneId,
+    input.toZoneId,
+    input.vehicleType,
+    input.pickupDate,
+    input.pickupTime,
+    input.pax,
+  ]
+  const fps = {
+    identityFp,
+    contentFp: fingerprintRequest("transfer", agencyId, identityFp, core),
+    requestFp: fingerprintRequest("transfer", agencyId, identityFp, [
+      ...core,
+      input.luggageCount ?? 0,
+      input.flightNumber ?? "",
+      input.flightArrivalAt ?? "",
+      input.campaignId ?? "",
+    ]),
+    acknowledgeDuplicate: input.acknowledgeDuplicate === true,
+  }
+
+  if (input.attemptToken) {
+    const v = verifyAttemptToken(input.attemptToken, "transfer", agencyId)
+    if (!v.ok) {
+      return {
+        ok: false,
+        code: v.reason === "expired" ? "TOKEN_EXPIRED" : "TOKEN_INVALID",
+        error:
+          "Cette page de réservation a expiré. Rechargez la page pour continuer.",
+      }
+    }
+    return runTokenAttempt(input, agencyId, linkedAuthUserId, {
+      key: v.key,
+      ...fps,
+    })
+  }
+
+  // Sans jeton. M2 : création interdite, rejeu seul (par la clé de contenu
+  // historique, avec contrôle d'identité). M1 : chemin historique + niveau 2.
+  if (mode === "enforce") {
+    const row = await findTransferReplayRow(agencyId, idempotencyKey)
+    if (row) {
+      return replayResult(row, { key: idempotencyKey, ...fps }, agencyId)
+    }
+    return {
+      ok: false,
+      code: "TOKEN_REQUIRED",
+      error:
+        "Cette page de réservation est périmée. Rechargez la page pour continuer.",
+    }
+  }
+  // M1 sans jeton : source de vérité = la base (comme le chemin à jeton). Le
+  // cache Redis n'est volontairement pas utilisé ici : il met en cache aussi
+  // les refus (ex. avertissement de doublon) et bloquerait la confirmation.
+  return runTokenAttempt(input, agencyId, linkedAuthUserId, {
+    key: idempotencyKey,
+    ...fps,
+  })
+}
+
+/* -------------------------------------------------------------------------- */
+/* GUEST-IDEMPOTENCY-01 — tentative par jeton, source de vérité = la base     */
+/* -------------------------------------------------------------------------- */
+
+interface AttemptContext {
+  key: string
+  identityFp: string
+  requestFp: string
+  contentFp: string
+  acknowledgeDuplicate: boolean
+}
+
+interface ReplayRow {
+  id: string
+  publicRef: string
+  guestAccessToken: string
+  tndAmount: string | null
+  providerPayload: Record<string, unknown> | null
+  customerEmail: string | null
+  customerPhone: string | null
+}
+
+async function findTransferReplayRow(
+  agencyId: string,
+  key: string,
+): Promise<ReplayRow | null> {
+  const rows = await withSystemContext((db) =>
+    db
+      .select({
+        id: reservations.id,
+        publicRef: reservations.publicRef,
+        guestAccessToken: reservations.guestAccessToken,
+        tndAmount: reservations.tndAmount,
+        providerPayload: reservations.providerPayload,
+        customerEmail: customers.email,
+        customerPhone: customers.phone,
+      })
+      .from(reservations)
+      .leftJoin(customers, eq(customers.id, reservations.customerId))
+      .where(
+        and(
+          eq(reservations.agencyId, agencyId),
+          eq(reservations.guestIdempotencyKey, key),
+          eq(reservations.module, "transfer"),
+        ),
+      )
+      .limit(1),
   )
+  return (rows[0] as ReplayRow | undefined) ?? null
+}
+
+function replayResult(
+  row: ReplayRow,
+  attempt: AttemptContext,
+  agencyId: string,
+): CreateGuestTransferBookingResult {
+  const payload = row.providerPayload ?? {}
+  // Réservation d'avant déploiement : pas d'empreinte stockée → l'identité
+  // est reconstituée depuis le client enregistré ; la requête, déjà
+  // rapprochée par la clé de contenu historique, n'est pas re-comparée.
+  const storedIdentity =
+    typeof payload.idemIdentityFp === "string"
+      ? payload.idemIdentityFp
+      : fingerprintIdentity("transfer", agencyId, {
+          email: row.customerEmail,
+          phone: row.customerPhone,
+        })
+  const storedRequest =
+    typeof payload.idemRequestFp === "string"
+      ? payload.idemRequestFp
+      : attempt.requestFp
+  const decision = decideReplay(
+    { identityFp: storedIdentity, requestFp: storedRequest },
+    attempt,
+  )
+  if (decision === "mismatch") {
+    return {
+      ok: false,
+      code: "TOKEN_REUSED",
+      error:
+        "Cette réservation a déjà été enregistrée avec d'autres informations. Rechargez la page pour effectuer une nouvelle demande.",
+    }
+  }
+  return {
+    ok: true,
+    reservationId: row.id,
+    publicRef: row.publicRef,
+    guestAccessToken: row.guestAccessToken,
+    totalTnd: Number(row.tndAmount ?? 0),
+  }
+}
+
+/**
+ * Requêtes déjà en cours DANS CETTE INSTANCE, par clé. Évite que N requêtes
+ * simultanées du même jeton occupent chacune une connexion du pool (max 10)
+ * pour attendre le même verrou : les suivantes attendent la première, puis
+ * relisent la base. Entre instances, seul l'index unique fait foi.
+ */
+const inflightAttempts = new Map<
+  string,
+  Promise<CreateGuestTransferBookingResult>
+>()
+
+async function runTokenAttempt(
+  input: GuestTransferBookingInput,
+  agencyId: string,
+  linkedAuthUserId: string | null,
+  attempt: AttemptContext,
+): Promise<CreateGuestTransferBookingResult> {
+  const pending = inflightAttempts.get(attempt.key)
+  if (pending) {
+    await pending.catch(() => undefined)
+    const row = await findTransferReplayRow(agencyId, attempt.key)
+    if (row) return replayResult(row, attempt, agencyId)
+    // La première tentative n'a rien créé (validation en échec) : on tente.
+  }
+  const p = attemptOnce(input, agencyId, linkedAuthUserId, attempt)
+  inflightAttempts.set(attempt.key, p)
+  try {
+    return await p
+  } finally {
+    if (inflightAttempts.get(attempt.key) === p) {
+      inflightAttempts.delete(attempt.key)
+    }
+  }
+}
+
+async function attemptOnce(
+  input: GuestTransferBookingInput,
+  agencyId: string,
+  linkedAuthUserId: string | null,
+  attempt: AttemptContext,
+): Promise<CreateGuestTransferBookingResult> {
+  const existing = await findTransferReplayRow(agencyId, attempt.key)
+  if (existing) return replayResult(existing, attempt, agencyId)
+
+  const res = await runCreateGuestTransferBooking(
+    input,
+    agencyId,
+    attempt.key,
+    linkedAuthUserId,
+    attempt,
+  )
+  if (!res.ok && res.code === "UNIQUE_CONFLICT") {
+    // Course inter-instances : une autre requête du même jeton a committé
+    // entre-temps. Notre transaction est annulée (rien créé) ; la gagnante
+    // fait foi.
+    const winner = await findTransferReplayRow(agencyId, attempt.key)
+    if (winner) return replayResult(winner, attempt, agencyId)
+    return {
+      ok: false,
+      code: "INTERNAL_ERROR",
+      error: "Erreur interne. Veuillez réessayer ou nous contacter.",
+    }
+  }
+  return res
+}
+
+function isGuestIdempotencyConflict(err: unknown): boolean {
+  const e = err as { code?: string; constraint_name?: string; cause?: unknown }
+  const code = e?.code ?? (e?.cause as { code?: string } | undefined)?.code
+  const name =
+    e?.constraint_name ??
+    (e?.cause as { constraint_name?: string } | undefined)?.constraint_name
+  return code === "23505" && name === "reservations_guest_idempotency_uniq"
 }
 
 async function findTransferReservationByIdempotencyKey(
@@ -222,11 +478,38 @@ async function runCreateGuestTransferBooking(
   agencyId: string,
   idempotencyKey: string,
   linkedAuthUserId: string | null,
+  attempt: AttemptContext | null,
 ): Promise<CreateGuestTransferBookingResult> {
   try {
     const result = await withTenantContext(
       { agencyId, userId: "", isSuperAdmin: false },
       async (tx) => {
+        // GUEST-IDEMPOTENCY-01 niveau 2 — contrôle de contenu (D9 « avertir »),
+        // sérialisé par un verrou consultatif sur l'empreinte : deux créations
+        // concurrentes du même contenu (jetons différents, ou jeton et chemin
+        // historique) ne peuvent pas toutes deux passer sans se voir.
+        if (attempt) {
+          await tx.execute(
+            sql`SELECT pg_advisory_xact_lock(hashtext(${"idem-content:" + agencyId + ":" + attempt.contentFp}))`,
+          )
+          if (!attempt.acknowledgeDuplicate) {
+            const dup = await tx
+              .select({ id: reservations.id })
+              .from(reservations)
+              .where(
+                and(
+                  eq(reservations.agencyId, agencyId),
+                  eq(reservations.module, "transfer"),
+                  sql`${reservations.providerPayload}->>'idemContentFp' = ${attempt.contentFp}`,
+                  sql`${reservations.status} NOT IN ('cancelled','expired')`,
+                  sql`${reservations.createdAt} > now() - make_interval(secs => ${DUPLICATE_CONTENT_WINDOW_MS / 1000})`,
+                  sql`${reservations.guestIdempotencyKey} IS DISTINCT FROM ${attempt.key}`,
+                ),
+              )
+              .limit(1)
+            if (dup.length > 0) throw new Error("DUPLICATE_CONTENT")
+          }
+        }
         // 1. Prix 100% serveur — jamais fourni par le client
         const pricing = await calculateTransferPrice({
           fromZoneId: input.fromZoneId,
@@ -335,6 +618,13 @@ async function runCreateGuestTransferBooking(
               startDate: input.pickupDate,
               channel: "b2c_guest",
               paymentMethod: "transfer",
+              ...(attempt
+                ? {
+                    idemIdentityFp: attempt.identityFp,
+                    idemRequestFp: attempt.requestFp,
+                    idemContentFp: attempt.contentFp,
+                  }
+                : {}),
             },
           })
           .returning({
@@ -488,17 +778,31 @@ async function runCreateGuestTransferBooking(
       totalTnd: result.totalTnd,
     }
   } catch (err) {
+    if (attempt && isGuestIdempotencyConflict(err)) {
+      return {
+        ok: false,
+        code: "UNIQUE_CONFLICT",
+        error: "Réservation déjà en cours de traitement.",
+      }
+    }
     const msg = err instanceof Error ? err.message : String(err)
     const codes: Record<string, string> = {
       NO_PRICING: "Aucun tarif configuré pour cet itinéraire et ce véhicule",
       PRICE_CHANGED:
         msg.match(/PRICE_CHANGED: (.+)/)?.[1] ??
         "Le prix a changé, veuillez recharger la page.",
+      DUPLICATE_CONTENT:
+        "Une réservation identique existe déjà pour ces informations. Confirmez si vous souhaitez en créer une seconde.",
     }
     const code = Object.keys(codes).find((k) => msg.startsWith(k))
+    if (!code)
+      console.error("[createGuestTransferBooking] erreur interne:", err)
     return {
       ok: false,
-      error: code ? codes[code] : `Erreur interne: ${msg}`,
+      // Le message brut de la base n'est plus renvoyé au client (journalisé).
+      error: code
+        ? codes[code]
+        : "Erreur interne. Veuillez réessayer ou nous contacter.",
       code: code ?? "INTERNAL_ERROR",
     }
   }

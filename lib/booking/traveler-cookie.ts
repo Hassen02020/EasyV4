@@ -16,7 +16,6 @@
 import {
   createCipheriv,
   createDecipheriv,
-  createHash,
   createHmac,
   hkdfSync,
   randomBytes,
@@ -30,13 +29,6 @@ export const TRAVELER_COOKIE_TTL_MS = 2 * 60 * 60 * 1000
 /** Nombre maximal de brouillons voyageur conservés par navigateur. */
 export const TRAVELER_COOKIE_MAX = 3
 export const TRAVELER_COOKIE_PREFIX = "e2b_trv_"
-/**
- * Fin de lecture de l'ancien format `?d=` contenant le voyageur. Après cette
- * date, un voyageur présent dans l'URL est ignoré (le client ressaisit).
- * Suppression du chemin : chantier DRAFT-PII-URL-02.
- */
-export const LEGACY_TRAVELER_IN_URL_UNTIL = Date.parse("2026-12-01T00:00:00Z")
-
 const ID_RE = /^[A-Za-z0-9_-]{22}$/
 
 function secret(): string {
@@ -140,25 +132,15 @@ export function canonicalTraveler(t: TravelerInput): string {
 }
 
 /**
- * Clé d'idempotence d'un paiement invité / B2B.
- *  - `legacyTokenHasTraveler` : ancien `?d=` contenant le voyageur → formule
- *    d'origine GELÉE (sha256 du token entier), pour reproduire exactement la
- *    même clé qu'avant le déploiement : aucun doublon pour un client en cours
- *    de parcours. Chemin supprimé par DRAFT-PII-URL-02.
- *  - sinon : HMAC avec clé dérivée ; le voyageur entre dans le calcul, donc
- *    deux clients différents n'ont jamais la même clé.
+ * Clé d'idempotence d'un paiement invité / B2B : HMAC avec clé dérivée ; le
+ * voyageur entre dans le calcul, donc deux clients différents n'ont jamais la
+ * même clé. (DRAFT-PII-URL-02 : la formule sha256 de l'ancien ?d= est supprimée.)
  */
 export function checkoutIdempotencyKey(input: {
   token: string
   traveler: TravelerInput
   mode: string // moyen de paiement, ou "b2b"
-  legacyTokenHasTraveler: boolean
 }): string {
-  if (input.legacyTokenHasTraveler) {
-    return createHash("sha256")
-      .update(`${input.token}:${input.mode}`)
-      .digest("hex")
-  }
   return createHmac("sha256", derive("e2b:guest-idempotency:v1"))
     .update(
       `${input.token}\n${canonicalTraveler(input.traveler)}\n${input.mode}`,

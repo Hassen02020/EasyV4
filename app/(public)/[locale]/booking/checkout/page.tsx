@@ -49,7 +49,7 @@ async function CheckoutContent({ searchParams }: { searchParams: SP }) {
     return null
   }
   // DRAFT-PII-URL-01 : voyageur depuis le cookie chiffré du brouillon (`t`),
-  // ou ancien ?d= lu jusqu'au 2026-12-01. Jamais réécrit dans une URL.
+  // Jamais lu ni écrit dans l'URL (DRAFT-PII-URL-02).
   const travelerRef =
     typeof searchParams.t === "string" && isTravelerRef(searchParams.t)
       ? searchParams.t

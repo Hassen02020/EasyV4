@@ -1162,7 +1162,7 @@ export async function submitCheckoutAction(
     return { ok: false, error: "Brouillon invalide ou incomplet" }
   }
   // DRAFT-PII-URL-01 : voyageur depuis le cookie chiffré du brouillon (`t`),
-  // sinon ancien ?d= lu jusqu'au 2026-12-01 (clé d'idempotence d'origine).
+  // jamais lu dans l'URL.
   const resolvedTraveler = await resolveTraveler(
     payload,
     String(formData.get("t") ?? ""),
@@ -1196,7 +1196,6 @@ export async function submitCheckoutAction(
         token,
         traveler,
         mode: "b2b",
-        legacyTokenHasTraveler: resolvedTraveler.legacy,
       }),
     })
     if (!result.ok) {
@@ -1229,7 +1228,6 @@ export async function submitCheckoutAction(
       token,
       traveler,
       mode: paymentMethod,
-      legacyTokenHasTraveler: resolvedTraveler.legacy,
     }),
     campaignId,
   })

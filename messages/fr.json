@@ -566,6 +566,7 @@
     "backToHome": "Retour à l'accueil",
     "selectDatesForRates": "Sélectionnez vos dates pour voir les tarifs disponibles.",
     "unableToLoadRates": "Impossible de charger les tarifs : {error}",
+    "apiErrorUnavailable": "Service temporairement indisponible. Merci de réessayer.",
     "whyChooseTitle": "Pourquoi choisir cet hôtel",
     "starsCount": "Hôtel {stars} étoiles",
     "freeCancellationAvailable": "Annulation gratuite disponible sur au moins une chambre",

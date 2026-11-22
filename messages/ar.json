@@ -566,6 +566,7 @@
     "backToHome": "العودة إلى الرئيسية",
     "selectDatesForRates": "اختر تواريخك لمعرفة الأسعار المتاحة.",
     "unableToLoadRates": "تعذّر تحميل الأسعار: {error}",
+    "apiErrorUnavailable": "الخدمة موش متوفرة توّا. عاود جرّب بعد شوية.",
     "whyChooseTitle": "لماذا تختار هذا الفندق",
     "starsCount": "فندق {stars} نجوم",
     "freeCancellationAvailable": "إلغاء مجاني متاح على غرفة واحدة على الأقل",

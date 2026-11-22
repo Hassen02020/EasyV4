@@ -566,6 +566,7 @@
     "backToHome": "Back to home",
     "selectDatesForRates": "Select your dates to see available rates.",
     "unableToLoadRates": "Unable to load rates: {error}",
+    "apiErrorUnavailable": "Service temporarily unavailable. Please try again.",
     "whyChooseTitle": "Why choose this hotel",
     "starsCount": "{stars}-star hotel",
     "freeCancellationAvailable": "Free cancellation available on at least one room",

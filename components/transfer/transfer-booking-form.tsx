@@ -32,6 +32,7 @@ import { Separator } from "@/components/ui/separator"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Loader2, MapPin, Car, CreditCard } from "lucide-react"
 import { createGuestTransferBooking } from "@/lib/transfers/guest-booking-actions"
+import { issueGuestAttemptToken } from "@/lib/booking/attempt-token-actions"
 import {
   calculateTransferPrice,
   type TransferPricingResult,
@@ -114,6 +115,10 @@ export function TransferBookingForm({
   const router = useRouter()
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
+  // GUEST-IDEMPOTENCY-01 — jeton de tentative (un par instance de formulaire,
+  // émis par le serveur ; null tant que le mode jeton est désactivé).
+  const [attemptToken, setAttemptToken] = useState<string | null>(null)
+  const [duplicateWarning, setDuplicateWarning] = useState(false)
   const [pricing, setPricing] = useState<TransferPricingResult | null>(null)
   const [pricingError, setPricingError] = useState<string | null>(null)
 
@@ -182,9 +187,27 @@ export function TransferBookingForm({
     // eslint-disable-next-line react-hooks/exhaustive-deps -- une seule fois au montage ; les changements suivants sont déclenchés explicitement par les handlers onChange/onValueChange
   }, [])
 
-  const onSubmit = async (data: TransferBookingFormData) => {
+  useEffect(() => {
+    let cancelled = false
+    issueGuestAttemptToken("transfer")
+      .then((r) => {
+        if (!cancelled && r.ok) setAttemptToken(r.token)
+      })
+      .catch(() => {
+        // Jeton indisponible : le serveur décidera (mode off = sans jeton).
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  const onSubmit = async (
+    data: TransferBookingFormData,
+    acknowledgeDuplicate = false,
+  ) => {
     setIsSubmitting(true)
     setSubmitError(null)
+    setDuplicateWarning(false)
 
     try {
       const result = await createGuestTransferBooking({
@@ -200,10 +223,13 @@ export function TransferBookingForm({
         customer: data.customer,
         campaignId,
         expectedTotalTnd: pricing?.totalTnd,
+        attemptToken: attemptToken ?? undefined,
+        acknowledgeDuplicate,
       })
 
       if (!result.ok) {
         setSubmitError(result.error)
+        if (result.code === "DUPLICATE_CONTENT") setDuplicateWarning(true)
       } else {
         router.push(
           `/booking/confirmation/${result.publicRef}?token=${result.guestAccessToken}`,
@@ -230,11 +256,28 @@ export function TransferBookingForm({
 
       {submitError && (
         <Alert variant="destructive" className="rounded-lg">
-          <AlertDescription>{submitError}</AlertDescription>
+          <AlertDescription>
+            {submitError}
+            {duplicateWarning && (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="mt-3 block"
+                disabled={isSubmitting}
+                onClick={() => form.handleSubmit((d) => onSubmit(d, true))()}
+              >
+                Créer quand même une seconde réservation
+              </Button>
+            )}
+          </AlertDescription>
         </Alert>
       )}
 
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+      <form
+        onSubmit={form.handleSubmit((d) => onSubmit(d))}
+        className="space-y-6"
+      >
         {/* Zones Selection */}
         <Card className="border-sidebar/10 rounded-lg border-2">
           <CardHeader className="bg-sidebar/5 rounded-t-lg">

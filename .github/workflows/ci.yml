@@ -315,6 +315,8 @@ jobs:
             lib/inngest/functions/__tests__/recover-mutuelle-missing-invoices-live.test.ts \
             lib/finance/__tests__/manual-payment-voucher-dispatch.integration.test.ts \
             lib/finance/__tests__/manual-payment-transfer-voucher.integration.test.ts \
+            lib/transfers/__tests__/guest-idempotency-attempt-live.test.ts \
+            lib/transfers/__tests__/guest-idempotency-multiinstance-live.test.ts \
             lib/finance/__tests__/manual-payment-inngest-reliability.integration.test.ts \
             lib/inngest/functions/__tests__/transfer-email-idempotency.integration.test.ts \
             lib/inngest/functions/__tests__/car-flight-email-idempotency.integration.test.ts \

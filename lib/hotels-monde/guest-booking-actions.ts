@@ -130,6 +130,19 @@ export async function createGuestWorldHotelBooking(input: {
    */
   campaignId?: string
 }): Promise<CreateGuestWorldHotelBookingResult> {
+  // M10 — refus serveur avant idempotence, fournisseur, paiement ou écriture DB.
+  // Tous les jetons actuellement acceptés par ce parcours proviennent du
+  // Virtual World Hotel Supplier ; aucune réservation RateHawk réelle n'est
+  // encore branchée dans cette action.
+  const bookingBlock = getWorldHotelBookingBlock()
+  if (bookingBlock) {
+    return {
+      ok: false,
+      error: bookingBlock.message,
+      code: bookingBlock.code,
+    }
+  }
+
   if (!process.env.DATABASE_URL) {
     return { ok: false, error: "Base de données non configurée" }
   }
@@ -147,19 +160,6 @@ export async function createGuestWorldHotelBooking(input: {
     return {
       ok: false,
       error: "Mode de paiement invalide pour une réservation en ligne.",
-    }
-  }
-
-  // M10 — refus serveur avant idempotence, fournisseur, paiement ou écriture DB.
-  // Tous les jetons actuellement acceptés par ce parcours proviennent du
-  // Virtual World Hotel Supplier ; aucune réservation RateHawk réelle n'est
-  // encore branchée dans cette action.
-  const bookingBlock = getWorldHotelBookingBlock()
-  if (bookingBlock) {
-    return {
-      ok: false,
-      error: bookingBlock.message,
-      code: bookingBlock.code,
     }
   }
 

@@ -34,7 +34,7 @@ test.describe("M10 — blocage serveur des réservations Hôtels Monde démo", (
       .getByLabel(/J'accepte les conditions générales de vente d'Easy2Book/)
       .check()
     await page
-      .getByLabel(/J'accepte la politique d'annulation/)
+      .getByLabel(/j'accepte la politique d'annulation/i)
       .check()
 
     await page.getByRole("button", { name: /Confirmer & payer/i }).click()

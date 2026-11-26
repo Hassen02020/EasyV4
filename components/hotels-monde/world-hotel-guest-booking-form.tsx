@@ -152,7 +152,11 @@ export function WorldHotelGuestBookingForm({
         campaignId,
       })
       if (!result.ok) {
-        setSubmitError(result.error)
+        setSubmitError(
+          result.code === "DEMO_SUPPLIER_BOOKING_DISABLED"
+            ? t("demoBookingUnavailable")
+            : result.error,
+        )
         setIsSubmitting(false)
         return
       }

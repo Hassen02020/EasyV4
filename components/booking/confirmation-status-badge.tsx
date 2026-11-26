@@ -18,8 +18,9 @@
 import * as React from "react"
 import { useRouter } from "@/i18n/navigation"
 import { useTranslations } from "next-intl"
-import { CheckCircle2, Clock, XCircle } from "lucide-react"
-import { Badge } from "@/components/ui/badge"
+import { Clock } from "lucide-react"
+import { StatusBadge } from "@/components/ui/status-badge"
+import { confirmationStatusTone } from "@/lib/booking/confirmation-status-tone"
 import { useRealtimeBroadcast } from "@/lib/supabase/use-realtime-broadcast"
 
 export function ConfirmationStatusBadge({
@@ -33,46 +34,16 @@ export function ConfirmationStatusBadge({
   const t = useTranslations("Booking")
   const tc = useTranslations("Common")
 
-  const STATUS_VARIANTS: Record<
-    string,
-    { label: string; className: string; icon: typeof Clock }
-  > = {
-    pending: {
-      label: t("statusPendingValidation"),
-      className: "bg-amber-500 text-white hover:bg-amber-500",
-      icon: Clock,
-    },
-    on_request: {
-      label: t("statusOnRequestSupplier"),
-      className: "bg-sky-500 text-white hover:bg-sky-500",
-      icon: Clock,
-    },
-    confirmed: {
-      label: t("statusConfirmedByE2B"),
-      className: "bg-emerald-600 text-white hover:bg-emerald-600",
-      icon: CheckCircle2,
-    },
-    cancelled: {
-      label: tc("statusCancelled"),
-      className: "bg-red-600 text-white hover:bg-red-600",
-      icon: XCircle,
-    },
-    completed: {
-      label: t("statusCompletedShort"),
-      className: "bg-emerald-700 text-white hover:bg-emerald-700",
-      icon: CheckCircle2,
-    },
-    refunded: {
-      label: tc("statusRefunded"),
-      className: "bg-purple-600 text-white hover:bg-purple-600",
-      icon: XCircle,
-    },
-    no_show: {
-      label: tc("statusNoShow"),
-      className: "bg-slate-500 text-white hover:bg-slate-500",
-      icon: XCircle,
-    },
-  }
+  const STATUS_LABELS: Record<string, { label: string; icon?: typeof Clock }> =
+    {
+      pending: { label: t("statusPendingValidation"), icon: Clock },
+      on_request: { label: t("statusOnRequestSupplier"), icon: Clock },
+      confirmed: { label: t("statusConfirmedByE2B") },
+      cancelled: { label: tc("statusCancelled") },
+      completed: { label: t("statusCompletedShort") },
+      refunded: { label: tc("statusRefunded") },
+      no_show: { label: tc("statusNoShow") },
+    }
 
   useRealtimeBroadcast(
     `reservation-${publicRef}`,
@@ -82,17 +53,15 @@ export function ConfirmationStatusBadge({
     }, [router]),
   )
 
-  const meta = STATUS_VARIANTS[status] ?? {
-    label: status,
-    className: "bg-slate-500 text-white hover:bg-slate-500",
-    icon: Clock,
-  }
-  const Icon = meta.icon
+  const meta = STATUS_LABELS[status] ?? { label: status }
 
   return (
-    <Badge className={`mt-3 gap-1 ${meta.className}`}>
-      <Icon className="size-3" />
+    <StatusBadge
+      tone={confirmationStatusTone(status)}
+      icon={meta.icon}
+      className="mt-3"
+    >
       {t("statusPrefix", { status: meta.label })}
-    </Badge>
+    </StatusBadge>
   )
 }

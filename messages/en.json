@@ -361,6 +361,7 @@
     "pricePerPilgrim": "Price per pilgrim",
     "totalTtc": "Total (incl. tax)",
     "confirmAndPay": "Confirm & pay",
+    "demoBookingUnavailable": "These are demonstration offers. Online booking is temporarily unavailable. Please contact our agency for a confirmed offer.",
     "processing": "Processing…",
     "mustAcceptCgv": "You must accept the terms and conditions of sale.",
     "mustAcceptPolicy": "You must accept the cancellation policy.",

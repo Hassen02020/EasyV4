@@ -205,7 +205,7 @@ export function CarBookingForm({
   return (
     <div className="mx-auto max-w-4xl space-y-6 px-4 sm:px-6 lg:px-8">
       <div className="space-y-2">
-        <h1 className="text-sidebar text-2xl font-bold sm:text-3xl">
+        <h1 className="text-brand-ink text-2xl font-bold sm:text-3xl">
           Réservation de Voiture
         </h1>
         <p className="text-muted-foreground text-sm sm:text-base">
@@ -223,7 +223,7 @@ export function CarBookingForm({
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
         <Card className="border-sidebar/10 rounded-lg border-2">
           <CardHeader className="bg-sidebar/5 rounded-t-lg">
-            <CardTitle className="text-sidebar flex items-center gap-2">
+            <CardTitle className="text-brand-ink flex items-center gap-2">
               <Car className="h-5 w-5" />
               Véhicule & Assurance
             </CardTitle>
@@ -231,7 +231,7 @@ export function CarBookingForm({
           <CardContent className="space-y-4 pt-6">
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div className="space-y-2">
-                <Label className="text-sidebar text-sm font-medium">
+                <Label className="text-brand-ink text-sm font-medium">
                   Catégorie
                 </Label>
                 <Select
@@ -255,7 +255,7 @@ export function CarBookingForm({
               </div>
 
               <div className="space-y-2">
-                <Label className="text-sidebar flex items-center gap-1.5 text-sm font-medium">
+                <Label className="text-brand-ink flex items-center gap-1.5 text-sm font-medium">
                   <ShieldCheck className="h-3.5 w-3.5" />
                   Assurance
                 </Label>
@@ -285,7 +285,7 @@ export function CarBookingForm({
 
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div className="space-y-2">
-                <Label className="text-sidebar text-sm font-medium">
+                <Label className="text-brand-ink text-sm font-medium">
                   Lieu de prise en charge
                 </Label>
                 <Select
@@ -308,7 +308,7 @@ export function CarBookingForm({
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label className="text-sidebar text-sm font-medium">
+                <Label className="text-brand-ink text-sm font-medium">
                   Lieu de retour
                 </Label>
                 <Select
@@ -332,7 +332,7 @@ export function CarBookingForm({
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div className="grid grid-cols-2 gap-2">
                 <div className="space-y-2">
-                  <Label className="text-sidebar text-sm font-medium">
+                  <Label className="text-brand-ink text-sm font-medium">
                     Prise en charge
                   </Label>
                   <Input
@@ -346,7 +346,7 @@ export function CarBookingForm({
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label className="text-sidebar text-sm font-medium">
+                  <Label className="text-brand-ink text-sm font-medium">
                     Heure
                   </Label>
                   <Input
@@ -362,7 +362,7 @@ export function CarBookingForm({
               </div>
               <div className="grid grid-cols-2 gap-2">
                 <div className="space-y-2">
-                  <Label className="text-sidebar text-sm font-medium">
+                  <Label className="text-brand-ink text-sm font-medium">
                     Retour
                   </Label>
                   <Input
@@ -376,7 +376,7 @@ export function CarBookingForm({
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label className="text-sidebar text-sm font-medium">
+                  <Label className="text-brand-ink text-sm font-medium">
                     Heure
                   </Label>
                   <Input
@@ -396,7 +396,7 @@ export function CarBookingForm({
 
         <Card className="border-sidebar/10 rounded-lg border-2">
           <CardHeader className="bg-sidebar/5 rounded-t-lg">
-            <CardTitle className="text-sidebar flex items-center gap-2">
+            <CardTitle className="text-brand-ink flex items-center gap-2">
               <IdCard className="h-5 w-5" />
               Conducteur principal
             </CardTitle>
@@ -404,7 +404,7 @@ export function CarBookingForm({
           <CardContent className="space-y-4 pt-6">
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div className="space-y-2">
-                <Label className="text-sidebar text-sm font-medium">
+                <Label className="text-brand-ink text-sm font-medium">
                   Prénom *
                 </Label>
                 <Input
@@ -419,7 +419,7 @@ export function CarBookingForm({
                 )}
               </div>
               <div className="space-y-2">
-                <Label className="text-sidebar text-sm font-medium">
+                <Label className="text-brand-ink text-sm font-medium">
                   Nom *
                 </Label>
                 <Input
@@ -437,7 +437,7 @@ export function CarBookingForm({
 
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div className="space-y-2">
-                <Label className="text-sidebar text-sm font-medium">
+                <Label className="text-brand-ink text-sm font-medium">
                   Téléphone *
                 </Label>
                 <Input
@@ -452,7 +452,7 @@ export function CarBookingForm({
                 )}
               </div>
               <div className="space-y-2">
-                <Label className="text-sidebar text-sm font-medium">
+                <Label className="text-brand-ink text-sm font-medium">
                   Email
                 </Label>
                 <Input
@@ -466,7 +466,7 @@ export function CarBookingForm({
 
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
               <div className="space-y-2">
-                <Label className="text-sidebar text-sm font-medium">
+                <Label className="text-brand-ink text-sm font-medium">
                   N° Permis de conduire *
                 </Label>
                 <Input
@@ -481,7 +481,7 @@ export function CarBookingForm({
                 )}
               </div>
               <div className="space-y-2">
-                <Label className="text-sidebar text-sm font-medium">
+                <Label className="text-brand-ink text-sm font-medium">
                   Pays du permis
                 </Label>
                 <Input
@@ -491,7 +491,7 @@ export function CarBookingForm({
                 />
               </div>
               <div className="space-y-2">
-                <Label className="text-sidebar text-sm font-medium">
+                <Label className="text-brand-ink text-sm font-medium">
                   Date de naissance
                 </Label>
                 <Input
@@ -513,7 +513,7 @@ export function CarBookingForm({
         {pricing && (
           <Card className="bg-sidebar/5 border-sidebar/10 rounded-lg border-2">
             <CardHeader className="bg-sidebar/10 rounded-t-lg">
-              <CardTitle className="text-sidebar flex items-center gap-2">
+              <CardTitle className="text-brand-ink flex items-center gap-2">
                 <CreditCard className="h-5 w-5" />
                 Devis — {pricing.rentalDays} jour
                 {pricing.rentalDays > 1 ? "s" : ""}
@@ -524,7 +524,7 @@ export function CarBookingForm({
                 <span className="text-sm sm:text-base">
                   Location ({pricing.dailyRateTnd.toFixed(3)} DT/jour)
                 </span>
-                <span className="text-sidebar font-semibold">
+                <span className="text-brand-ink font-semibold">
                   {pricing.baseTotalTnd.toFixed(3)} DT
                 </span>
               </div>
@@ -548,7 +548,7 @@ export function CarBookingForm({
               )}
               <Separator className="bg-sidebar/20" />
               <div className="flex items-center justify-between text-lg sm:text-xl">
-                <span className="text-sidebar font-semibold">Total TTC</span>
+                <span className="text-brand-ink font-semibold">Total TTC</span>
                 <span className="text-accent font-bold">
                   {pricing.totalTnd.toFixed(3)} DT
                 </span>

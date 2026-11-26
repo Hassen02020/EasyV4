@@ -17,7 +17,7 @@ export function CartBadgeLink({ variant }: { variant: "desktop" | "mobile" }) {
         className="text-foreground hover:bg-muted flex items-center gap-3 rounded-lg px-4 py-3 text-sm font-medium transition-colors"
       >
         <span className="relative">
-          <ShoppingCart className="text-sidebar size-5" />
+          <ShoppingCart className="text-brand-ink size-5" />
           {count > 0 ? (
             <span className="bg-accent text-accent-foreground absolute -top-1.5 -right-1.5 flex size-4 items-center justify-center rounded-full text-[10px] font-bold">
               {count}

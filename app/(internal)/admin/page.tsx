@@ -107,7 +107,7 @@ function statusBadge(status: RecentBooking["status"]) {
     case "pending":
     case "on_request":
       return (
-        <Badge className="bg-warning/20 text-warning-foreground hover:bg-warning/20">
+        <Badge className="bg-warning/20 text-warning hover:bg-warning/20">
           <Clock className="mr-1 size-3" />
           En attente
         </Badge>

@@ -491,6 +491,7 @@
     "removeBabyAria": "حذف الرضيع {n}",
     "removeChildAria": "حذف الطفل {n}",
     "searchButton": "بحث",
+    "searchHint": "اختر الوجهة وتواريخ الإقامة لبدء البحث.",
     "onlyAvailableFilter": "التوفر الفعلي فقط",
     "categoryFilter": "الفئة",
     "starsUnit": "نجوم",

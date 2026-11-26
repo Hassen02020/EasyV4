@@ -47,7 +47,7 @@ export function LanguageSwitcher({
               <span className="font-medium">{meta.label}</span>
             </span>
             {locale === currentLocale && (
-              <Check className="text-sidebar size-3.5" aria-hidden="true" />
+              <Check className="text-brand-ink size-3.5" aria-hidden="true" />
             )}
           </DropdownMenuItem>
         )
@@ -68,12 +68,12 @@ export function LanguageSwitcher({
           className={triggerClass}
           aria-label={t("switchLanguage")}
         >
-          {variant === "mobile" && <Globe className="text-sidebar size-5" />}
-          <span className="text-sidebar text-base font-bold tracking-wider uppercase">
+          {variant === "mobile" && <Globe className="text-brand-ink size-5" />}
+          <span className="text-brand-ink text-base font-bold tracking-wider uppercase">
             {currentLocale}
           </span>
           <ChevronDown
-            className="text-sidebar size-3.5 opacity-60"
+            className="text-brand-ink size-3.5 opacity-60"
             aria-hidden="true"
           />
         </button>

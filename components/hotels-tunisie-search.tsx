@@ -485,6 +485,7 @@ export function HotelsTunisieSearch({
           <Button
             onClick={handleSearch}
             disabled={!isFormValid}
+            aria-describedby={!isFormValid ? "hotel-search-hint" : undefined}
             size="lg"
             className="h-auto w-full gap-2 rounded-2xl px-8 text-base font-semibold shadow-md lg:w-auto"
           >
@@ -493,6 +494,14 @@ export function HotelsTunisieSearch({
           </Button>
         </div>
       </div>
+      {!isFormValid && (
+        <p
+          id="hotel-search-hint"
+          className="text-muted-foreground -mt-2 text-xs"
+        >
+          {t("searchHint")}
+        </p>
+      )}
     </div>
   )
 }

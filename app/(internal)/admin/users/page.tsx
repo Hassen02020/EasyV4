@@ -64,7 +64,7 @@ const ROLE_CONFIG: Record<
   },
   agent_compta: {
     label: "Agent Compta",
-    color: "bg-warning/20 text-warning-foreground",
+    color: "bg-warning/20 text-warning",
     icon: User,
   },
   agent_excursions: {

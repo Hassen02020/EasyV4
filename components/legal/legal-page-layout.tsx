@@ -52,8 +52,8 @@ export function LegalPageLayout({
           </p>
 
           <div className="border-warning/40 bg-warning/10 mt-6 flex items-start gap-3 rounded-2xl border p-4">
-            <AlertTriangle className="text-warning-foreground mt-0.5 size-5 shrink-0" />
-            <p className="text-warning-foreground text-sm leading-relaxed">
+            <AlertTriangle className="text-warning mt-0.5 size-5 shrink-0" />
+            <p className="text-warning text-sm leading-relaxed">
               {noticeOverride ??
                 t.rich("legalNotice", {
                   strong: (chunks) => <strong>{chunks}</strong>,

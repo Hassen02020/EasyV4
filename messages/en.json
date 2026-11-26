@@ -491,6 +491,7 @@
     "removeBabyAria": "Remove infant {n}",
     "removeChildAria": "Remove child {n}",
     "searchButton": "Search",
+    "searchHint": "Choose a destination and your dates to start the search.",
     "onlyAvailableFilter": "Real availability only",
     "categoryFilter": "Category",
     "starsUnit": "stars",

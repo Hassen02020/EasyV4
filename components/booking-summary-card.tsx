@@ -156,7 +156,7 @@ function Timeline({ status }: { status: BookingStatus }) {
                   done
                     ? "border-emerald-500 bg-emerald-500 text-white"
                     : active
-                      ? "border-sidebar bg-sidebar/10 text-sidebar"
+                      ? "border-sidebar bg-sidebar/10 text-brand-ink"
                       : "border-border bg-card text-muted-foreground"
                 }`}
               >
@@ -331,10 +331,10 @@ export function BookingCard({
       <div className="bg-sidebar/3 flex items-center justify-between gap-4 border-b px-5 py-4">
         <div className="flex items-center gap-3">
           <div className="bg-sidebar/10 flex h-10 w-10 items-center justify-center rounded-xl">
-            <ModuleIcon className="text-sidebar h-5 w-5" />
+            <ModuleIcon className="text-brand-ink h-5 w-5" />
           </div>
           <div>
-            <p className="text-sidebar text-xs font-medium">{moduleLabel}</p>
+            <p className="text-brand-ink text-xs font-medium">{moduleLabel}</p>
             <p className="text-foreground font-mono text-lg font-bold tracking-wider">
               {booking.publicRef}
             </p>

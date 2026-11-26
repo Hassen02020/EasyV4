@@ -146,9 +146,9 @@ export default async function ComptePage() {
               priority
             />
             <span className="text-base font-bold">
-              <span className="text-sidebar">Easy</span>
+              <span className="text-brand-ink">Easy</span>
               <span className="text-accent">2</span>
-              <span className="text-sidebar">Book</span>
+              <span className="text-brand-ink">Book</span>
             </span>
           </Link>
           <Link
@@ -183,7 +183,7 @@ export default async function ComptePage() {
             className="border-sidebar/20 bg-sidebar/5 hover:bg-sidebar/10 mb-6 flex flex-col gap-2 rounded-2xl border p-4 text-sm transition-colors sm:flex-row sm:items-center sm:justify-between"
           >
             <div>
-              <p className="text-sidebar text-xs font-semibold tracking-wide uppercase">
+              <p className="text-brand-ink text-xs font-semibold tracking-wide uppercase">
                 {t("nextReservationLabel")}
               </p>
               <p className="text-foreground mt-1 flex items-center gap-1.5 font-medium">

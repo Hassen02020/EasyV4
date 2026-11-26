@@ -39,6 +39,8 @@
   --primary-hover: color-mix(in oklab, var(--primary) 78%, black);
   --primary-pressed: color-mix(in oklab, var(--primary) 62%, black);
   --primary-soft: color-mix(in oklab, var(--primary) 10%, white);
+  /* Encre de marque pour texte/icônes du header public (clair : bleu profond). */
+  --brand-ink: #002a5c;
 
   /* Secondary : surfaces secondaires douces */
   --secondary: oklch(0.96 0.015 85);
@@ -110,6 +112,7 @@
   --primary-hover: color-mix(in oklab, var(--primary) 85%, white);
   --primary-pressed: color-mix(in oklab, var(--primary) 70%, white);
   --primary-soft: color-mix(in oklab, var(--primary) 18%, #0b1b33);
+  --brand-ink: #9cc2f5; /* lisible sur fond nuit */
 
   --secondary: oklch(0.28 0.04 250);
   --secondary-foreground: oklch(0.97 0.005 85);
@@ -166,6 +169,7 @@
   --color-primary-hover: var(--primary-hover);
   --color-primary-pressed: var(--primary-pressed);
   --color-primary-soft: var(--primary-soft);
+  --color-brand-ink: var(--brand-ink);
   --color-secondary: var(--secondary);
   --color-secondary-foreground: var(--secondary-foreground);
   --color-muted: var(--muted);

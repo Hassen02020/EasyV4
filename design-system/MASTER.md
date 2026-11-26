@@ -12,7 +12,7 @@
 ## 1. Principes
 
 1. **Confiance avant tout.** Un OTA manipule de l'argent : prix, taxes, conditions d'annulation et statuts sont toujours explicites, jamais décoratifs.
-2. **Une action principale par écran**, en bleu de marque. Le reste est secondaire.
+2. **Une action doit dominer visuellement chaque écran** : l'action principale, en bleu de marque (`primary`). Les autres actions pertinentes restent possibles (secondaires, discrètes) ; c'est particulièrement vrai dans le back-office, où plusieurs actions de même importance peuvent coexister (filtres, export, actions en ligne). Règle : jamais deux boutons `primary` pleins en concurrence dans la même zone de décision.
 3. **Le sens ne repose jamais sur la couleur seule** : icône + libellé (statuts, erreurs, disponibilité).
 4. **Mobile d'abord** (390 px), puis 768 px, puis 1280 px. Aucun défilement horizontal de page.
 5. **FR / EN / AR à égalité.** Le RTL est un cas nominal, pas une adaptation tardive.
@@ -120,7 +120,7 @@ Tous dans `components/ui/` (shadcn/Radix). Règle de réutilisation : **SEARCH �
 | `link`        | navigation textuelle                                                  |
 | `destructive` | suppression / annulation irréversible, avec confirmation              |
 
-Tailles : `sm` 32 px, `default` 36 px, `lg` 40 px, `icon*`. **Cible tactile ≥ 44 × 44 px sur mobile** : pour les boutons importants utiliser `lg` ou une hauteur explicite `h-11`.
+Tailles : `sm` 32 px, `default` 36 px, `lg` 40 px, `icon*`. **Cible tactile : 44 × 44 px est la cible générale pour toute interaction tactile sur mobile** (boutons, liens isolés, champs, éléments de liste cliquables). Pour les actions importantes, utiliser `lg` ou une hauteur explicite `h-11`. Des exceptions sont admises si elles sont justifiées (par exemple contrôles denses de tableau en back-office, icônes à l'intérieur d'un champ déjà assez grand, liens dans un paragraphe de texte), à condition que la zone cliquable reste confortable (espacement suffisant autour) et qu'une alternative accessible existe.
 États : `hover` (`primary-hover`), `active` (`primary-pressed`), `focus-visible` (anneau 3 px `ring`), `disabled` (opacité 50 % + `pointer-events-none`).
 Bouton désactivé : **toujours expliquer pourquoi** (texte d'aide relié par `aria-describedby`, ex. `Hotels.searchHint`) ; ne pas laisser un grisé muet.
 
@@ -185,7 +185,7 @@ Sidebar `#002A5C` ; tableaux denses (`DataTable`) avec en-tête collant, tri, pa
 ## 9. Accessibilité (obligatoire)
 
 - Navigation clavier complète ; focus visible (anneau `ring`) ; ordre logique ; pas de piège de focus hors modales.
-- Cibles tactiles ≥ 44 px ; espacement ≥ 8 px entre cibles.
+- Cibles tactiles : 44 × 44 px comme cible générale sur mobile, avec exceptions justifiées (voir 7.1) ; espacement ≥ 8 px entre cibles.
 - Chaque champ a un libellé programmatique ; erreurs `aria-invalid` + `aria-describedby`.
 - Annonces : erreurs `role="alert"`, chargements `role="status"`.
 - Images : `alt` utile ou `alt=""` si décoratives ; icônes seules avec `aria-label`.
@@ -234,7 +234,7 @@ Tester systématiquement 390 / 768 / 1280, en FR et AR, en clair et en sombre.
 2. **Couleurs brutes restantes** dans des composants publics et admin (`emerald`, `amber`, `red`, `slate`…) à migrer vers les tokens et `StatusBadge`.
 3. **Accent doré du « 2 » du logo** : valeur fixe, à confirmer pour le mode sombre.
 4. **Vérifications manquantes en vrai navigateur** : formulaire de recherche avec JavaScript sur la production, pages admin authentifiées (`StatusBadge` du tableau des réservations), vraie agence White Label.
-5. **Cibles tactiles** : certains boutons `default` (36 px) sont sous 44 px sur mobile.
+5. **Cibles tactiles** : certains boutons `default` (36 px) sont sous la cible générale de 44 px sur mobile ; à examiner au cas par cas (exception justifiée ou passage à `lg`).
 6. **`muted-foreground` clair `#6B7280`** : environ 4,5 : 1 sur le fond jasmin, à la limite ; ne pas l'utiliser pour du texte de moins de 14 px sur une surface plus foncée.
 
 ## 15. Références dans le dépôt

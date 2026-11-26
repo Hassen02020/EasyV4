@@ -49,7 +49,7 @@ export const MODULE_CAPABILITIES: Record<string, ModuleCapability> = {
   hotelsMonde: {
     label: "Hôtels Monde",
     status: "DEMO",
-    note: 'Booking réel (paiement/DB/confirmation, lib/hotels-monde/guest-booking-actions.ts), mais fournisseur de recherche/inventaire simulé (isDemoMode, driver "virtual").',
+    note: 'Recherche et inventaire simulés (driver "virtual"). Réservation refusée côté serveur tant qu’un véritable adaptateur de réservation fournisseur n’est pas branché.',
     bookingActionFile: "lib/hotels-monde/guest-booking-actions.ts",
     demoSupplierFile: "lib/hotels-monde/supplier-drivers.ts",
   },

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo, useCallback } from "react"
+import { useState, useMemo, useCallback, useId } from "react"
 import { useRouter } from "@/i18n/navigation"
 import { useTranslations, useLocale } from "next-intl"
 import { useCities } from "@/hooks/use-cities"
@@ -80,6 +80,8 @@ export function HotelsTunisieSearch({
   const router = useRouter()
   const t = useTranslations("Hotels")
   const tCommon = useTranslations("Common")
+  // id unique par instance : le formulaire est rendu deux fois (desktop + tiroir mobile).
+  const searchHintId = useId()
   const locale = useLocale()
 
   // City selection state
@@ -485,7 +487,7 @@ export function HotelsTunisieSearch({
           <Button
             onClick={handleSearch}
             disabled={!isFormValid}
-            aria-describedby={!isFormValid ? "hotel-search-hint" : undefined}
+            aria-describedby={!isFormValid ? searchHintId : undefined}
             size="lg"
             className="h-auto w-full gap-2 rounded-2xl px-8 text-base font-semibold shadow-md lg:w-auto"
           >
@@ -495,10 +497,7 @@ export function HotelsTunisieSearch({
         </div>
       </div>
       {!isFormValid && (
-        <p
-          id="hotel-search-hint"
-          className="text-muted-foreground -mt-2 text-xs"
-        >
+        <p id={searchHintId} className="text-muted-foreground -mt-2 text-xs">
           {t("searchHint")}
         </p>
       )}

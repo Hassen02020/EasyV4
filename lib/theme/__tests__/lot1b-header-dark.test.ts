@@ -31,7 +31,9 @@ test("indice de recherche : clé présente et non vide en fr/en/ar", () => {
     assert.ok(m.Hotels.searchHint && m.Hotels.searchHint.length > 10, l)
   }
   const src = readFileSync("components/hotels-tunisie-search.tsx", "utf8")
-  assert.match(src, /aria-describedby=\{!isFormValid/)
+  assert.match(src, /aria-describedby=\{!isFormValid \? searchHintId/)
+  // le formulaire existe en 2 instances (desktop + tiroir) : pas d'id statique dupliqué
+  assert.doesNotMatch(src, /id="hotel-search-hint"/)
 })
 
 test("tableau admin : badge partagé, statuts inchangés ; texte sur teinte jamais blanc", () => {

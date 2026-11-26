@@ -486,7 +486,7 @@ export function HotelsTunisieSearch({
             onClick={handleSearch}
             disabled={!isFormValid}
             size="lg"
-            className="from-primary to-accent hover:shadow-primary/30 h-auto w-full gap-2 rounded-2xl bg-gradient-to-r px-8 text-base font-semibold text-white uppercase shadow-lg transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xl active:translate-y-0 disabled:opacity-50 disabled:hover:translate-y-0 disabled:hover:shadow-lg lg:w-auto"
+            className="h-auto w-full gap-2 rounded-2xl px-8 text-base font-semibold shadow-md lg:w-auto"
           >
             <Search className="size-4" />
             {t("searchButton")}

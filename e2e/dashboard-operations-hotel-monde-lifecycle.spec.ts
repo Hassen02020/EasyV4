@@ -39,10 +39,9 @@ test.describe("M10 — blocage serveur des réservations Hôtels Monde démo", (
 
     await page.getByRole("button", { name: /Confirmer & payer/i }).click()
 
-    await expect(page.getByRole("alert")).toContainText(
-      /offres de démonstration/i,
-      { timeout: 10_000 },
-    )
+    await expect(
+      page.getByRole("alert").filter({ hasText: /offres de démonstration/i }),
+    ).toBeVisible({ timeout: 10_000 })
     await expect(page).toHaveURL(/\/hotels-monde\/book\?/)
     await expect(page).not.toHaveURL(/\/booking\/confirmation\//)
   })

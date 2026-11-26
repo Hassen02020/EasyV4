@@ -11,7 +11,7 @@ export function ModuleBackHomeLink({ label }: { label: string }) {
     <div className="mx-auto max-w-2xl px-4 py-10 text-center">
       <Link
         href="/"
-        className="text-sidebar focus-visible:ring-ring/50 inline-flex items-center gap-1.5 rounded-md text-sm font-medium outline-none hover:underline focus-visible:ring-[3px]"
+        className="text-brand-ink focus-visible:ring-ring/50 inline-flex items-center gap-1.5 rounded-md text-sm font-medium outline-none hover:underline focus-visible:ring-[3px]"
       >
         <ArrowLeft className="size-4" aria-hidden="true" />
         {label}

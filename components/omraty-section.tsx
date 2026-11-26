@@ -21,7 +21,7 @@ export function OmratySection({ imageUrl }: { imageUrl?: string | null }) {
             className={imageUrl ? "grid grid-cols-1 lg:grid-cols-2" : undefined}
           >
             <div className="flex flex-col justify-center p-6 sm:p-8 lg:p-10">
-              <h2 className="text-sidebar mb-3 text-2xl font-bold sm:text-3xl">
+              <h2 className="text-brand-ink mb-3 text-2xl font-bold sm:text-3xl">
                 {t("omraTitle")}
               </h2>
               <p className="text-muted-foreground text-base leading-relaxed sm:text-lg">

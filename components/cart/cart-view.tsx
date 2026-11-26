@@ -273,7 +273,7 @@ export function CartView() {
                 >
                   <CardContent className="flex items-start justify-between gap-3 py-4">
                     <div className="flex items-start gap-3">
-                      <span className="bg-sidebar/10 text-sidebar mt-0.5 inline-flex size-9 shrink-0 items-center justify-center rounded-md">
+                      <span className="bg-sidebar/10 text-brand-ink mt-0.5 inline-flex size-9 shrink-0 items-center justify-center rounded-md">
                         <Icon className="size-4" />
                       </span>
                       <div>
@@ -316,7 +316,7 @@ export function CartView() {
             <CardContent className="space-y-4 py-4">
               <div className="flex items-center justify-between text-lg">
                 <span className="font-semibold">{t("totalEstimated")}</span>
-                <span className="text-sidebar font-bold">
+                <span className="text-brand-ink font-bold">
                   {total.toFixed(3)} DT
                 </span>
               </div>

@@ -1,6 +1,6 @@
 import type { CSSProperties, ReactNode } from "react"
 
-import { Geist, Geist_Mono } from "next/font/google"
+import { Geist, Geist_Mono, Noto_Sans_Arabic } from "next/font/google"
 
 import { Analytics } from "@vercel/analytics/next"
 
@@ -15,6 +15,19 @@ import { QueryProvider } from "@/components/query-provider"
 import "@/app/globals.css"
 
 const geistSans = Geist({ subsets: ["latin"], variable: "--font-geist-sans" })
+
+/**
+ * UI-LOT1A : police arabe dédiée (Geist ne couvre pas l'arabe). `preload: false`
+ * + unicode-range : n'est téléchargée que si une page contient de l'arabe.
+ * Réversible : retirer cette constante, sa variable ci-dessous et la règle
+ * `:lang(ar)` de globals.css.
+ */
+const notoArabic = Noto_Sans_Arabic({
+  subsets: ["arabic"],
+  variable: "--font-arabic",
+  display: "swap",
+  preload: false,
+})
 
 const geistMono = Geist_Mono({
   subsets: ["latin"],
@@ -51,7 +64,7 @@ export function RootShell({
     <html
       lang={lang}
       dir={dir}
-      className={`${geistSans.variable} ${geistMono.variable} bg-background`}
+      className={`${geistSans.variable} ${geistMono.variable} ${notoArabic.variable} bg-background`}
       style={brandVars ? (brandVars as CSSProperties) : undefined}
       suppressHydrationWarning
     >

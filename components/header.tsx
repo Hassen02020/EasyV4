@@ -87,14 +87,14 @@ export function Header({
               />
             )}
             {brandName ? (
-              <span className="text-sidebar text-xl font-bold">
+              <span className="text-brand-ink text-xl font-bold">
                 {brandName}
               </span>
             ) : (
               <span className="text-xl font-bold">
-                <span className="text-sidebar">Easy</span>
+                <span className="text-brand-ink">Easy</span>
                 <span className="text-accent">2</span>
-                <span className="text-sidebar">Book</span>
+                <span className="text-brand-ink">Book</span>
               </span>
             )}
           </Link>
@@ -134,7 +134,7 @@ export function Header({
             <Button
               variant="outline"
               size="sm"
-              className="border-sidebar text-sidebar hover:bg-sidebar ml-2 gap-1.5 hover:text-white"
+              className="border-brand-ink text-brand-ink hover:bg-primary-soft ml-2 gap-1.5"
               asChild
             >
               <Link href="/compte">
@@ -180,7 +180,7 @@ export function Header({
                   className={cn(
                     "focus-visible:ring-ring/50 flex items-center gap-1.5 rounded-t-sm border-b-2 px-3 py-2.5 text-sm font-medium whitespace-nowrap transition-colors outline-none focus-visible:ring-[3px]",
                     active
-                      ? "border-accent text-sidebar"
+                      ? "border-accent text-brand-ink"
                       : "text-muted-foreground hover:text-foreground border-transparent",
                   )}
                 >
@@ -220,7 +220,7 @@ export function Header({
                       className={cn(
                         "focus-visible:ring-ring/50 flex items-center gap-2 rounded-lg px-4 py-3 text-sm font-medium transition-colors outline-none focus-visible:ring-[3px]",
                         active
-                          ? "bg-muted text-sidebar"
+                          ? "bg-muted text-brand-ink"
                           : "text-foreground hover:bg-muted",
                       )}
                     >
@@ -244,7 +244,7 @@ export function Header({
                 className="text-foreground hover:bg-muted flex items-center gap-3 rounded-lg px-4 py-3 text-sm font-medium transition-colors"
                 onClick={() => setMobileMenuOpen(false)}
               >
-                <HelpCircle className="text-sidebar size-5" />
+                <HelpCircle className="text-brand-ink size-5" />
                 <span>{t("help")}</span>
               </Link>
             )}
@@ -253,17 +253,14 @@ export function Header({
               className="text-foreground hover:bg-muted flex items-center gap-3 rounded-lg px-4 py-3 text-sm font-medium transition-colors"
               onClick={() => setMobileMenuOpen(false)}
             >
-              <CalendarCheck className="text-sidebar size-5" />
+              <CalendarCheck className="text-brand-ink size-5" />
               <span>{t("myBookings")}</span>
             </Link>
             <div onClick={() => setMobileMenuOpen(false)}>
               <CartBadgeLink variant="mobile" />
             </div>
             <div className="border-border border-t pt-4">
-              <Button
-                className="bg-sidebar hover:bg-sidebar/90 w-full gap-2"
-                asChild
-              >
+              <Button className="w-full gap-2" asChild>
                 <Link href="/compte" onClick={() => setMobileMenuOpen(false)}>
                   <User className="size-4" />
                   {loggedIn ? t("monCompte") : t("connexion")}

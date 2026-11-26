@@ -219,7 +219,7 @@ export function TransferBookingForm({
   return (
     <div className="mx-auto max-w-4xl space-y-6 px-4 sm:px-6 lg:px-8">
       <div className="space-y-2">
-        <h1 className="text-sidebar text-2xl font-bold sm:text-3xl">
+        <h1 className="text-brand-ink text-2xl font-bold sm:text-3xl">
           Réservation de Transfert
         </h1>
         <p className="text-muted-foreground text-sm sm:text-base">
@@ -238,7 +238,7 @@ export function TransferBookingForm({
         {/* Zones Selection */}
         <Card className="border-sidebar/10 rounded-lg border-2">
           <CardHeader className="bg-sidebar/5 rounded-t-lg">
-            <CardTitle className="text-sidebar flex items-center gap-2">
+            <CardTitle className="text-brand-ink flex items-center gap-2">
               <MapPin className="h-5 w-5" />
               Trajet
             </CardTitle>
@@ -247,7 +247,7 @@ export function TransferBookingForm({
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label
-                  className="text-sidebar text-sm font-medium"
+                  className="text-brand-ink text-sm font-medium"
                   htmlFor="fromZoneId"
                 >
                   Zone de départ
@@ -280,7 +280,7 @@ export function TransferBookingForm({
 
               <div className="space-y-2">
                 <Label
-                  className="text-sidebar text-sm font-medium"
+                  className="text-brand-ink text-sm font-medium"
                   htmlFor="toZoneId"
                 >
                   Zone d&apos;arrivée
@@ -313,7 +313,7 @@ export function TransferBookingForm({
         {/* Vehicle & Date */}
         <Card className="border-sidebar/10 rounded-lg border-2">
           <CardHeader className="bg-sidebar/5 rounded-t-lg">
-            <CardTitle className="text-sidebar flex items-center gap-2">
+            <CardTitle className="text-brand-ink flex items-center gap-2">
               <Car className="h-5 w-5" />
               Véhicule & Horaires
             </CardTitle>
@@ -322,7 +322,7 @@ export function TransferBookingForm({
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label
-                  className="text-sidebar text-sm font-medium"
+                  className="text-brand-ink text-sm font-medium"
                   htmlFor="vehicleType"
                 >
                   Type de véhicule
@@ -355,7 +355,7 @@ export function TransferBookingForm({
 
               <div className="space-y-2">
                 <Label
-                  className="text-sidebar text-sm font-medium"
+                  className="text-brand-ink text-sm font-medium"
                   htmlFor="pax"
                 >
                   Nombre de passagers
@@ -374,7 +374,7 @@ export function TransferBookingForm({
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label
-                  className="text-sidebar text-sm font-medium"
+                  className="text-brand-ink text-sm font-medium"
                   htmlFor="pickupDate"
                 >
                   Date de prise en charge
@@ -393,7 +393,7 @@ export function TransferBookingForm({
 
               <div className="space-y-2">
                 <Label
-                  className="text-sidebar text-sm font-medium"
+                  className="text-brand-ink text-sm font-medium"
                   htmlFor="pickupTime"
                 >
                   Heure de prise en charge
@@ -421,7 +421,7 @@ export function TransferBookingForm({
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label
-                  className="text-sidebar text-sm font-medium"
+                  className="text-brand-ink text-sm font-medium"
                   htmlFor="luggageCount"
                 >
                   Bagages (optionnel)
@@ -439,7 +439,7 @@ export function TransferBookingForm({
 
               <div className="space-y-2">
                 <Label
-                  className="text-sidebar text-sm font-medium"
+                  className="text-brand-ink text-sm font-medium"
                   htmlFor="flightNumber"
                 >
                   Numéro de vol (optionnel)
@@ -458,14 +458,14 @@ export function TransferBookingForm({
         {/* Customer Info */}
         <Card className="border-sidebar/10 rounded-lg border-2">
           <CardHeader className="bg-sidebar/5 rounded-t-lg">
-            <CardTitle className="text-sidebar">
+            <CardTitle className="text-brand-ink">
               Informations du client
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4 pt-6">
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div className="space-y-2">
-                <Label className="text-sidebar text-sm font-medium">
+                <Label className="text-brand-ink text-sm font-medium">
                   Prénom *
                 </Label>
                 <Input
@@ -485,7 +485,7 @@ export function TransferBookingForm({
               </div>
 
               <div className="space-y-2">
-                <Label className="text-sidebar text-sm font-medium">
+                <Label className="text-brand-ink text-sm font-medium">
                   Nom *
                 </Label>
                 <Input
@@ -507,7 +507,7 @@ export function TransferBookingForm({
 
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div className="space-y-2">
-                <Label className="text-sidebar text-sm font-medium">
+                <Label className="text-brand-ink text-sm font-medium">
                   Téléphone *
                 </Label>
                 <Input
@@ -527,7 +527,7 @@ export function TransferBookingForm({
               </div>
 
               <div className="space-y-2">
-                <Label className="text-sidebar text-sm font-medium">
+                <Label className="text-brand-ink text-sm font-medium">
                   Email
                 </Label>
                 <Input
@@ -540,7 +540,7 @@ export function TransferBookingForm({
             </div>
 
             <div className="space-y-2">
-              <Label className="text-sidebar text-sm font-medium">
+              <Label className="text-brand-ink text-sm font-medium">
                 CIN (optionnel)
               </Label>
               <Input
@@ -563,7 +563,7 @@ export function TransferBookingForm({
         {pricing && (
           <Card className="border-sidebar/10 bg-sidebar/5 rounded-lg border-2">
             <CardHeader className="bg-sidebar/10 rounded-t-lg">
-              <CardTitle className="text-sidebar flex items-center gap-2">
+              <CardTitle className="text-brand-ink flex items-center gap-2">
                 <CreditCard className="h-5 w-5" />
                 Devis
               </CardTitle>
@@ -571,7 +571,7 @@ export function TransferBookingForm({
             <CardContent className="space-y-4 pt-6">
               <div className="flex items-center justify-between">
                 <span className="text-sm sm:text-base">Prix de base</span>
-                <span className="text-sidebar font-semibold">
+                <span className="text-brand-ink font-semibold">
                   {pricing.basePriceTnd.toFixed(3)} DT
                 </span>
               </div>
@@ -597,7 +597,7 @@ export function TransferBookingForm({
               )}
               <Separator className="bg-sidebar/20" />
               <div className="flex items-center justify-between text-lg sm:text-xl">
-                <span className="text-sidebar font-semibold">Total TTC</span>
+                <span className="text-brand-ink font-semibold">Total TTC</span>
                 <span className="text-accent font-bold">
                   {pricing.totalTnd.toFixed(3)} DT
                 </span>

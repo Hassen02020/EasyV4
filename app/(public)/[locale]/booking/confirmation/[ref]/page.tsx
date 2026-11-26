@@ -207,7 +207,7 @@ export default async function ConfirmationPage({
               )}
               {row.status === "pending" && pl?.paymentMethod === "cash" && (
                 <div className="border-warning/25 bg-warning/5 rounded-lg border p-4 text-sm">
-                  <p className="text-warning-foreground flex items-center gap-2 font-medium">
+                  <p className="text-warning flex items-center gap-2 font-medium">
                     <Banknote className="h-4 w-4 shrink-0" />
                     {t("paymentCashTitle")}
                   </p>

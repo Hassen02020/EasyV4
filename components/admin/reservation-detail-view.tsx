@@ -51,11 +51,11 @@ const PAYMENT_STATE_LABEL: Record<
   },
   PARTIALLY_PAID: {
     label: "Partiellement payé",
-    className: "border-warning/40 bg-warning/15 text-warning-foreground",
+    className: "border-warning/40 bg-warning/15 text-warning",
   },
   FULLY_PAID: {
     label: "Payé intégralement",
-    className: "border-success/40 bg-success/15 text-success-foreground",
+    className: "border-success/40 bg-success/15 text-success",
   },
 }
 

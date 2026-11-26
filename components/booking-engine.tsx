@@ -153,7 +153,7 @@ function TabPills({
             className={cn(
               "flex shrink-0 items-center gap-2 rounded-full px-4 py-2.5 text-sm font-semibold whitespace-nowrap transition-all duration-200",
               isActive
-                ? "from-primary to-accent shadow-primary/25 bg-gradient-to-r text-white shadow-lg"
+                ? "bg-primary text-primary-foreground shadow-md"
                 : "text-muted-foreground hover:bg-muted hover:text-foreground",
             )}
           >
@@ -279,7 +279,7 @@ export function BookingEngine({
                 type="button"
                 className="shadow-e2b-elevated flex w-full items-center gap-3 rounded-2xl border border-white/40 bg-white/95 px-4 py-3.5 text-left backdrop-blur-xl transition-transform active:scale-[0.99]"
               >
-                <span className="from-primary to-accent flex size-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br text-white shadow-md">
+                <span className="bg-primary text-primary-foreground flex size-11 shrink-0 items-center justify-center rounded-xl shadow-md">
                   <ActiveIcon className="size-5" />
                 </span>
 
@@ -421,7 +421,7 @@ function SearchSubmit({ children }: { children?: React.ReactNode }) {
     <Button
       type="submit"
       size="lg"
-      className="from-primary to-accent hover:shadow-primary/30 w-full gap-2 rounded-2xl bg-gradient-to-r px-8 text-base font-semibold text-white uppercase shadow-lg transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xl active:translate-y-0 sm:w-auto"
+      className="h-12 w-full gap-2 rounded-xl px-8 text-base font-semibold shadow-md sm:w-auto"
     >
       <Search className="size-4" />
       {children ?? t("rechercher")}

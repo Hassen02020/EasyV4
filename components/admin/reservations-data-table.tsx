@@ -38,6 +38,7 @@ import {
 import { toast } from "sonner"
 
 import { Badge } from "@/components/ui/badge"
+import { StatusBadge, type StatusTone } from "@/components/ui/status-badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import {
@@ -84,46 +85,38 @@ const MODULE_LABEL: Record<string, { label: string; icon: typeof Building2 }> =
 
 const STATUS_LABEL: Record<
   string,
-  { label: string; className: string; icon: typeof CheckCircle }
+  { label: string; icon: typeof CheckCircle }
 > = {
   pending: {
     label: "En attente",
-    className: "border-warning/40 bg-warning/15 text-warning-foreground",
     icon: Clock,
   },
   on_request: {
     label: "Sur demande",
-    className: "border-info/40 bg-info/15 text-info",
     icon: Clock,
   },
   confirmed: {
     label: "Confirmée",
-    className: "border-success/40 bg-success/15 text-success",
     icon: CheckCircle,
   },
   cancelled: {
     label: "Annulée",
-    className: "border-destructive/40 bg-destructive/10 text-destructive",
     icon: XCircle,
   },
   no_show: {
     label: "No-show",
-    className: "border-muted-foreground/30 bg-muted text-muted-foreground",
     icon: XCircle,
   },
   completed: {
     label: "Terminée",
-    className: "border-success/30 bg-success/10 text-success",
     icon: CheckCircle,
   },
   refunded: {
     label: "Remboursée",
-    className: "border-sidebar/30 bg-sidebar/10 text-sidebar",
     icon: XCircle,
   },
   expired: {
     label: "Expirée",
-    className: "border-destructive/40 bg-destructive/10 text-destructive",
     icon: XCircle,
   },
 }
@@ -187,18 +180,24 @@ function ModuleBadge({ module }: { module: string }) {
   )
 }
 
-function StatusBadge({ status }: { status: string }) {
-  const meta = STATUS_LABEL[status] ?? {
-    label: status,
-    className: "border-slate-300 bg-slate-100 text-slate-900",
-    icon: Clock,
-  }
-  const Icon = meta.icon
+const STATUS_TONE: Record<string, StatusTone> = {
+  pending: "warning",
+  on_request: "info",
+  confirmed: "success",
+  cancelled: "danger",
+  no_show: "neutral",
+  completed: "success",
+  refunded: "info",
+  expired: "danger",
+}
+
+/** Affichage seulement (UI-LOT1B) : libellés, icônes et statuts inchangés. */
+function ReservationStatusBadge({ status }: { status: string }) {
+  const meta = STATUS_LABEL[status] ?? { label: status, icon: Clock }
   return (
-    <Badge variant="outline" className={`gap-1 font-medium ${meta.className}`}>
-      <Icon className="size-3" />
+    <StatusBadge tone={STATUS_TONE[status] ?? "neutral"} icon={meta.icon}>
       {meta.label}
-    </Badge>
+    </StatusBadge>
   )
 }
 
@@ -561,7 +560,7 @@ export function ReservationsDataTable({
                     {formatDate(row.createdAt)}
                   </TableCell>
                   <TableCell>
-                    <StatusBadge status={row.status} />
+                    <ReservationStatusBadge status={row.status} />
                   </TableCell>
                   <TableCell className="text-right">
                     <Select

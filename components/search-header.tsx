@@ -80,9 +80,9 @@ export function SearchHeader({ city, dateRange, paxLabel }: SearchHeaderProps) {
           >
             <Easy2BookLogo className="size-10" />
             <span className="hidden text-xl font-bold sm:block">
-              <span className="text-sidebar">Easy</span>
+              <span className="text-brand-ink">Easy</span>
               <span className="text-accent">2</span>
-              <span className="text-sidebar">Book</span>
+              <span className="text-brand-ink">Book</span>
             </span>
           </Link>
 

@@ -280,7 +280,7 @@ export function OmraBookingForm() {
   return (
     <div className="mx-auto max-w-6xl space-y-6 px-4 sm:px-6 lg:px-8">
       <div className="space-y-2">
-        <h1 className="text-sidebar text-2xl font-bold sm:text-3xl">
+        <h1 className="text-brand-ink text-2xl font-bold sm:text-3xl">
           Réservation Omra de Groupe
         </h1>
         <p className="text-muted-foreground text-sm sm:text-base">
@@ -299,7 +299,7 @@ export function OmraBookingForm() {
         {/* Package Selection */}
         <Card className="border-sidebar/10 rounded-lg border-2">
           <CardHeader className="bg-sidebar/5 rounded-t-lg">
-            <CardTitle className="text-sidebar flex items-center gap-2">
+            <CardTitle className="text-brand-ink flex items-center gap-2">
               <MapPin className="h-5 w-5" />
               Sélection du Package
             </CardTitle>
@@ -368,10 +368,10 @@ export function OmraBookingForm() {
 
             {selectedPackage && (
               <div className="bg-sidebar/5 border-sidebar/20 rounded-lg border p-4 text-sm">
-                <p className="text-sidebar font-semibold">
+                <p className="text-brand-ink font-semibold">
                   Durée : {selectedPackage.durationDays} jours
                 </p>
-                <p className="text-sidebar font-semibold">
+                <p className="text-brand-ink font-semibold">
                   Prix de base : {selectedPackage.basePrice} DT/pèlerin
                 </p>
                 {selectedAllotment && (
@@ -393,7 +393,7 @@ export function OmraBookingForm() {
         {/* Pilgrims List */}
         <Card className="border-sidebar/10 rounded-lg border-2">
           <CardHeader className="bg-sidebar/5 rounded-t-lg">
-            <CardTitle className="text-sidebar flex items-center justify-between">
+            <CardTitle className="text-brand-ink flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <User className="h-5 w-5" />
                 <span className="text-lg sm:text-xl">
@@ -441,7 +441,7 @@ export function OmraBookingForm() {
                 className="border-sidebar/10 bg-card relative space-y-4 rounded-lg border-2 p-4 sm:p-6"
               >
                 <div className="mb-4 flex items-center justify-between">
-                  <h3 className="text-sidebar text-lg font-semibold">
+                  <h3 className="text-brand-ink text-lg font-semibold">
                     Pèlerin #{index + 1}
                   </h3>
                   {fields.length > 1 && (
@@ -459,7 +459,7 @@ export function OmraBookingForm() {
 
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
                   <div className="space-y-2">
-                    <Label className="text-sidebar text-sm font-medium">
+                    <Label className="text-brand-ink text-sm font-medium">
                       Prénom *
                     </Label>
                     <Input
@@ -482,7 +482,7 @@ export function OmraBookingForm() {
                   </div>
 
                   <div className="space-y-2">
-                    <Label className="text-sidebar text-sm font-medium">
+                    <Label className="text-brand-ink text-sm font-medium">
                       Nom *
                     </Label>
                     <Input
@@ -505,7 +505,7 @@ export function OmraBookingForm() {
                   </div>
 
                   <div className="space-y-2">
-                    <Label className="text-sidebar text-sm font-medium">
+                    <Label className="text-brand-ink text-sm font-medium">
                       Date de naissance *
                     </Label>
                     <Input
@@ -532,7 +532,7 @@ export function OmraBookingForm() {
 
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
                   <div className="space-y-2">
-                    <Label className="text-sidebar text-sm font-medium">
+                    <Label className="text-brand-ink text-sm font-medium">
                       Nationalité *
                     </Label>
                     <Input
@@ -556,7 +556,7 @@ export function OmraBookingForm() {
                   </div>
 
                   <div className="space-y-2">
-                    <Label className="text-sidebar text-sm font-medium">
+                    <Label className="text-brand-ink text-sm font-medium">
                       Genre *
                     </Label>
                     <Select
@@ -579,7 +579,7 @@ export function OmraBookingForm() {
                   </div>
 
                   <div className="space-y-2">
-                    <Label className="text-sidebar text-sm font-medium">
+                    <Label className="text-brand-ink text-sm font-medium">
                       Situation matrimoniale *
                     </Label>
                     <Select
@@ -608,7 +608,7 @@ export function OmraBookingForm() {
 
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                   <div className="space-y-2">
-                    <Label className="text-sidebar text-sm font-medium">
+                    <Label className="text-brand-ink text-sm font-medium">
                       Téléphone *
                     </Label>
                     <Input
@@ -628,7 +628,7 @@ export function OmraBookingForm() {
                   </div>
 
                   <div className="space-y-2">
-                    <Label className="text-sidebar text-sm font-medium">
+                    <Label className="text-brand-ink text-sm font-medium">
                       Email
                     </Label>
                     <Input
@@ -652,7 +652,7 @@ export function OmraBookingForm() {
                 <Separator />
 
                 <div className="space-y-2">
-                  <Label className="text-sidebar text-sm font-medium">
+                  <Label className="text-brand-ink text-sm font-medium">
                     Adresse
                   </Label>
                   <Input
@@ -664,7 +664,7 @@ export function OmraBookingForm() {
 
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
                   <div className="space-y-2">
-                    <Label className="text-sidebar text-sm font-medium">
+                    <Label className="text-brand-ink text-sm font-medium">
                       Ville
                     </Label>
                     <Input
@@ -675,7 +675,7 @@ export function OmraBookingForm() {
                   </div>
 
                   <div className="space-y-2">
-                    <Label className="text-sidebar text-sm font-medium">
+                    <Label className="text-brand-ink text-sm font-medium">
                       Code postal
                     </Label>
                     <Input
@@ -686,7 +686,7 @@ export function OmraBookingForm() {
                   </div>
 
                   <div className="space-y-2">
-                    <Label className="text-sidebar text-sm font-medium">
+                    <Label className="text-brand-ink text-sm font-medium">
                       Pays de résidence *
                     </Label>
                     <Input
@@ -713,12 +713,12 @@ export function OmraBookingForm() {
                 <Separator />
 
                 <div className="space-y-2">
-                  <Label className="text-sidebar font-semibold">
+                  <Label className="text-brand-ink font-semibold">
                     Passeport
                   </Label>
                   <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                     <div className="space-y-2">
-                      <Label className="text-sidebar text-sm font-medium">
+                      <Label className="text-brand-ink text-sm font-medium">
                         Numéro de passeport *
                       </Label>
                       <Input
@@ -743,7 +743,7 @@ export function OmraBookingForm() {
                     </div>
 
                     <div className="space-y-2">
-                      <Label className="text-sidebar text-sm font-medium">
+                      <Label className="text-brand-ink text-sm font-medium">
                         Pays émetteur *
                       </Label>
                       <Input
@@ -771,7 +771,7 @@ export function OmraBookingForm() {
                     </div>
 
                     <div className="space-y-2">
-                      <Label className="text-sidebar text-sm font-medium">
+                      <Label className="text-brand-ink text-sm font-medium">
                         Date d&apos;émission *
                       </Label>
                       <Input
@@ -798,7 +798,7 @@ export function OmraBookingForm() {
                     </div>
 
                     <div className="space-y-2">
-                      <Label className="text-sidebar text-sm font-medium">
+                      <Label className="text-brand-ink text-sm font-medium">
                         Date d&apos;expiration *
                       </Label>
                       <Input
@@ -829,7 +829,7 @@ export function OmraBookingForm() {
                 <Separator />
 
                 <div className="space-y-2">
-                  <Label className="text-sidebar text-sm font-medium">
+                  <Label className="text-brand-ink text-sm font-medium">
                     Type de chambre
                   </Label>
                   <Select
@@ -861,7 +861,7 @@ export function OmraBookingForm() {
         {/* Summary */}
         <Card className="border-sidebar/10 bg-sidebar/5 rounded-lg border-2">
           <CardHeader className="bg-sidebar/10 rounded-t-lg">
-            <CardTitle className="text-sidebar flex items-center gap-2">
+            <CardTitle className="text-brand-ink flex items-center gap-2">
               <CreditCard className="h-5 w-5" />
               Récapitulatif
             </CardTitle>
@@ -878,13 +878,13 @@ export function OmraBookingForm() {
             </div>
             <div className="flex items-center justify-between">
               <span className="text-sm sm:text-base">Prix par pèlerin</span>
-              <span className="text-sidebar font-semibold">
+              <span className="text-brand-ink font-semibold">
                 {pricePerPilgrim.toFixed(3)} DT
               </span>
             </div>
             <Separator className="bg-sidebar/20" />
             <div className="flex items-center justify-between text-lg sm:text-xl">
-              <span className="text-sidebar font-semibold">Total TTC</span>
+              <span className="text-brand-ink font-semibold">Total TTC</span>
               <span className="text-accent font-bold">
                 {totalPrice.toFixed(3)} DT
               </span>

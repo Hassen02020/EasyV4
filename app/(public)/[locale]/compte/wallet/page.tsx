@@ -142,9 +142,9 @@ export default async function WalletPage({ searchParams }: Props) {
               priority
             />
             <span className="text-base font-bold">
-              <span className="text-sidebar">Easy</span>
+              <span className="text-brand-ink">Easy</span>
               <span className="text-accent">2</span>
-              <span className="text-sidebar">Book</span>
+              <span className="text-brand-ink">Book</span>
             </span>
           </Link>
           <Link

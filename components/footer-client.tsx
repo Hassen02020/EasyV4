@@ -139,7 +139,7 @@ export function FooterClient({
             return (
               <div key={index} className="flex items-center gap-3">
                 <div className="bg-sidebar/10 flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full">
-                  <Icon className="text-sidebar size-5" />
+                  <Icon className="text-brand-ink size-5" />
                 </div>
                 <div>
                   <p className="text-foreground text-sm font-semibold">

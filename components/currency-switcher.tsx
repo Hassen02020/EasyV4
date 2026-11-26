@@ -36,9 +36,9 @@ export function CurrencySwitcher({
         className="text-foreground hover:bg-muted flex w-full items-center gap-3 rounded-lg px-4 py-3 text-sm font-medium transition-colors"
         aria-label={t("changeCurrencyFromTo", { from: currency, to: next })}
       >
-        <Wallet className="text-sidebar size-5" aria-hidden="true" />
+        <Wallet className="text-brand-ink size-5" aria-hidden="true" />
         <span className="flex-1 text-start">{t("currency")}</span>
-        <span className="text-sidebar font-semibold">{currency}</span>
+        <span className="text-brand-ink font-semibold">{currency}</span>
       </button>
     )
   }
@@ -49,12 +49,12 @@ export function CurrencySwitcher({
         <Button
           variant="ghost"
           size="sm"
-          className="hover:bg-sidebar/10 gap-1.5 text-sm font-medium"
+          className="hover:bg-primary-soft gap-1.5 text-sm font-medium"
           aria-label={t("changeCurrency")}
         >
-          <Wallet className="text-sidebar size-4" aria-hidden="true" />
+          <Wallet className="text-brand-ink size-4" aria-hidden="true" />
           <span className="hidden sm:inline">{t("currency")}</span>
-          <span className="text-sidebar font-semibold">{currency}</span>
+          <span className="text-brand-ink font-semibold">{currency}</span>
           <ChevronDown className="size-3 opacity-50" aria-hidden="true" />
         </Button>
       </DropdownMenuTrigger>
@@ -75,7 +75,7 @@ export function CurrencySwitcher({
                 </span>
               </span>
               {c === currency && (
-                <Check className="text-sidebar size-3.5" aria-hidden="true" />
+                <Check className="text-brand-ink size-3.5" aria-hidden="true" />
               )}
             </DropdownMenuItem>
           )

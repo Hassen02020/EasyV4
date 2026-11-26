@@ -4,12 +4,17 @@
 @custom-variant dark (&:is(.dark *));
 
 /*
- * Palette Easy2Book — Centrale de Réservation
+ * Palette Easy2Book — Centrale de Réservation (UI-LOT1A, 2026-11-26)
  *
- *  Inspirée de l'identité tunisienne méditerranéenne :
- *   - Rouge corail tunisien (#D62828)        → actions primaires, badges critiques
- *   - Bleu Méditerranée profond (#1D3557)    → navigation, sidebar, headers
- *   - Or désert / Jasmin (#F4A261, #FAF9F6)  → highlights, fonds chauds
+ *  Identité : bleu de marque #003878, fond jasmin, or décoratif.
+ *   - Bleu Easy2Book (#003878)               → actions primaires, liens, focus
+ *   - Bleu profond (#002A5C)                 → sidebar / navigation back-office
+ *   - Rouge (#B91C1C) = erreur / destructif UNIQUEMENT (plus d'action corail)
+ *   - Or désert (#F4A261) = décoratif (icônes, filets), jamais fond de texte
+ *   - Jasmin (#FAF9F6)                       → fonds chauds
+ *  Contrastes (WCAG 2.x) : blanc sur #003878 = 11,43:1 ; #047857 = 5,48:1 ;
+ *  #B45309 = 5,02:1 ; #B91C1C = 6,47:1 sur blanc.
+ *  Palette héritée (corail #D62828) : voir l'historique git avant UI-LOT1A.
  *
  *  Le mode light est l'expérience par défaut côté Back-Office.
  *  Le mode dark reste disponible (toggle thème) avec une palette nuit
@@ -25,9 +30,17 @@
   --popover: oklch(1 0 0);
   --popover-foreground: oklch(0.22 0.05 250);
 
-  /* Actions primaires : Corail Tunisia (#D62828) */
-  --primary: oklch(0.55 0.21 25);
-  --primary-foreground: oklch(1 0 0);
+  /* Actions primaires : bleu Easy2Book #003878.
+     Surchargé par la couleur d'agence (White Label) via brandColorVars(). */
+  --primary: #003878;
+  --primary-foreground: #ffffff;
+  /* Dérivés : suivent la couleur d'agence (White Label) automatiquement.
+     Sur #003878 : hover ≈ #002a5c, pressed ≈ #00234f, soft ≈ #e8eff8. */
+  --primary-hover: color-mix(in oklab, var(--primary) 78%, black);
+  --primary-pressed: color-mix(in oklab, var(--primary) 62%, black);
+  --primary-soft: color-mix(in oklab, var(--primary) 10%, white);
+  /* Encre de marque pour texte/icônes du header public (clair : bleu profond). */
+  --brand-ink: #002a5c;
 
   /* Secondary : surfaces secondaires douces */
   --secondary: oklch(0.96 0.015 85);
@@ -35,50 +48,52 @@
 
   /* Muted : bordures, séparateurs, texte secondaire */
   --muted: oklch(0.95 0.012 85);
-  --muted-foreground: oklch(0.48 0.03 250);
+  --muted-foreground: #6b7280;
 
   /* Accent : Or désert / Jasmine (#F4A261) */
   --accent: oklch(0.78 0.13 60);
   --accent-foreground: oklch(0.22 0.05 250);
 
   /* Destructive : rouge plus profond que le primary */
-  --destructive: oklch(0.5 0.22 27);
-  --destructive-foreground: oklch(1 0 0);
+  --destructive: #b91c1c;
+  --destructive-foreground: #ffffff;
 
   /* États sémantiques — badges de statut (réservation/rôle/compte).
      Ajoutés pour remplacer les couleurs Tailwind ad hoc (bg-emerald-100,
      bg-amber-100, bg-blue-100, etc.) dispersées dans les pages Admin/Pro. */
-  --success: oklch(0.6 0.15 155);
-  --success-foreground: oklch(1 0 0);
-  --warning: oklch(0.78 0.15 75);
-  --warning-foreground: oklch(0.22 0.05 250);
-  --info: oklch(0.58 0.16 250);
-  --info-foreground: oklch(1 0 0);
+  --success: #047857;
+  --success-foreground: #ffffff;
+  --warning: #b45309;
+  --warning-foreground: #ffffff;
+  --info: #0b5cad;
+  --info-foreground: #ffffff;
 
   /* Bords, inputs */
   --border: oklch(0.91 0.01 85);
   --input: oklch(0.95 0.008 85);
-  --ring: oklch(0.55 0.21 25); /* Focus ring corail */
+  --ring: var(
+    --primary
+  ); /* Focus ring = couleur d'action (suit le White Label) */
 
   /* Charts (en harmonie avec la palette) */
-  --chart-1: oklch(0.55 0.21 25); /* corail */
+  --chart-1: #003878; /* bleu Easy2Book */
   --chart-2: oklch(0.3 0.08 250); /* méditerranée */
   --chart-3: oklch(0.78 0.13 60); /* or */
   --chart-4: oklch(0.45 0.12 250); /* bleu intermédiaire */
-  --chart-5: oklch(0.65 0.16 35); /* corail clair */
+  --chart-5: oklch(0.65 0.16 35); /* terre cuite (série graphique) */
 
   /* Rayon par défaut : plus arrondi (1rem) → cards/buttons modernes */
   --radius: 1rem;
 
   /* Sidebar Back-Office : bleu Méditerranée plein
      (ne change pas en mode dark — c'est l'identité fixe de la sidebar) */
-  --sidebar: oklch(0.3 0.08 250); /* Bleu Méditerranée (#1D3557) */
+  --sidebar: #002a5c; /* Bleu profond Easy2Book */
   --sidebar-foreground: oklch(0.985 0 0);
   --sidebar-primary: oklch(0.78 0.13 60); /* Or sur fond bleu */
   --sidebar-primary-foreground: oklch(0.22 0.05 250);
-  --sidebar-accent: oklch(0.36 0.08 250); /* Hover slightly lighter */
+  --sidebar-accent: #0a3f82; /* Hover légèrement plus clair */
   --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(0.36 0.08 250);
+  --sidebar-border: #0a3f82;
   --sidebar-ring: oklch(0.78 0.13 60);
 }
 
@@ -91,8 +106,13 @@
   --popover: oklch(0.22 0.04 250);
   --popover-foreground: oklch(0.97 0.005 85);
 
-  --primary: oklch(0.65 0.19 25); /* Corail plus clair pour contraste */
-  --primary-foreground: oklch(0.18 0.04 250);
+  /* Bleu clair lisible sur fond nuit (texte sombre dessus) */
+  --primary: #6aa5f0;
+  --primary-foreground: #0b1b33;
+  --primary-hover: color-mix(in oklab, var(--primary) 85%, white);
+  --primary-pressed: color-mix(in oklab, var(--primary) 70%, white);
+  --primary-soft: color-mix(in oklab, var(--primary) 18%, #0b1b33);
+  --brand-ink: #9cc2f5; /* lisible sur fond nuit */
 
   --secondary: oklch(0.28 0.04 250);
   --secondary-foreground: oklch(0.97 0.005 85);
@@ -103,8 +123,8 @@
   --accent: oklch(0.78 0.13 60); /* Or constant */
   --accent-foreground: oklch(0.18 0.04 250);
 
-  --destructive: oklch(0.6 0.22 27);
-  --destructive-foreground: oklch(0.97 0.005 85);
+  --destructive: #ef6b6b;
+  --destructive-foreground: #0b1b33;
 
   --success: oklch(0.68 0.16 155);
   --success-foreground: oklch(0.18 0.04 250);
@@ -115,9 +135,9 @@
 
   --border: oklch(0.3 0.04 250);
   --input: oklch(0.28 0.04 250);
-  --ring: oklch(0.65 0.19 25);
+  --ring: var(--primary);
 
-  --chart-1: oklch(0.65 0.19 25);
+  --chart-1: #6aa5f0;
   --chart-2: oklch(0.6 0.12 250);
   --chart-3: oklch(0.78 0.13 60);
   --chart-4: oklch(0.5 0.14 250);
@@ -135,6 +155,8 @@
 
 @theme inline {
   --font-sans: var(--font-geist-sans), "Geist", system-ui, sans-serif;
+  --font-arabic:
+    var(--font-arabic), "Noto Sans Arabic", "Segoe UI", Tahoma, sans-serif;
   --font-mono: var(--font-geist-mono), "Geist Mono", ui-monospace, monospace;
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -144,6 +166,10 @@
   --color-popover-foreground: var(--popover-foreground);
   --color-primary: var(--primary);
   --color-primary-foreground: var(--primary-foreground);
+  --color-primary-hover: var(--primary-hover);
+  --color-primary-pressed: var(--primary-pressed);
+  --color-primary-soft: var(--primary-soft);
+  --color-brand-ink: var(--brand-ink);
   --color-secondary: var(--secondary);
   --color-secondary-foreground: var(--secondary-foreground);
   --color-muted: var(--muted);
@@ -187,6 +213,12 @@
   }
   body {
     @apply bg-background text-foreground;
+  }
+  /* UI-LOT1A : arabe → police arabe en tête (latin/chiffres retombent sur Geist). */
+  :lang(ar) body,
+  body:lang(ar) {
+    font-family:
+      var(--font-arabic), var(--font-geist-sans), "Geist", system-ui, sans-serif;
   }
 }
 

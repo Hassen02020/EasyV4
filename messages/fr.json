@@ -361,6 +361,7 @@
     "pricePerPilgrim": "Prix par pèlerin",
     "totalTtc": "Total TTC",
     "confirmAndPay": "Confirmer & payer",
+    "demoBookingUnavailable": "Ces offres sont des offres de démonstration. La réservation en ligne est temporairement indisponible. Contactez notre agence pour obtenir une offre confirmée.",
     "processing": "Traitement en cours…",
     "mustAcceptCgv": "Vous devez accepter les conditions générales de vente.",
     "mustAcceptPolicy": "Vous devez accepter la politique d'annulation.",

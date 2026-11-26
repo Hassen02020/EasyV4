@@ -28,14 +28,14 @@ test.describe("M10 — blocage serveur des réservations Hôtels Monde démo", (
     await page
       .getByLabel("Email *", { exact: true })
       .fill("m10-demo-block@example.com")
-    await page.getByLabel("Téléphone *", { exact: true }).fill("+216 98 140 514")
+    await page
+      .getByLabel("Téléphone *", { exact: true })
+      .fill("+216 98 140 514")
     await page.getByText("Espèces en agence").click()
     await page
       .getByLabel(/J'accepte les conditions générales de vente d'Easy2Book/)
       .check()
-    await page
-      .getByLabel(/j'accepte la politique d'annulation/i)
-      .check()
+    await page.getByLabel(/j'accepte la politique d'annulation/i).check()
 
     await page.getByRole("button", { name: /Confirmer & payer/i }).click()
 

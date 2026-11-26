@@ -16,7 +16,9 @@ test("Hôtels Monde : l'action serveur appelle le garde-fou avant DATABASE_URL, 
     new URL("../lib/hotels-monde/guest-booking-actions.ts", import.meta.url),
     "utf8",
   )
-  const fn = src.slice(src.indexOf("export async function createGuestWorldHotelBooking"))
+  const fn = src.slice(
+    src.indexOf("export async function createGuestWorldHotelBooking"),
+  )
   const guard = fn.indexOf("getWorldHotelBookingBlock()")
   assert.ok(guard > 0)
   for (const marker of [

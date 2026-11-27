@@ -237,10 +237,10 @@ export function CartView() {
   return (
     <div className="space-y-6">
       {confirmed.length > 0 ? (
-        <Card className="border-emerald-200 bg-emerald-50">
+        <Card className="border-success/30 bg-success/10">
           <CardContent className="space-y-2 py-4">
-            <p className="flex items-center gap-2 text-sm font-semibold text-emerald-800">
-              <CheckCircle2 className="size-4" />
+            <p className="text-foreground flex items-center gap-2 text-sm font-semibold">
+              <CheckCircle2 className="text-success size-4" />
               {t("confirmedReservationsTitle")}
             </p>
             <ul className="space-y-1">

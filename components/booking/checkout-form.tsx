@@ -289,15 +289,15 @@ export function CheckoutForm({
               className={
                 "space-y-3 rounded-lg border p-4 " +
                 (hotelCancellation.hasFreeCancellation
-                  ? "border-emerald-200"
-                  : "border-amber-200")
+                  ? "border-success/30"
+                  : "border-warning/30")
               }
             >
               <div className="flex items-center gap-2">
                 {hotelCancellation.hasFreeCancellation ? (
-                  <ShieldCheck className="size-5 shrink-0 text-emerald-600" />
+                  <ShieldCheck className="text-success size-5 shrink-0" />
                 ) : (
-                  <ShieldX className="size-5 shrink-0 text-amber-600" />
+                  <ShieldX className="text-warning size-5 shrink-0" />
                 )}
                 <p className="text-sm font-semibold">{t("policyTitle")}</p>
               </div>
@@ -305,8 +305,8 @@ export function CheckoutForm({
                 className={
                   "text-sm " +
                   (hotelCancellation.hasFreeCancellation
-                    ? "text-emerald-700 dark:text-emerald-400"
-                    : "text-amber-700 dark:text-amber-400")
+                    ? "text-success"
+                    : "text-warning")
                 }
               >
                 {hotelCancellation.hasFreeCancellation
@@ -380,7 +380,7 @@ export function CheckoutForm({
           ) : null}
 
           <div className="text-muted-foreground flex items-center gap-2 text-xs">
-            <ShieldCheck className="size-4 text-emerald-600" />
+            <ShieldCheck className="text-success size-4" />
             {t("securePaymentNotice")}
           </div>
 

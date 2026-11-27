@@ -1393,9 +1393,16 @@
   "ModulePlaceholder": {
     "backToHome": "Retour à l'accueil",
     "visaTitle": "Visa",
-    "visaDescription": "Ce module arrive bientôt. Contactez-nous pour toute demande concernant votre visa.",
+    "visaDescription": "La demande de visa en ligne n'est pas encore ouverte.",
     "croisieresTitle": "Bateaux & Croisières",
-    "croisieresDescription": "Ce module arrive bientôt. Contactez-nous pour toute demande concernant une croisière."
+    "croisieresDescription": "La réservation de croisières en ligne n'est pas encore ouverte.",
+    "statusBadge": "Pas encore disponible en ligne",
+    "contactTitle": "Une question ou une demande ?",
+    "contactDescription": "Contactez notre équipe.",
+    "callCta": "Appeler",
+    "whatsappCta": "Écrire sur WhatsApp",
+    "emailCta": "Envoyer un email",
+    "otherServicesTitle": "Services disponibles en ligne"
   },
   "Landing": {
     "kicker": "Easy2Book",

@@ -13,7 +13,7 @@ export function ModuleBackHomeLink({ label }: { label: string }) {
         href="/"
         className="text-brand-ink focus-visible:ring-ring/50 inline-flex items-center gap-1.5 rounded-md text-sm font-medium outline-none hover:underline focus-visible:ring-[3px]"
       >
-        <ArrowLeft className="size-4" aria-hidden="true" />
+        <ArrowLeft className="size-4 rtl:rotate-180" aria-hidden="true" />
         {label}
       </Link>
     </div>

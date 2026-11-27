@@ -41,6 +41,10 @@
   --primary-soft: color-mix(in oklab, var(--primary) 10%, white);
   /* Encre de marque pour texte/icônes du header public (clair : bleu profond). */
   --brand-ink: #002a5c;
+  /* Hero des modules pas encore disponibles : bleu de marque FIXE (identique
+     en thème clair et sombre — le texte blanc doit rester lisible). */
+  --module-hero-from: #002a5c;
+  --module-hero-to: #003878;
 
   /* Secondary : surfaces secondaires douces */
   --secondary: oklch(0.96 0.015 85);
@@ -186,6 +190,8 @@
   --color-primary-pressed: var(--primary-pressed);
   --color-primary-soft: var(--primary-soft);
   --color-brand-ink: var(--brand-ink);
+  --color-module-hero-from: var(--module-hero-from);
+  --color-module-hero-to: var(--module-hero-to);
   --color-secondary: var(--secondary);
   --color-secondary-foreground: var(--secondary-foreground);
   --color-muted: var(--muted);

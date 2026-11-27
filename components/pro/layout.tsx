@@ -62,6 +62,7 @@ import {
   SidebarTrigger,
 } from "@/components/ui/sidebar"
 import { cn } from "@/lib/utils"
+import { brandColorVars } from "@/lib/theme/brand-color"
 import { canManagePartnerUsers } from "@/lib/auth/partner-permissions"
 
 /* -------------------------------------------------------------------------- */
@@ -395,11 +396,10 @@ export function ProShell({
 
   const agencyLabel = agency.brandName ?? agency.name
 
-  const HEX_COLOR_REGEX = /^#[0-9a-fA-F]{6}$/
-  const validPrimaryColor =
-    agency.primaryColor && HEX_COLOR_REGEX.test(agency.primaryColor)
-      ? agency.primaryColor
-      : null
+  // UI-LOT2B : même règle que le site public (brandColorVars) — `--primary` ET
+  // `--primary-foreground` (texte lisible sur la couleur), validés ; les teintes
+  // dérivées sont redéclarées par `[data-brand-scope]` (globals.css).
+  const brandVars = brandColorVars(agency.primaryColor)
 
   // "Utilisateurs" (gestion des collaborateurs de l'agence) est un droit
   // owner — voir le guard serveur équivalent dans
@@ -413,11 +413,8 @@ export function ProShell({
 
   return (
     <SidebarProvider
-      style={
-        validPrimaryColor
-          ? ({ "--primary": validPrimaryColor } as CSSProperties)
-          : undefined
-      }
+      data-brand-scope={brandVars ? "" : undefined}
+      style={brandVars ? (brandVars as CSSProperties) : undefined}
     >
       {/* ------------------------------------------------------------------ */}
       {/* Sidebar                                                             */}

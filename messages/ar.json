@@ -1393,9 +1393,16 @@
   "ModulePlaceholder": {
     "backToHome": "العودة إلى الصفحة الرئيسية",
     "visaTitle": "التأشيرة",
-    "visaDescription": "هذه الخدمة متوفرة قريبًا. تواصل معنا لأي طلب يخص التأشيرة.",
+    "visaDescription": "طلبات التأشيرة عبر الإنترنت غير متاحة بعد.",
     "croisieresTitle": "الرحلات البحرية",
-    "croisieresDescription": "هذه الخدمة متوفرة قريبًا. تواصل معنا لأي طلب يخص الرحلات البحرية."
+    "croisieresDescription": "حجز الرحلات البحرية عبر الإنترنت غير متاح بعد.",
+    "statusBadge": "غير متاح عبر الإنترنت بعد",
+    "contactTitle": "لديك سؤال أو طلب؟",
+    "contactDescription": "تواصل مع فريقنا.",
+    "callCta": "اتصل",
+    "whatsappCta": "راسلنا عبر واتساب",
+    "emailCta": "أرسل بريدًا إلكترونيًا",
+    "otherServicesTitle": "الخدمات المتاحة عبر الإنترنت"
   },
   "Landing": {
     "kicker": "Easy2Book",

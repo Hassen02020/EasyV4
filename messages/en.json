@@ -1393,9 +1393,16 @@
   "ModulePlaceholder": {
     "backToHome": "Back to home",
     "visaTitle": "Visa",
-    "visaDescription": "This module is coming soon. Contact us for any visa-related request.",
+    "visaDescription": "Online visa requests are not open yet.",
     "croisieresTitle": "Cruises",
-    "croisieresDescription": "This module is coming soon. Contact us for any cruise-related request."
+    "croisieresDescription": "Online cruise booking is not open yet.",
+    "statusBadge": "Not available online yet",
+    "contactTitle": "A question or a request?",
+    "contactDescription": "Contact our team.",
+    "callCta": "Call",
+    "whatsappCta": "Message on WhatsApp",
+    "emailCta": "Send an email",
+    "otherServicesTitle": "Services available online"
   },
   "Landing": {
     "kicker": "Easy2Book",

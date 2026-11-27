@@ -33,8 +33,11 @@ import {
   Star,
   MapPin,
   Users,
+  type LucideIcon,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { StatusBadge } from "@/components/ui/status-badge"
+import { confirmationStatusTone } from "@/lib/booking/confirmation-status-tone"
 import { Separator } from "@/components/ui/separator"
 import { Textarea } from "@/components/ui/textarea"
 import { useTranslations, useLocale } from "next-intl"
@@ -62,62 +65,50 @@ const MODULE_ICONS: Record<string, React.ElementType> = {
 /** Modules gérés par le Policy Engine (annulation via `cancelMyPolicyReservation`) — distinct de l'hôtel (`cancelMyHotelReservation`, politique myGo). */
 const POLICY_ENGINE_MODULES = ["omra", "package", "activity"]
 
-function StatusBadge({ status }: { status: BookingStatus }) {
+function BookingStatusBadge({ status }: { status: BookingStatus }) {
   const t = useTranslations("Common")
   const STATUS_CONFIG: Record<
     BookingStatus,
-    { label: string; color: string; icon: React.ElementType }
+    { label: string; icon: LucideIcon }
   > = {
     pending: {
       label: t("statusPending"),
-      color: "bg-amber-100 text-amber-800 border-amber-200",
       icon: Clock,
     },
     on_request: {
       label: t("statusOnRequest"),
-      color: "bg-blue-100 text-blue-800 border-blue-200",
       icon: RefreshCw,
     },
     confirmed: {
       label: t("statusConfirmed"),
-      color: "bg-emerald-100 text-emerald-800 border-emerald-200",
       icon: CheckCircle2,
     },
     cancelled: {
       label: t("statusCancelled"),
-      color: "bg-red-100 text-red-800 border-red-200",
       icon: XCircle,
     },
     refunded: {
       label: t("statusRefunded"),
-      color: "bg-muted text-muted-foreground border-border",
       icon: RefreshCw,
     },
     no_show: {
       label: t("statusNoShow"),
-      color: "bg-red-100 text-red-700 border-red-200",
       icon: XCircle,
     },
     expired: {
       label: t("statusExpired"),
-      color: "bg-muted text-muted-foreground border-border",
       icon: XCircle,
     },
     completed: {
       label: t("statusCompleted"),
-      color: "bg-emerald-100 text-emerald-800 border-emerald-200",
       icon: CheckCircle2,
     },
   }
   const cfg = STATUS_CONFIG[status]
-  const Icon = cfg.icon
   return (
-    <span
-      className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-sm font-medium ${cfg.color}`}
-    >
-      <Icon className="h-3.5 w-3.5" />
+    <StatusBadge tone={confirmationStatusTone(status)} icon={cfg.icon}>
       {cfg.label}
-    </span>
+    </StatusBadge>
   )
 }
 
@@ -154,7 +145,7 @@ function Timeline({ status }: { status: BookingStatus }) {
               <div
                 className={`flex h-7 w-7 items-center justify-center rounded-full border-2 text-xs font-bold transition-colors ${
                   done
-                    ? "border-emerald-500 bg-emerald-500 text-white"
+                    ? "border-success bg-success text-success-foreground"
                     : active
                       ? "border-sidebar bg-sidebar/10 text-brand-ink"
                       : "border-border bg-card text-muted-foreground"
@@ -167,14 +158,14 @@ function Timeline({ status }: { status: BookingStatus }) {
                 )}
               </div>
               <span
-                className={`text-[10px] font-medium whitespace-nowrap ${done ? "text-emerald-600" : "text-muted-foreground"}`}
+                className={`text-xs font-medium whitespace-nowrap ${done ? "text-success" : "text-muted-foreground"}`}
               >
                 {s.label}
               </span>
             </div>
             {i < TIMELINE_STEPS.length - 1 && (
               <div
-                className={`mb-4 h-0.5 w-12 sm:w-20 ${currentStep > s.step ? "bg-emerald-400" : "bg-gray-200"}`}
+                className={`mb-4 h-0.5 w-12 sm:w-20 ${currentStep > s.step ? "bg-success" : "bg-border"}`}
               />
             )}
           </div>
@@ -340,7 +331,7 @@ export function BookingCard({
             </p>
           </div>
         </div>
-        <StatusBadge status={booking.status} />
+        <BookingStatusBadge status={booking.status} />
       </div>
 
       <div className="space-y-5 p-5">
@@ -423,10 +414,10 @@ export function BookingCard({
                         paymentVoided
                           ? "text-muted-foreground"
                           : booking.payment.status === "captured"
-                            ? "text-emerald-600"
+                            ? "text-success"
                             : booking.payment.status === "refunded"
                               ? "text-muted-foreground"
-                              : "text-amber-600"
+                              : "text-warning"
                       }
                     >
                       {paymentVoided
@@ -694,15 +685,15 @@ export function BookingCard({
             {successMessages.includes("__MONDE_SUPPLIER_PENDING__") ? (
               // Notice honnête Hôtel Monde : réservation annulée dans
               // Easy2Book MAIS demande NON transmise au fournisseur.
-              <div className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
-                <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+              <div className="border-warning/30 bg-warning/10 text-foreground flex items-start gap-2 rounded-lg border p-3 text-sm">
+                <AlertTriangle className="text-warning mt-0.5 h-4 w-4 shrink-0" />
                 <p className="font-medium">
                   {t("cancelMondeSupplierPendingNotice")}
                 </p>
               </div>
             ) : (
-              <div className="flex items-start gap-2 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">
-                <Wallet className="mt-0.5 h-4 w-4 shrink-0" />
+              <div className="border-success/30 bg-success/10 text-foreground flex items-start gap-2 rounded-lg border p-3 text-sm">
+                <Wallet className="text-success mt-0.5 h-4 w-4 shrink-0" />
                 <div className="space-y-0.5">
                   {successMessages.map((m) => (
                     <p key={m} className="font-medium">

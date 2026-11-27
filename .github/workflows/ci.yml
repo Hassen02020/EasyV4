@@ -546,5 +546,6 @@ jobs:
         run: |
           pnpm exec playwright test \
             e2e/b2c-hotel-guest-create-live.spec.ts \
+            e2e/dashboard-operations-hotel-monde-lifecycle.spec.ts \
             --project chromium \
             --config playwright.config.dev.ts

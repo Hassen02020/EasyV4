@@ -697,6 +697,7 @@
     "roomsNightsSummary": "{rooms, plural, one {# room} other {# rooms}} · {nights, plural, one {# night} other {# nights}}",
     "totalTtc": "Total (tax incl.)",
     "confirmAndPay": "Confirm & pay",
+    "demoBookingUnavailable": "These are demonstration offers. Online booking is temporarily unavailable. Please contact our agency for a confirmed offer.",
     "processing": "Processing…",
     "mustAcceptCgv": "You must accept the terms and conditions of sale.",
     "unknownError": "Unknown error",

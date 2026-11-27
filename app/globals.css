@@ -153,6 +153,22 @@
   --sidebar-ring: oklch(0.78 0.13 60);
 }
 
+/* UI-LOT2B — portée White Label (espace agence /pro). Les tokens dérivés de
+   --primary sont résolus là où ils sont déclarés (:root) : poser --primary sur
+   un conteneur ne les met pas à jour. On les redéclare dans la portée, avec
+   les mêmes formules que :root / .dark. */
+[data-brand-scope] {
+  --primary-hover: color-mix(in oklab, var(--primary) 78%, black);
+  --primary-pressed: color-mix(in oklab, var(--primary) 62%, black);
+  --primary-soft: color-mix(in oklab, var(--primary) 10%, white);
+  --ring: var(--primary);
+}
+.dark [data-brand-scope] {
+  --primary-hover: color-mix(in oklab, var(--primary) 85%, white);
+  --primary-pressed: color-mix(in oklab, var(--primary) 70%, white);
+  --primary-soft: color-mix(in oklab, var(--primary) 18%, #0b1b33);
+}
+
 @theme inline {
   --font-sans: var(--font-geist-sans), "Geist", system-ui, sans-serif;
   --font-arabic:

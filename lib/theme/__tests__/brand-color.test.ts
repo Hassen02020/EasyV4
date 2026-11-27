@@ -48,3 +48,33 @@ test("site public Easy2Book : couleur de /admin/brand appliquée sans tenant Whi
   const shell = readFileSync("components/root-shell.tsx", "utf8")
   assert.match(shell, /brandColorVars\(primaryColor\)/)
 })
+
+/** UI-LOT2B — espace agence : même règle que le site public, teintes dérivées incluses. */
+test("espace agence : brandColorVars (texte lisible) et portée des teintes dérivées", () => {
+  const layout = readFileSync("components/pro/layout.tsx", "utf8")
+  assert.match(layout, /brandColorVars\(agency\.primaryColor\)/)
+  assert.match(layout, /data-brand-scope/)
+  // Plus d'injection de --primary seul (texte des boutons non adapté).
+  assert.doesNotMatch(layout, /\{ "--primary": /)
+  const css = readFileSync("app/globals.css", "utf8")
+  for (const t of [
+    "--primary-hover",
+    "--primary-pressed",
+    "--primary-soft",
+    "--ring",
+  ]) {
+    const scoped = css.match(/\[data-brand-scope\]\s*\{[^}]*\}/)
+    assert.ok(
+      scoped && scoped[0].includes(t),
+      `${t} absent de [data-brand-scope]`,
+    )
+  }
+  assert.match(css, /\.dark \[data-brand-scope\]/)
+})
+
+test("couleur d'agence claire : texte de bouton bleu nuit, jamais blanc", () => {
+  const vars = brandColorVars("#ffd60a")
+  assert.ok(vars)
+  assert.equal(vars["--primary-foreground"], ON_BRAND_DARK)
+  assert.ok(contrastRatio("#ffd60a", vars["--primary-foreground"]) >= 4.5)
+})
